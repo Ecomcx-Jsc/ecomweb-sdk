@@ -127,6 +127,39 @@ export interface AdminSlotItem {
   postTypes?: string[];
 }
 
+/** Cài đặt › Trang đăng nhập (chuỗi rỗng = mặc định của core). */
+export interface LoginBranding {
+  layout: "split" | "centered";
+  logo: string;
+  background: string;
+  brandColor: string;
+  headline: string;
+  message: string;
+  siteTitle: string;
+}
+
+/**
+ * Props của slot "login.page" (bundle admin.loginEntry) — thay cả trang đăng nhập trang quản trị.
+ * Giữ form của core: đặt <CoreForm /> trong bố cục riêng, hoặc bọc bằng <Shell branding={branding}>.
+ * Tự vẽ form: dùng auth.* (ô name="extra.*" gửi qua tham số extra). Lỗi khi vẽ → core tự hiện trang mặc định;
+ * /admin/?core-login=1 luôn bỏ qua giao diện đăng nhập của plugin.
+ * Các slot nhỏ hơn (props { branding }): "login.brand" (thay panel thương hiệu), "login.form.before", "login.form.after", "login.footer";
+ * "login.form.fields" (props { form }) thêm ô vào form.
+ */
+export interface LoginPageProps {
+  branding: LoginBranding;
+  canRegister: boolean;
+  CoreForm: ComponentType;
+  Shell: ComponentType<{ branding: LoginBranding; children: ReactNode }>;
+  auth: {
+    /** Tài khoản bật 2 lớp → trả về challenge để gọi verifyTwoFactor. */
+    login(login: string, password: string, remember: boolean, extra?: Record<string, string>): Promise<{ challenge?: string }>;
+    verifyTwoFactor(challenge: string, code: string, remember: boolean): Promise<void>;
+    forgotPassword(login: string, extra?: Record<string, string>): Promise<{ message: string }>;
+    register(input: { userName: string; email: string; displayName?: string; password: string; extra?: Record<string, string> }): Promise<{ message: string }>;
+  };
+}
+
 export interface PostRowAction {
   id: string;
   title: string;
