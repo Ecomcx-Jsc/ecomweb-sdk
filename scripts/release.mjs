@@ -6,7 +6,7 @@
 //
 //   node scripts/release.mjs            → build + đóng gói vào dist-release/
 //   node scripts/release.mjs --check    → như trên + cài thử vào dự án trống, kiểm tra import / .d.ts / "use client"
-// CLI create-cms không cần tarball: chạy thẳng từ repo (npx github:Ecomcx-Jsc/ecomweb-sdk#<tag> …).
+// CLI @ecomcx/create-ecomweb cũng publish lên npm (npx @ecomcx/create-ecomweb …).
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -15,11 +15,11 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..")
 const out = path.join(root, "dist-release");
 const check = process.argv.includes("--check");
 const run = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, stdio: ["ignore", "pipe", "inherit"] }).toString();
-const PACKAGES = ["packages/admin-sdk", "packages/theme-sdk", "packages/create-cms"];
+const PACKAGES = ["packages/admin-sdk", "packages/theme-sdk", "packages/create-ecomweb"];
 // Gói của mình (phụ thuộc GitHub / workspace → phiên bản trên npm khi đóng gói)
 const OWN = new Set(["@ecomcx/ecomweb-theme-sdk", "@ecomcx/ecomweb-admin-sdk", "@ecomcx/ecomweb-content", "@ecomcx/create-ecomweb"]);
 // Tên file đính kèm GitHub Release (giữ như cũ cho các nơi còn cài bằng link)
-const ASSET = { "@ecomcx/ecomweb-theme-sdk": "cms-theme-sdk", "@ecomcx/ecomweb-admin-sdk": "cms-admin-sdk", "@ecomcx/create-ecomweb": "create-cms" };
+const ASSET = { "@ecomcx/ecomweb-theme-sdk": "ecomweb-theme-sdk", "@ecomcx/ecomweb-admin-sdk": "ecomweb-admin-sdk", "@ecomcx/create-ecomweb": "create-ecomweb" };
 
 /** "./api" → "./api.js", "./x" (thư mục) → "./x/index.js": Node ESM và webpack (gói type: module) bắt buộc đuôi đầy đủ. */
 function fixSpecifiers(dir) {
@@ -120,7 +120,7 @@ if (versions.size !== 1) throw new Error(`Các gói phải cùng phiên bản (�
 const version = [...versions][0];
 
 // npm pack đặt tên theo gói npm (ecomcx-ecomweb-theme-sdk-x.y.z.tgz) → tên file đính kèm GitHub Release như cũ
-// + bản không số phiên bản để URL /releases/latest/download/cms-theme-sdk.tgz luôn cố định. npm-publish.json: thứ tự publish.
+// + bản không số phiên bản để URL /releases/latest/download/ecomweb-theme-sdk.tgz luôn cố định. npm-publish.json: thứ tự publish.
 const npmList = [];
 for (const t of tarballs) {
   const asset = path.join(out, `${ASSET[t.name]}-${version}.tgz`);

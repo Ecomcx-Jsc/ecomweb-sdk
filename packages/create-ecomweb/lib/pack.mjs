@@ -63,11 +63,6 @@ export async function buildAdmin(dir, outFile, name = "index") {
       "@ecomcx/ecomweb-admin-sdk": path.join(sdk, "index" + ext),
       // defineBlock (file khối dùng chung admin + website): dùng bản đi kèm CLI — plugin không cần cài gì thêm
       "@ecomcx/ecomweb-content": createRequire(import.meta.url).resolve("@ecomcx/ecomweb-content"),
-      // Tên cũ (plugin viết trước khi SDK lên npm / trước khi đổi tên Ecomweb)
-      "@cms/admin-sdk": path.join(sdk, "index" + ext),
-      "@cms/content": createRequire(import.meta.url).resolve("@ecomcx/ecomweb-content"),
-      "@ecomcx/nexus-admin-sdk": path.join(sdk, "index" + ext),
-      "@ecomcx/nexus-content": createRequire(import.meta.url).resolve("@ecomcx/ecomweb-content"),
     },
     logLevel: "warning",
   });

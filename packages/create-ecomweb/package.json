@@ -1,15 +1,11 @@
 {
   "name": "@ecomcx/create-ecomweb",
-  "version": "1.25.0",
+  "version": "1.26.0",
   "description": "CLI tạo, kiểm tra, đóng gói và triển khai theme/plugin cho Ecomweb",
   "type": "module",
   "bin": {
-    "create-ecomweb": "bin/cms.mjs",
-    "ecomweb": "bin/cms.mjs",
-    "create-nexus": "bin/cms.mjs",
-    "nexus": "bin/cms.mjs",
-    "create-cms": "bin/cms.mjs",
-    "cms": "bin/cms.mjs"
+    "create-ecomweb": "bin/ecomweb.mjs",
+    "ecomweb": "bin/ecomweb.mjs"
   },
   "files": [
     "bin",

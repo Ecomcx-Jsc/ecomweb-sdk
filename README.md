@@ -1,81 +1,61 @@
 # Ecomweb SDK
 
-Bộ công cụ phát triển Theme và Plugin chuẩn cho hệ sinh thái **Ecomweb**.
+Bộ công cụ viết theme và plugin cho **Ecomweb**.
 
-## Cấu trúc Packages
+| Gói npm | Dùng cho |
+|---|---|
+| `@ecomcx/ecomweb-theme-sdk` | Theme và phần website của plugin (Next.js Server Components) |
+| `@ecomcx/ecomweb-admin-sdk` | Giao diện trang quản trị của plugin (React) |
+| `@ecomcx/create-ecomweb` | CLI: tạo khung, kiểm tra, chạy thử, đóng gói theme / plugin |
+
+Định dạng nội dung dùng chung nằm ở repo riêng `@ecomcx/ecomweb-content`.
 
 ```
 sdk/
-├── package.json               # Root monorepo (định nghĩa npx CLI entrypoint)
 ├── packages/
-│   ├── create-cms/            # CLI tạo khung, kiểm tra, đóng gói theme & plugin
-│   ├── admin-sdk/             # React SDK cho giao diện quản trị Admin của plugin
-│   └── theme-sdk/             # Next.js Server Components SDK cho theme & storefront
-└── .github/workflows/
-    └── publish.yml            # CI/CD tự động publish lên GitHub Packages
+│   ├── create-ecomweb/   # CLI (lệnh ecomweb / create-ecomweb)
+│   ├── admin-sdk/        # @ecomcx/ecomweb-admin-sdk
+│   └── theme-sdk/        # @ecomcx/ecomweb-theme-sdk
+├── scripts/              # test.mjs, release.mjs, npm-publish.mjs
+└── .github/workflows/publish.yml
 ```
 
----
-
-# Sử dụng trực tiếp từ GitHub qua `npx` (Không cần cài đặt)
-
-Sau khi push repo này lên GitHub (`github.com/Ecomcx-Jsc/ecomweb-sdk`), bất kỳ ai cũng có thể chạy ngay lập tức:
+## Dùng CLI
 
 ```bash
-# Tạo plugin mới: plugin.json + một file C# (CMS tự biên dịch, tự tạo bảng, trang quản trị, form)
-npx github:Ecomcx-Jsc/ecomweb-sdk plugin "Tên Plugin"
-# Thêm giao diện React riêng khi trang tự sinh không đủ / dự án csproj khi cần thư viện NuGet
-npx github:Ecomcx-Jsc/ecomweb-sdk plugin "Tên Plugin" --admin --frontend
-npx github:Ecomcx-Jsc/ecomweb-sdk plugin "Tên Plugin" --project
+# Plugin: plugin.json + một file C# (Ecomweb tự biên dịch, tạo bảng, trang quản trị, form)
+npm create @ecomcx/ecomweb plugin "Tên plugin"
+npm create @ecomcx/ecomweb plugin "Tên plugin" --admin --frontend   # thêm giao diện React riêng
+npm create @ecomcx/ecomweb plugin "Tên plugin" --project            # dự án csproj khi cần thư viện NuGet
 
-# Tạo theme mới
-npx github:Ecomcx-Jsc/ecomweb-sdk theme "Tên Theme"
+# Theme
+npm create @ecomcx/ecomweb theme "Tên theme"
 
-# Project tạo từ trước: lên SDK mới nhất (theme-sdk / admin-sdk) rồi kiểm tra lại
-npx github:Ecomcx-Jsc/ecomweb-sdk upgrade
-
-# Đóng gói plugin / theme thành file .zip
-npx github:Ecomcx-Jsc/ecomweb-sdk pack <đường-dẫn-thư-mục>
+# Trong thư mục theme / plugin
+npx @ecomcx/create-ecomweb validate     # kiểm tra
+npx @ecomcx/create-ecomweb dev          # chạy thử trên Ecomweb dev
+npx @ecomcx/create-ecomweb upgrade      # lên SDK mới nhất
+npx @ecomcx/create-ecomweb pack .       # đóng gói .zip để nộp Store / cài
 ```
 
----
+Chi tiết: `docs/theme-guide.md`, `docs/plugin-guide.md` trong repo core `Ecomcx-Jsc/ecomweb`.
 
-## 2. Hướng dẫn khởi tạo Git và đẩy lên GitHub
-
-Mở Terminal và thực hiện các bước sau:
+## Phát triển
 
 ```bash
-cd /Volumes/SSD-1/Code/ecomcx-nexus/sdk
-
-# 1. Khởi tạo Git repository
-git init
-
-# 2. Thêm file và commit
-git add .
-git commit -m "feat: initial commit ecomweb-sdk monorepo"
-
-# 3. Tạo repository mới trên GitHub (ví dụ đặt tên là: ecomweb-sdk)
-# 4. Gắn remote và đẩy lên GitHub
-git branch -M main
-git remote add origin https://github.com/<username>/ecomweb-sdk.git
-git push -u origin main
+npm ci
+npm test              # kiểm thử theme-sdk, admin-sdk, CLI
+npm run release       # build dist-release/ + cài thử vào dự án trống
 ```
 
----
+## Phát hành
 
-## 3. Phát hành SDK (GitHub Release)
+1. Tăng `version` trong `package.json` gốc và `packages/*/package.json` (các gói cùng phiên bản).
+2. `npm test && npm run release`.
+3. Commit, rồi `gh release create vX.Y.Z --title "SDK vX.Y.Z"` → workflow `publish.yml` build lại, đính kèm tarball và publish
+   cả ba gói lên npm bằng Trusted Publishing (OIDC từ GitHub Actions, có provenance, không token).
+4. Core: `node scripts/update-sdk.mjs X.Y.Z` (đổi phiên bản trong admin / frontend + CLI ghim trong `scripts/cms-cli.sh`).
 
-npm không cài được thư mục con của repo git, nên `@ecomcx/ecomweb-admin-sdk` và `@ecomcx/ecomweb-theme-sdk` được phát hành thành tarball (JavaScript đã biên dịch + `.d.ts`) đính kèm GitHub Release. Không cần tài khoản npm hay token khi cài.
-
-1. Tăng `version` trong `packages/*/package.json` (các gói cùng phiên bản).
-2. Thử trên máy: `npm run release` (build vào `dist-release/` và cài thử vào dự án trống).
-3. Tạo release trên GitHub với tag `vX.Y.Z` trùng phiên bản → workflow **Release SDK packages** tự build và đính kèm `cms-admin-sdk-X.Y.Z.tgz`, `cms-theme-sdk-X.Y.Z.tgz`.
-
-Cài trong core/plugin:
-
-```json
-"@ecomcx/ecomweb-theme-sdk": "https://github.com/Ecomcx-Jsc/ecomweb-sdk/releases/download/vX.Y.Z/cms-theme-sdk-X.Y.Z.tgz",
-"@ecomcx/ecomweb-admin-sdk": "https://github.com/Ecomcx-Jsc/ecomweb-sdk/releases/download/vX.Y.Z/cms-admin-sdk-X.Y.Z.tgz"
-```
-
-CLI `create-cms` không cần tarball — chạy thẳng từ tag: `npx github:Ecomcx-Jsc/ecomweb-sdk#vX.Y.Z pack`. Core ghim tag trong `scripts/cms-cli.sh`.
+Gói mới chưa có trên npm thì publish tay lần đầu: `npm login`, `node scripts/release.mjs`, `node scripts/npm-publish.mjs`
+(npm in đường link duyệt bằng passkey), rồi trên npmjs.com mỗi gói: Settings › Trusted Publisher › GitHub Actions,
+repo `Ecomcx-Jsc/ecomweb-sdk`, workflow `publish.yml`.

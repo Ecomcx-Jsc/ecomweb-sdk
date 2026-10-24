@@ -1,11 +1,11 @@
 {
   "name": "ecomweb-sdk",
-  "version": "1.25.0",
+  "version": "1.26.0",
   "description": "Ecomweb SDK - Developer Tools, CLI and Libraries for Theme & Plugin Development",
   "type": "module",
   "bin": {
-    "create-cms": "packages/create-cms/bin/cms.mjs",
-    "cms": "packages/create-cms/bin/cms.mjs"
+    "create-ecomweb": "packages/create-ecomweb/bin/ecomweb.mjs",
+    "ecomweb": "packages/create-ecomweb/bin/ecomweb.mjs"
   },
   "workspaces": [
     "packages/*"
@@ -21,13 +21,13 @@
     "release": "node scripts/release.mjs --check"
   },
   "keywords": [
-    "cms",
     "ecomcx",
     "sdk",
     "theme",
     "plugin",
     "nextjs",
-    "react"
+    "react",
+    "ecomweb"
   ],
   "author": "Ecomweb Team",
   "license": "MIT",
