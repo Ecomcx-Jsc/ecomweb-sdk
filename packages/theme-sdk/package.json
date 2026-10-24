@@ -1,6 +1,6 @@
 {
   "name": "@ecomcx/nexus-theme-sdk",
-  "version": "1.24.1",
+  "version": "1.24.2",
   "description": "SDK để viết theme và phần frontend của plugin cho ECX Nexus",
   "type": "module",
   "main": "./src/index.ts",

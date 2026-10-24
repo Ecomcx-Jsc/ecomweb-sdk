@@ -1,6 +1,6 @@
 {
   "name": "ecx-nexus-sdk",
-  "version": "1.24.1",
+  "version": "1.24.2",
   "description": "ECX Nexus SDK - Developer Tools, CLI and Libraries for Theme & Plugin Development",
   "type": "module",
   "bin": {
