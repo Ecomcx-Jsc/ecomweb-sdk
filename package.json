@@ -1,7 +1,7 @@
 {
-  "name": "ecx-nexus-sdk",
-  "version": "1.24.2",
-  "description": "ECX Nexus SDK - Developer Tools, CLI and Libraries for Theme & Plugin Development",
+  "name": "ecomweb-sdk",
+  "version": "1.25.0",
+  "description": "Ecomweb SDK - Developer Tools, CLI and Libraries for Theme & Plugin Development",
   "type": "module",
   "bin": {
     "create-cms": "packages/create-cms/bin/cms.mjs",
@@ -11,7 +11,7 @@
     "packages/*"
   ],
   "dependencies": {
-    "@ecomcx/nexus-content": "^1.13.0",
+    "@ecomcx/ecomweb-content": "^1.14.0",
     "adm-zip": "0.5.18",
     "esbuild": "0.25.12",
     "intl-messageformat": "12.1.3"
@@ -29,7 +29,7 @@
     "nextjs",
     "react"
   ],
-  "author": "ECX Nexus Team",
+  "author": "Ecomweb Team",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "22.20.5",

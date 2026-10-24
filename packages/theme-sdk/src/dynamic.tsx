@@ -14,7 +14,7 @@ const align = (a: Record<string, any>): CSSProperties | undefined => (a.textAlig
 const ASPECT: Record<string, string> = { "16/9": "16 / 9", "4/3": "4 / 3", "1/1": "1 / 1", "3/4": "3 / 4" };
 
 /**
- * Khối động (@ecomcx/nexus-content DYNAMIC_NODES): vẽ theo ngữ cảnh — website, trang đang xem (`ctx.data`), bài trong vòng lặp (`ctx.post`).
+ * Khối động (@ecomcx/ecomweb-content DYNAMIC_NODES): vẽ theo ngữ cảnh — website, trang đang xem (`ctx.data`), bài trong vòng lặp (`ctx.post`).
  * Ngoài template (nội dung bài) không có `ctx.data`: `postContent` không vẽ (tránh lặp vô hạn), `query` luôn tự lấy bài.
  */
 export async function renderDynamic(node: RenderNode, key: string, ctx: RenderContext, children: Children): Promise<ReactNode> {

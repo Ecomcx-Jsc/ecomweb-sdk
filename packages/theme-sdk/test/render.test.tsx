@@ -6,10 +6,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { BlockProps, ShortcodeProps, Site } from "../src/types";
 import { renderContent, type RenderContext } from "../src/rich";
 
-// Hợp đồng của renderer: mỗi fixture của @ecomcx/nexus-content vẽ ra đúng HTML đã duyệt (snapshots/). Đổi renderer có chủ đích:
+// Hợp đồng của renderer: mỗi fixture của @ecomcx/ecomweb-content vẽ ra đúng HTML đã duyệt (snapshots/). Đổi renderer có chủ đích:
 // UPDATE_SNAPSHOTS=1 node scripts/test.mjs theme-sdk, rồi xem kỹ diff.
 const root = process.env.SDK_ROOT!;
-const fixtures = path.join(process.env.CMS_CONTENT_DIR!, "fixtures"); // fixture hợp đồng của @ecomcx/nexus-content
+const fixtures = path.join(process.env.CMS_CONTENT_DIR!, "fixtures"); // fixture hợp đồng của @ecomcx/ecomweb-content
 const snapshots = path.join(root, "packages", "theme-sdk", "test", "snapshots");
 const site = { name: "Test", url: "https://example.com", locale: "vi" } as unknown as Site;
 
@@ -71,7 +71,7 @@ test("khối lỗi được bọc bởi boundary", async () => {
 });
 
 test("khối defineBlock: website nâng phiên bản + ép kiểu trước khi đưa cho component của plugin", async () => {
-  const { defineBlock } = await import("@ecomcx/nexus-content");
+  const { defineBlock } = await import("@ecomcx/ecomweb-content");
   const badge = defineBlock({ name: "demo/badge", title: "Nhãn", version: 2, attributes: { tone: { type: "string", enum: ["info", "danger"] }, size: { type: "integer" } },
     migrate: { 1: ({ color, ...r }) => ({ ...r, tone: color === "red" ? "danger" : "info" }) } });
   const seen: any[] = [];

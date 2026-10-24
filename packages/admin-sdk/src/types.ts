@@ -183,7 +183,7 @@ export interface EditorPattern {
   /** hero, features, cta, pricing, testimonials, faq, team, contact, text, gallery, header, footer… */
   category: string;
   keywords?: string;
-  /** Cây khối { type: "doc", content }, mảng khối, hoặc { version, blocks } (@ecomcx/nexus-content). */
+  /** Cây khối { type: "doc", content }, mảng khối, hoặc { version, blocks } (@ecomcx/ecomweb-content). */
   content: unknown;
 }
 
@@ -409,11 +409,11 @@ export interface CmsAdmin {
     /** @deprecated Dùng registerMessages / locales/*.json. */
     registerTranslations(locale: string, dict: Record<string, string>): void;
   };
-  /** Trình soạn nội dung (@ecomcx/nexus-editor): thêm khối/lệnh chèn; dùng chung TipTap của admin. */
+  /** Trình soạn nội dung (@ecomcx/ecomweb-editor): thêm khối/lệnh chèn; dùng chung TipTap của admin. */
   editor: {
     register(pack: EditorExtensionPack): void;
-    /** Khối khai báo bằng defineBlock (CMS ≥ 1.8.0 / admin có @ecomcx/nexus-editor ≥ 1.1). */
-    registerBlock?(def: import("@ecomcx/nexus-content").BlockDefinition, options?: RegisterBlockOptions): void;
+    /** Khối khai báo bằng defineBlock (CMS ≥ 1.8.0 / admin có @ecomcx/ecomweb-editor ≥ 1.1). */
+    registerBlock?(def: import("@ecomcx/ecomweb-content").BlockDefinition, options?: RegisterBlockOptions): void;
     /** Panel trong tab "Khối" của trình soạn (CMS ≥ 1.10.0). */
     registerBlockPanel?(panel: BlockPanel): void;
     /** Mẫu — đoạn nội dung dựng sẵn trong tab "Mẫu" của trình chèn (CMS ≥ 1.12.0). */

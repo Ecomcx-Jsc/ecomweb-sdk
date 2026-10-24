@@ -9,8 +9,8 @@ import { renderContent, type RenderContext } from "./rich";
 import { cx } from "./utils";
 
 /**
- * Render nội dung bài viết (định dạng của CMS — @ecomcx/nexus-content; phần vẽ ở rich.tsx, không phụ thuộc trình soạn).
- * Luôn có class `ecx-content` (giao diện nền trong @ecomcx/nexus-content/style.css, theme ghi đè được); `className` thay cho `entry-content`.
+ * Render nội dung bài viết (định dạng của CMS — @ecomcx/ecomweb-content; phần vẽ ở rich.tsx, không phụ thuộc trình soạn).
+ * Luôn có class `ecx-content` (giao diện nền trong @ecomcx/ecomweb-content/style.css, theme ghi đè được); `className` thay cho `entry-content`.
  */
 export async function PostContent({ post, content, className }: { post?: Post | null; content?: PostContentDoc | null; className?: string }) {
   const site = await getSite();

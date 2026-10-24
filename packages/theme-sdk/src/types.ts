@@ -24,9 +24,9 @@ export interface Term {
 }
 
 /** Một block nội dung. Hiện tại core có: richtext (TipTap JSON) và html. */
-/** Định dạng nội dung của CMS — xem @ecomcx/nexus-content. */
-export type { Block, ContentDoc as PostContentDoc, RichNode, RichMark } from "@ecomcx/nexus-content";
-import type { Block, ContentDoc as PostContentDoc } from "@ecomcx/nexus-content";
+/** Định dạng nội dung của CMS — xem @ecomcx/ecomweb-content. */
+export type { Block, ContentDoc as PostContentDoc, RichNode, RichMark } from "@ecomcx/ecomweb-content";
+import type { Block, ContentDoc as PostContentDoc } from "@ecomcx/ecomweb-content";
 
 export interface TranslationRef { locale: string; id: number; title: string; status: string; link: string }
 
@@ -264,7 +264,7 @@ export interface PluginDefinition {
   /** Renderer khối của plugin (theo tên khối) — khối cấp cao nhất và khối trong nội dung soạn thảo (defineBlock). */
   blocks?: Record<string, ComponentType<BlockProps>>;
   /** Định nghĩa khối (defineBlock, file dùng chung với phần admin) — website chuẩn hoá thuộc tính + nâng phiên bản trước khi vẽ. */
-  blockTypes?: import("@ecomcx/nexus-content").BlockDefinition[];
+  blockTypes?: import("@ecomcx/ecomweb-content").BlockDefinition[];
   /** File ở gốc website: { "/news-sitemap.xml": handler }. Đường dẫn phải khai báo trong plugin.json → frontend.routes. */
   routes?: Record<string, PluginRoute>;
   /**

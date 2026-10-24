@@ -23,7 +23,7 @@ export const can = (capability: string) => host().can(capability);
  * trình soạn tự có mục slash menu, khung khối và form cài đặt sinh từ attributes. Nhãn "%khoá%" dịch theo
  * locales của plugin khi tên khối có tiền tố "slug/" (vd "lien-he/callout").
  */
-export const registerBlock = (def: import("@ecomcx/nexus-content").BlockDefinition, options?: import("./types").RegisterBlockOptions) => {
+export const registerBlock = (def: import("@ecomcx/ecomweb-content").BlockDefinition, options?: import("./types").RegisterBlockOptions) => {
   const editor = host().editor;
   if (!editor.registerBlock) throw new Error("registerBlock cần CMS ≥ 1.8.0 (trình soạn hỗ trợ defineBlock)");
   editor.registerBlock(def, options);
@@ -40,7 +40,7 @@ export const registerBlockPanel = (panel: import("./types").BlockPanel) => host(
  * CMS cũ (chưa có tab Mẫu) → bỏ qua, không lỗi.
  */
 export const registerPattern = (pattern: import("./types").EditorPattern) => host().editor.registerPattern?.(pattern);
-export { defineBlock, type BlockDefinition, type BlockDefinitionInput, type BlockAttrSpec } from "@ecomcx/nexus-content";
+export { defineBlock, type BlockDefinition, type BlockDefinitionInput, type BlockAttrSpec } from "@ecomcx/ecomweb-content";
 /** Thêm node/mark TipTap cho trình soạn (cấp thấp — khối thường dùng registerBlock). */
 export const registerEditorExtension = (pack: import("./types").EditorExtensionPack) => host().editor.register(pack);
 /** Lớp TipTap dùng chung với admin (không cần cài @tiptap/core trong plugin). */

@@ -1,9 +1,9 @@
 name: Release SDK packages
 
 # Tạo release (tag vX.Y.Z trùng version của packages/*) → build admin-sdk, theme-sdk (JS + .d.ts) + CLI,
-# đính kèm tarball vào release và publish lên npm: @ecomcx/nexus-admin-sdk, @ecomcx/nexus-theme-sdk, @ecomcx/create-nexus.
-# npm: Trusted Publishing (OIDC, không token) — cấu hình trên npmjs.com cho từng gói: repo Ecomcx-Jsc/ecx-nexus-sdk, workflow publish.yml.
-# Bản đầu tiên publish tay (scripts/npm-publish.mjs). Cài: npm i @ecomcx/nexus-theme-sdk
+# đính kèm tarball vào release và publish lên npm: @ecomcx/ecomweb-admin-sdk, @ecomcx/ecomweb-theme-sdk, @ecomcx/create-ecomweb.
+# npm: Trusted Publishing (OIDC, không token) — cấu hình trên npmjs.com cho từng gói: repo Ecomcx-Jsc/ecomweb-sdk, workflow publish.yml.
+# Bản đầu tiên publish tay (scripts/npm-publish.mjs). Cài: npm i @ecomcx/ecomweb-theme-sdk
 on:
   release:
     types: [published]
@@ -49,7 +49,7 @@ jobs:
 
       - name: Publish lên npm (OIDC + provenance)
         run: |
-          for name in @ecomcx/nexus-admin-sdk @ecomcx/nexus-theme-sdk @ecomcx/create-nexus; do
+          for name in @ecomcx/ecomweb-admin-sdk @ecomcx/ecomweb-theme-sdk @ecomcx/create-ecomweb; do
             file=$(node -p "require('./dist-release/npm-publish.json').find(x => x.name === '$name').file")
             if npm view "$name@$(node -p "require('./packages/theme-sdk/package.json').version")" version >/dev/null 2>&1; then
               echo "$name đã có bản này trên npm — bỏ qua"; continue

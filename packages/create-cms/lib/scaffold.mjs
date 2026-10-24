@@ -31,7 +31,7 @@ export function scaffoldTheme(name, { parent, dir, blocks = false } = {}) {
   for (const [code, dict] of Object.entries(labels)) write(path.join(root, "locales", `${code}.json`), JSON.stringify(dict, null, 2) + "\n");
 
   write(path.join(root, "package.json"), JSON.stringify({
-    name: `nexus-theme-${slug}`, private: true, version: "1.0.0",
+    name: `ecomweb-theme-${slug}`, private: true, version: "1.0.0",
     description: "Thêm dependencies npm mà theme cần vào đây — Builder sẽ tự cài khi build.",
     dependencies: {},
     devDependencies: {
@@ -51,7 +51,7 @@ export function scaffoldTheme(name, { parent, dir, blocks = false } = {}) {
     write(path.join(root, "layout.tsx"), `
 import "./styles.css";
 import type { CSSProperties } from "react";
-import { EditableRegion, Menu, setting, type LayoutProps } from "@ecomcx/nexus-theme-sdk";
+import { EditableRegion, Menu, setting, type LayoutProps } from "@ecomcx/ecomweb-theme-sdk";
 
 /** Khung chung của mọi trang. Header, footer bọc trong EditableRegion để plugin thay được (vùng chuẩn của core). */
 export default function Layout({ site, settings, data, children }: LayoutProps) {
@@ -72,7 +72,7 @@ export default function Layout({ site, settings, data, children }: LayoutProps) 
 }
 `);
     write(path.join(root, "templates", "index.tsx"), `
-import { Pagination, PostContent, type TemplateProps } from "@ecomcx/nexus-theme-sdk";
+import { Pagination, PostContent, type TemplateProps } from "@ecomcx/ecomweb-theme-sdk";
 
 /** Template dự phòng cuối cùng (giống index.php). */
 export default function Index({ data }: TemplateProps) {
@@ -99,7 +99,7 @@ export default function Index({ data }: TemplateProps) {
 }
 `);
     write(path.join(root, "templates", "single.tsx"), `
-import { Comments, FeaturedImage, PostContent, PostDate, type TemplateProps } from "@ecomcx/nexus-theme-sdk";
+import { Comments, FeaturedImage, PostContent, PostDate, type TemplateProps } from "@ecomcx/ecomweb-theme-sdk";
 
 /** Một bài viết (giống single.php). Tạo single-{postType}.tsx để riêng cho từng post type. */
 export default function Single({ data, site }: TemplateProps) {
@@ -116,7 +116,7 @@ export default function Single({ data, site }: TemplateProps) {
 }
 `);
     write(path.join(root, "templates", "404.tsx"), `
-import { SearchForm, type TemplateProps } from "@ecomcx/nexus-theme-sdk";
+import { SearchForm, type TemplateProps } from "@ecomcx/ecomweb-theme-sdk";
 
 export default function NotFound(_: TemplateProps) {
   return (
@@ -137,7 +137,7 @@ a { color: var(--primary); }
 `);
   } else {
     write(path.join(root, "templates", "home.tsx"), `
-import type { TemplateProps } from "@ecomcx/nexus-theme-sdk";
+import type { TemplateProps } from "@ecomcx/ecomweb-theme-sdk";
 
 /** Child theme: chỉ ghi đè template cần thiết, phần còn lại lấy từ theme cha "${parent}". */
 export default function Home({ data }: TemplateProps) {
@@ -152,7 +152,7 @@ export default function Home({ data }: TemplateProps) {
   }
 
   write(path.join(root, "extend.tsx"), `
-import { definePlugin } from "@ecomcx/nexus-theme-sdk";
+import { definePlugin } from "@ecomcx/ecomweb-theme-sdk";
 
 /**
  * Theme có thể đăng ký shortcode, widget, slot, filter.
@@ -164,7 +164,7 @@ export default definePlugin({
   },
 });
 `);
-  write(path.join(root, "README.md"), `# ${name}\n\nTheme cho ECX Nexus.\n\n- \`npx ${CLI} validate\` — kiểm tra theme\n- \`npx ${CLI} pack\` — đóng gói thành zip để upload trong Giao diện › Thêm mới\n- \`npx ${CLI} dev --password ...\` — tự đóng gói và cài lên ECX Nexus trên máy mỗi khi sửa file\n`);
+  write(path.join(root, "README.md"), `# ${name}\n\nTheme cho Ecomweb.\n\n- \`npx ${CLI} validate\` — kiểm tra theme\n- \`npx ${CLI} pack\` — đóng gói thành zip để upload trong Giao diện › Thêm mới\n- \`npx ${CLI} dev --password ...\` — tự đóng gói và cài lên Ecomweb trên máy mỗi khi sửa file\n`);
   return { root, slug };
 }
 
@@ -178,7 +178,7 @@ function scaffoldBlockFiles(root) {
   write(path.join(root, "layout.tsx"), `
 import "./styles.css";
 import type { CSSProperties } from "react";
-import { setting, type LayoutProps } from "@ecomcx/nexus-theme-sdk";
+import { setting, type LayoutProps } from "@ecomcx/ecomweb-theme-sdk";
 
 /** Khung trơn: header, footer và nội dung từng trang là khối (parts/, templates/), sửa trong Giao diện › Trình dựng. */
 export default function Layout({ settings, children }: LayoutProps) {
@@ -258,7 +258,7 @@ export function scaffoldSimplePlugin(name, { dir, tests = false } = {}) {
   return scaffoldPlugin(name, { dir, tests });
 }
 
-/** Dự án test xUnit dùng EcxNexus.Plugin.Testing (namespace Cms.Plugin.Testing) — chạy bằng `create-nexus test` (cần .NET SDK). */
+/** Dự án test xUnit dùng Ecomweb.Plugin.Testing (namespace Cms.Plugin.Testing) — chạy bằng `create-ecomweb test` (cần .NET SDK). */
 function scaffoldTests(root, cls, slug) {
   write(path.join(root, "tests", `${cls}.Tests.csproj`), `<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -268,7 +268,7 @@ function scaffoldTests(root, cls, slug) {
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="EcxNexus.Plugin.Testing" Version="1.12.0" />
+    <PackageReference Include="Ecomweb.Plugin.Testing" Version="1.13.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
@@ -280,7 +280,7 @@ using System.Net.Http.Json;
 using Cms.Plugin.Testing;
 using Xunit;
 
-/// Chạy: create-nexus env up (một lần) rồi create-nexus test — gói plugin được cài + bật trên CMS thử.
+/// Chạy: create-ecomweb env up (một lần) rồi create-ecomweb test — gói plugin được cài + bật trên CMS thử.
 public class ${cls}Tests : PluginTest
 {
     [Fact]
@@ -350,7 +350,7 @@ export function scaffoldPlugin(name, { backend = "source", admin = false, fronte
 
   if (backend === "project") {
     const repo = findCmsRepo(root);
-    // Nguồn EcxNexus.Plugin.Sdk: nuget.org; thêm feed local khi ở trong repo CMS hoặc khi đặt CMS_NUGET_FEED (thư mục chứa .nupkg)
+    // Nguồn Ecomweb.Plugin.Sdk: nuget.org; thêm feed local khi ở trong repo CMS hoặc khi đặt CMS_NUGET_FEED (thư mục chứa .nupkg)
     const feed = process.env.CMS_NUGET_FEED ? path.resolve(process.env.CMS_NUGET_FEED) : repo ? path.join(repo, "sdk", "nuget") : null;
     write(path.join(root, "backend", `${cls}.csproj`), `
 <Project Sdk="Microsoft.NET.Sdk">
@@ -365,7 +365,7 @@ export function scaffoldPlugin(name, { backend = "source", admin = false, fronte
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="EcxNexus.Plugin.Sdk" Version="1.12.0">
+    <PackageReference Include="Ecomweb.Plugin.Sdk" Version="1.13.0">
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
@@ -405,7 +405,7 @@ export function scaffoldPlugin(name, { backend = "source", admin = false, fronte
   if (admin) {
     write(path.join(root, "admin", "src", "index.tsx"), `
 import { useState } from "react";
-import { Button, Card, Field, Input, PageHeader, api, createT, notify, registerMetaBox, registerPage, useApi } from "@ecomcx/nexus-admin-sdk";
+import { Button, Card, Field, Input, PageHeader, api, createT, notify, registerMetaBox, registerPage, useApi } from "@ecomcx/ecomweb-admin-sdk";
 
 /** Dịch theo khoá trong locales/*.json của plugin (namespace "${slug}"). */
 const t = createT("${slug}");
@@ -449,7 +449,7 @@ registerMetaBox({
 
   if (frontend) {
     write(path.join(root, "frontend", "index.tsx"), `
-import { definePlugin } from "@ecomcx/nexus-theme-sdk";
+import { definePlugin } from "@ecomcx/ecomweb-theme-sdk";
 
 /** Phần hiển thị ngoài website: shortcode, widget, slot, filter. */
 export default definePlugin({
@@ -469,7 +469,7 @@ export default definePlugin({
     if (admin) devDeps[ADMIN_SDK] = `^${VERSION}`;
     if (frontend) devDeps[THEME_SDK] = `^${VERSION}`;
     write(path.join(root, "package.json"), JSON.stringify({
-      name: `nexus-plugin-${slug}`, private: true, version: "1.0.0",
+      name: `ecomweb-plugin-${slug}`, private: true, version: "1.0.0",
       description: `Dependencies cho giao diện admin/frontend của plugin ${name}`,
       dependencies: {},
       devDependencies: devDeps,
@@ -483,8 +483,8 @@ export default definePlugin({
   const parts = [
     backend === "source" && `- \`${cls}.cs\` — logic C#: bảng dữ liệu (EF), hook, endpoint. CMS tự biên dịch khi cài (không cần .NET SDK)`,
     backend === "project" && "- `backend/` — dự án C# (csproj): build bằng `dotnet build`, CMS nạp DLL",
-    admin && "- `admin/src/` — trang quản trị tự viết (@ecomcx/nexus-admin-sdk); settings + menu khai báo trong plugin.json",
-    frontend && "- `frontend/` — hiển thị ngoài website (@ecomcx/nexus-theme-sdk): shortcode, widget, slot",
+    admin && "- `admin/src/` — trang quản trị tự viết (@ecomcx/ecomweb-admin-sdk); settings + menu khai báo trong plugin.json",
+    frontend && "- `frontend/` — hiển thị ngoài website (@ecomcx/ecomweb-theme-sdk): shortcode, widget, slot",
     (admin || backend === "project") && `- \`locales/\` — bản dịch theo khoá, namespace \`${slug}\``,
   ].filter(Boolean).join("\n");
   write(path.join(root, "README.md"), `# ${name}

@@ -20,11 +20,11 @@ function copyFiltered(src, dest, filter = () => true) {
   }
 }
 
-/** Mã của @ecomcx/nexus-admin-sdk: trong repo CMS dùng src/*.ts; cài từ npm dùng dist/*.js (bản đã biên dịch). */
+/** Mã của @ecomcx/ecomweb-admin-sdk: trong repo CMS dùng src/*.ts; cài từ npm dùng dist/*.js (bản đã biên dịch). */
 function adminSdkFiles() {
   const local = path.resolve(cliDir, "../../admin-sdk/src");
   if (fs.existsSync(path.join(local, "index.ts"))) return { dir: local, ext: ".ts" };
-  return { dir: path.join(path.dirname(createRequire(import.meta.url).resolve("@ecomcx/nexus-admin-sdk/package.json")), "dist"), ext: ".js" };
+  return { dir: path.join(path.dirname(createRequire(import.meta.url).resolve("@ecomcx/ecomweb-admin-sdk/package.json")), "dist"), ext: ".js" };
 }
 
 /** esbuild plugin: import "./x.css" → chèn <style> khi bundle được nạp. */
@@ -60,12 +60,14 @@ export async function buildAdmin(dir, outFile, name = "index") {
       react: path.join(sdk, "react" + ext),
       "react/jsx-runtime": path.join(sdk, "jsx-runtime" + ext),
       "react/jsx-dev-runtime": path.join(sdk, "jsx-runtime" + ext),
-      "@ecomcx/nexus-admin-sdk": path.join(sdk, "index" + ext),
+      "@ecomcx/ecomweb-admin-sdk": path.join(sdk, "index" + ext),
       // defineBlock (file khối dùng chung admin + website): dùng bản đi kèm CLI — plugin không cần cài gì thêm
-      "@ecomcx/nexus-content": createRequire(import.meta.url).resolve("@ecomcx/nexus-content"),
-      // Tên cũ (plugin viết trước khi SDK lên npm)
+      "@ecomcx/ecomweb-content": createRequire(import.meta.url).resolve("@ecomcx/ecomweb-content"),
+      // Tên cũ (plugin viết trước khi SDK lên npm / trước khi đổi tên Ecomweb)
       "@cms/admin-sdk": path.join(sdk, "index" + ext),
-      "@cms/content": createRequire(import.meta.url).resolve("@ecomcx/nexus-content"),
+      "@cms/content": createRequire(import.meta.url).resolve("@ecomcx/ecomweb-content"),
+      "@ecomcx/nexus-admin-sdk": path.join(sdk, "index" + ext),
+      "@ecomcx/nexus-content": createRequire(import.meta.url).resolve("@ecomcx/ecomweb-content"),
     },
     logLevel: "warning",
   });

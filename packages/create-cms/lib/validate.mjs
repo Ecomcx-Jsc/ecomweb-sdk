@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { IntlMessageFormat } from "intl-messageformat";
 import { readJson, backendSources, expandSources } from "./util.mjs";
+import { OLD_NAMES } from "./npm.mjs";
 
 const SLUG = /^[a-z0-9][a-z0-9-]{1,63}$/;
 const SEMVER = /^\d+\.\d+\.\d+(?:[-+].*)?$/;
@@ -256,7 +257,7 @@ function findLegacyCalls(srcDir) {
   return out;
 }
 
-/** Import tên cũ "@cms/…" (trước khi SDK lên npm): CMS vẫn chạy được, nhắc đổi sang tên gói npm. */
+/** Import tên cũ "@cms/…" / "@ecomcx/nexus-…": CMS vẫn chạy được, nhắc đổi sang tên gói npm hiện tại. */
 function checkOldImports(dir, warnings) {
   const found = new Map();
   const walk = (d, depth = 0) => {
@@ -266,12 +267,12 @@ function checkOldImports(dir, warnings) {
       const p = path.join(d, e.name);
       if (e.isDirectory()) walk(p, depth + 1);
       else if (/\.(tsx?|jsx?|mjs)$/.test(e.name))
-        for (const m of fs.readFileSync(p, "utf8").matchAll(/["'](@cms\/(theme-sdk|admin-sdk|content))["']/g))
+        for (const m of fs.readFileSync(p, "utf8").matchAll(/["'](@cms\/(theme-sdk|admin-sdk|content)|@ecomcx\/nexus-(theme-sdk|admin-sdk|content))["']/g))
           if (!found.has(m[1])) found.set(m[1], path.relative(dir, p));
     }
   };
   walk(dir);
-  const NEW = { "@cms/theme-sdk": "@ecomcx/nexus-theme-sdk", "@cms/admin-sdk": "@ecomcx/nexus-admin-sdk", "@cms/content": "@ecomcx/nexus-content" };
+  const NEW = OLD_NAMES;
   for (const [old, file] of found)
-    warnings.push(`${file}: import "${old}" là tên cũ — đổi sang "${NEW[old]}" (cài: npm i -D ${NEW[old]}; hoặc npx @ecomcx/create-nexus upgrade)`);
+    warnings.push(`${file}: import "${old}" là tên cũ — đổi sang "${NEW[old]}" (cài: npm i -D ${NEW[old]}; hoặc npx @ecomcx/create-ecomweb upgrade)`);
 }

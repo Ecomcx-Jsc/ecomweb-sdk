@@ -1,11 +1,11 @@
 import { Fragment, cloneElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
-import { DYNAMIC_NODES, colorCss, embedInfo, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/nexus-content";
+import { DYNAMIC_NODES, colorCss, embedInfo, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
 
 /**
- * Vẽ nội dung (định dạng của CMS — @ecomcx/nexus-content) thành React, không phụ thuộc trình soạn.
+ * Vẽ nội dung (định dạng của CMS — @ecomcx/ecomweb-content) thành React, không phụ thuộc trình soạn.
  * Hàm thuần: shortcode/khối của plugin tra qua `resolve`, bọc lỗi qua `boundary` → test được không cần Next/runtime.
  */
 export interface RenderContext {
@@ -24,7 +24,7 @@ export interface RenderContext {
   labels?: { download?: string; toc?: string };
   /** Ngữ cảnh template: trang đang xem (khối động postTitle, postContent, query… đọc từ đây). Không có = đang vẽ nội dung bài. */
   data?: ResolveResult;
-  /** Vẽ khối động (@ecomcx/nexus-content DYNAMIC_NODES). Không có → khối động bị bỏ qua. */
+  /** Vẽ khối động (@ecomcx/ecomweb-content DYNAMIC_NODES). Không có → khối động bị bỏ qua. */
   dynamic?(node: RenderNode, key: string, ctx: RenderContext, children: (ctx: RenderContext, nodes?: RenderNode[]) => Promise<ReactNode[]>): Promise<ReactNode>;
   /** Bài của vòng lặp `query` gần nhất (+ dữ liệu phân trang khi dùng danh sách của trang). */
   query?: { posts: Post[]; data?: ResolveResult };
@@ -257,7 +257,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const start = Number(a.start) > 0 ? `?start=${Math.floor(Number(a.start))}` : "";
       return m ? <div key={key} className="ecx-youtube embed"><iframe src={`https://www.youtube-nocookie.com/embed/${m[1]}${start}`} allowFullScreen loading="lazy" title="YouTube" /></div> : null;
     }
-    // Bố cục (@ecomcx/nexus-content 1.2). Cấu trúc dùng style trực tiếp → mọi theme hiển thị đúng; class `ecx-*` để theme tạo kiểu thêm (`cms-*` giữ tới 2.0).
+    // Bố cục (@ecomcx/ecomweb-content 1.2). Cấu trúc dùng style trực tiếp → mọi theme hiển thị đúng; class `ecx-*` để theme tạo kiểu thêm (`cms-*` giữ tới 2.0).
     case "columns": {
       // Cột co giãn theo tỉ lệ độ rộng; màn hẹp (mỗi cột < 14rem) tự xuống dòng thành một cột — không cần CSS của theme
       const stack = a.stack !== false;
@@ -305,7 +305,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
         <p key={key} className={cx("ecx-buttons cms-buttons", a.align && `ecx-buttons-${a.align} cms-buttons-${a.align}`)} style={a.align ? { textAlign: a.align } : undefined}>{link}</p>
       );
     }
-    // Bộ khối cơ bản (@ecomcx/nexus-content 1.9)
+    // Bộ khối cơ bản (@ecomcx/ecomweb-content 1.9)
     case "spacer":
       return <div key={key} className="ecx-spacer" style={{ height: spacingValue(a.height ?? "lg") ?? "1.5rem" }} aria-hidden="true" />;
     case "buttons": {

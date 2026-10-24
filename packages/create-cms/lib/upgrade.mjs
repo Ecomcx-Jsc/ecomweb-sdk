@@ -4,8 +4,8 @@ import { execFileSync } from "node:child_process";
 import { ADMIN_SDK, OLD_NAMES, THEME_SDK, VERSION } from "./npm.mjs";
 import { c, readJson, run } from "./util.mjs";
 
-// Tên mới + tên cũ (project tạo trước khi SDK lên npm: giữ khoá cũ làm bí danh để import cũ vẫn chạy)
-const SDK = [THEME_SDK, ADMIN_SDK, "@cms/theme-sdk", "@cms/admin-sdk"];
+// Tên mới + tên cũ (project tạo trước khi SDK lên npm / trước Ecomweb: giữ khoá cũ làm bí danh để import cũ vẫn chạy)
+const SDK = [THEME_SDK, ADMIN_SDK, "@cms/theme-sdk", "@cms/admin-sdk", "@ecomcx/nexus-theme-sdk", "@ecomcx/nexus-admin-sdk"];
 /** Phiên bản mới nhất trên npm (dự phòng: phiên bản của CLI đang chạy). */
 function latest(npmName) {
   try { return execFileSync("npm", ["view", npmName, "version"], { encoding: "utf8", shell: process.platform === "win32" }).trim(); }
@@ -14,8 +14,8 @@ function latest(npmName) {
 const spec = (key) => (OLD_NAMES[key] ? `npm:${OLD_NAMES[key]}@^${latest(OLD_NAMES[key])}` : `^${latest(key)}`);
 
 /**
- * Đưa project theme/plugin lên SDK mới nhất trên npm (@ecomcx/nexus-theme-sdk, @ecomcx/nexus-admin-sdk). Project cũ khai báo
- * "@cms/…" (cài bằng link tarball trên GitHub) → bí danh "npm:@ecomcx/nexus-…@^bản mới nhất" để import cũ vẫn chạy
+ * Đưa project theme/plugin lên SDK mới nhất trên npm (@ecomcx/ecomweb-theme-sdk, @ecomcx/ecomweb-admin-sdk). Project cũ khai báo
+ * "@cms/…" (cài bằng link tarball trên GitHub) → bí danh "npm:@ecomcx/ecomweb-…@^bản mới nhất" để import cũ vẫn chạy
  * (validate nhắc đổi import sang tên mới). Bỏ bản đang cài khỏi node_modules + package-lock.json rồi cài lại.
  * Website không phụ thuộc bản này: CMS build theme/plugin bằng SDK của chính nó; bản trong project dùng cho gợi ý code,
  * kiểm tra kiểu và `pack`.
@@ -32,7 +32,7 @@ export async function upgrade(dir) {
         pkg[section][name] = spec(name);
         found.push({ name, before, installed: readJson(path.join(dir, "node_modules", ...name.split("/"), "package.json"))?.version ?? null });
       }
-  if (!found.length) { console.log(c.dim("  Project không dùng @ecomcx/nexus-theme-sdk hay @ecomcx/nexus-admin-sdk — không có gì để nâng.")); return { upgraded: [] }; }
+  if (!found.length) { console.log(c.dim("  Project không dùng @ecomcx/ecomweb-theme-sdk hay @ecomcx/ecomweb-admin-sdk — không có gì để nâng.")); return { upgraded: [] }; }
   fs.writeFileSync(pkgFile, JSON.stringify(pkg, null, 2) + "\n");
 
   // Gỡ bản cũ khỏi lockfile + node_modules: npm giữ bản theo lockfile/cache nếu link không đổi

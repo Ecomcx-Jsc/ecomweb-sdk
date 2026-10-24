@@ -3,9 +3,9 @@
 //   npm login                      (account with 2FA, member of the @ecomcx org)
 //   node scripts/release.mjs       (builds dist-release/ + npm-publish.json)
 //   OTP=123456 node scripts/npm-publish.mjs [--content ../content]   (2FA code from your authenticator; it lives ~30s,
-//                                   so all packages go in one run; --content also publishes @ecomcx/nexus-content first)
+//                                   so all packages go in one run; --content also publishes @ecomcx/ecomweb-content first)
 // Then on npmjs.com, for each package: Settings > Trusted Publisher > GitHub Actions,
-// repository Ecomcx-Jsc/ecx-nexus-sdk, workflow publish.yml. Later versions are published by CI on each release.
+// repository Ecomcx-Jsc/ecomweb-sdk, workflow publish.yml. Later versions are published by CI on each release.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -18,15 +18,15 @@ const otp = process.env.OTP ? [`--otp=${process.env.OTP}`] : [];
 const npm = (args, opts = {}) => execFileSync("npm", [...args, ...otp], { stdio: "inherit", shell: sh, ...opts });
 const contentDir = process.argv.includes("--content") ? path.resolve(process.argv[process.argv.indexOf("--content") + 1]) : null;
 if (contentDir) {
-  console.log("==> @ecomcx/nexus-content");
+  console.log("==> @ecomcx/ecomweb-content");
   npm(["publish", "--access", "public", "--provenance=false"], { cwd: contentDir });
 }
 
-try { execFileSync("npm", ["view", "@ecomcx/nexus-content", "version"], { stdio: "pipe", shell: sh }); }
-catch { console.error("Publish @ecomcx/nexus-content first (content repo: npm publish --provenance=false)."); process.exit(1); }
+try { execFileSync("npm", ["view", "@ecomcx/ecomweb-content", "version"], { stdio: "pipe", shell: sh }); }
+catch { console.error("Publish @ecomcx/ecomweb-content first (content repo: npm publish --provenance=false)."); process.exit(1); }
 
 // admin-sdk before theme-sdk / the CLI (the CLI depends on admin-sdk)
-const order = ["@ecomcx/nexus-admin-sdk", "@ecomcx/nexus-theme-sdk", "@ecomcx/create-nexus"];
+const order = ["@ecomcx/ecomweb-admin-sdk", "@ecomcx/ecomweb-theme-sdk", "@ecomcx/create-ecomweb"];
 for (const name of order) {
   const item = list.find((x) => x.name === name);
   if (!item) continue;

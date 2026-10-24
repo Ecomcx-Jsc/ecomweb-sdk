@@ -1,9 +1,11 @@
 {
-  "name": "@ecomcx/create-nexus",
-  "version": "1.24.2",
-  "description": "CLI tạo, kiểm tra, đóng gói và triển khai theme/plugin cho ECX Nexus",
+  "name": "@ecomcx/create-ecomweb",
+  "version": "1.25.0",
+  "description": "CLI tạo, kiểm tra, đóng gói và triển khai theme/plugin cho Ecomweb",
   "type": "module",
   "bin": {
+    "create-ecomweb": "bin/cms.mjs",
+    "ecomweb": "bin/cms.mjs",
     "create-nexus": "bin/cms.mjs",
     "nexus": "bin/cms.mjs",
     "create-cms": "bin/cms.mjs",
@@ -15,8 +17,8 @@
     "README.md"
   ],
   "dependencies": {
-    "@ecomcx/nexus-admin-sdk": "file:../admin-sdk",
-    "@ecomcx/nexus-content": "^1.13.0",
+    "@ecomcx/ecomweb-admin-sdk": "file:../admin-sdk",
+    "@ecomcx/ecomweb-content": "^1.14.0",
     "adm-zip": "0.5.18",
     "esbuild": "0.25.12",
     "intl-messageformat": "12.1.3"

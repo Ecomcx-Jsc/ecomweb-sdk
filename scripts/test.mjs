@@ -23,17 +23,17 @@ try {
   await build({
     entryPoints: entries, bundle: true, platform: "node", format: "esm", outdir: out, outbase: path.join(root, "packages"),
     outExtension: { ".js": ".mjs" }, jsx: "automatic", logLevel: "warning", packages: "external",
-    // Gói trong repo (packages/x) được bundle từ nguồn TS; @ecomcx/nexus-content và thư viện ngoài (react…) lấy từ node_modules
+    // Gói trong repo (packages/x) được bundle từ nguồn TS; @ecomcx/ecomweb-content và thư viện ngoài (react…) lấy từ node_modules
     plugins: [{ name: "workspace", setup(b) { b.onResolve({ filter: /^@cms\/[\w-]+$/ }, (a) => {
       const src = path.join(root, "packages", a.path.slice(5), "src", "index.ts");
       if (existsSync(src)) return { path: src };
-      // Gói @cms ngoài repo (vd @ecomcx/nexus-content cài từ GitHub): tìm từ thư mục của file đang import, bundle luôn vào test
+      // Gói @cms ngoài repo (vd @ecomcx/ecomweb-content cài từ GitHub): tìm từ thư mục của file đang import, bundle luôn vào test
       try { return { path: createRequire(path.join(a.resolveDir, "x.js")).resolve(a.path) }; } catch { return undefined; }
     }); } }],
     define: {
       "process.env.SDK_ROOT": JSON.stringify(root),
-      // Thư mục gói @ecomcx/nexus-content (fixture hợp đồng) theo đúng bản theme-sdk đang dùng
-      "process.env.CMS_CONTENT_DIR": JSON.stringify(path.dirname(createRequire(path.join(root, "packages", "theme-sdk", "x.js")).resolve("@ecomcx/nexus-content/package.json"))),
+      // Thư mục gói @ecomcx/ecomweb-content (fixture hợp đồng) theo đúng bản theme-sdk đang dùng
+      "process.env.CMS_CONTENT_DIR": JSON.stringify(path.dirname(createRequire(path.join(root, "packages", "theme-sdk", "x.js")).resolve("@ecomcx/ecomweb-content/package.json"))),
     },
   });
   const files = [];

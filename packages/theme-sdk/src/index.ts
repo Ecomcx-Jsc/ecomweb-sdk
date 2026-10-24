@@ -20,4 +20,4 @@ export async function getThemeSettings() {
 }
 export { PluginForm } from "./plugin-form";
 export type { PluginFormField } from "./plugin-form-client";
-export { defineBlock, type BlockDefinition, type BlockDefinitionInput, type BlockAttrSpec } from "@ecomcx/nexus-content";
+export { defineBlock, type BlockDefinition, type BlockDefinitionInput, type BlockAttrSpec } from "@ecomcx/ecomweb-content";
