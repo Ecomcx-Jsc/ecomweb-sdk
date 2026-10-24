@@ -1,6 +1,6 @@
 {
   "name": "@ecomcx/nexus-admin-sdk",
-  "version": "1.24.0",
+  "version": "1.24.1",
   "description": "SDK cho phần admin của plugin: đăng ký trang, meta box, widget dashboard và dùng bộ UI của admin.",
   "type": "module",
   "main": "./src/index.ts",
@@ -14,6 +14,6 @@
     "src"
   ],
   "dependencies": {
-    "@ecomcx/nexus-content": "github:Ecomcx-Jsc/ecomcx-nexus-content#semver:^1.13"
+    "@ecomcx/nexus-content": "^1.13.0"
   }
 }
