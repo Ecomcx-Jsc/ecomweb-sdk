@@ -75,7 +75,7 @@ export async function check({ zipPath, kind }, { url, user, password }) {
   const base = (url ?? process.env.CMS_URL ?? "http://localhost:5100").replace(/\/$/, "");
   user ??= process.env.CMS_USER ?? "admin";
   password ??= process.env.CMS_PASSWORD;
-  if (!password) throw new Error("Thiếu mật khẩu: dùng --password, CMS_PASSWORD hoặc `create-cms env up`");
+  if (!password) throw new Error("Thiếu mật khẩu: dùng --password, CMS_PASSWORD hoặc `create-nexus env up`");
   const login = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ login: user, password }) });
   if (!login.ok) throw new Error(`Đăng nhập thất bại (${login.status})`);
   const { accessToken } = await login.json();

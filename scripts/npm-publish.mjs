@@ -5,7 +5,7 @@
 //   OTP=123456 node scripts/npm-publish.mjs [--content ../content]   (2FA code from your authenticator; it lives ~30s,
 //                                   so all packages go in one run; --content also publishes @ecomcx/nexus-content first)
 // Then on npmjs.com, for each package: Settings > Trusted Publisher > GitHub Actions,
-// repository Ecomcx-Jsc/ecomcx-sdk, workflow publish.yml. Later versions are published by CI on each release.
+// repository Ecomcx-Jsc/ecx-nexus-sdk, workflow publish.yml. Later versions are published by CI on each release.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";

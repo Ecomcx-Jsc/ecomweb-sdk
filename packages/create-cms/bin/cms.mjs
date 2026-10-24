@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// create-cms — tạo, kiểm tra, đóng gói và triển khai theme/plugin cho CMS.
-//   create-cms theme "Tên" [--parent default] [--blocks] [--dir x]
-//   create-cms plugin "Tên" [--admin] [--frontend] [--project] [--no-backend] [--tests] [--dir x]
-//   create-cms validate [thư-mục]
-//   create-cms upgrade [thư-mục]
-//   create-cms pack [thư-mục] [--out dist]
-//   create-cms deploy [thư-mục] [--url …] [--user …] [--password …] [--activate]
-//   create-cms dev [thư-mục] [--url …] [--user …] [--password …]   (tự đóng gói + cài lại khi sửa file)
-//   create-cms env up | status | down [--purge]
+// create-nexus — tạo, kiểm tra, đóng gói và triển khai theme/plugin cho ECX Nexus.
+//   create-nexus theme "Tên" [--parent default] [--blocks] [--dir x]
+//   create-nexus plugin "Tên" [--admin] [--frontend] [--project] [--no-backend] [--tests] [--dir x]
+//   create-nexus validate [thư-mục]
+//   create-nexus upgrade [thư-mục]
+//   create-nexus pack [thư-mục] [--out dist]
+//   create-nexus deploy [thư-mục] [--url …] [--user …] [--password …] [--activate]
+//   create-nexus dev [thư-mục] [--url …] [--user …] [--password …]   (tự đóng gói + cài lại khi sửa file)
+//   create-nexus env up | status | down [--purge]
 import { CLI } from "../lib/npm.mjs";
 import fs from "node:fs";
 import path from "node:path";
@@ -19,7 +19,7 @@ import { pack } from "../lib/pack.mjs";
 import { check, deploy } from "../lib/deploy.mjs";
 import { env, findEnv } from "../lib/env.mjs";
 
-const HELP = `${c.bold("create-cms")} — công cụ viết theme/plugin cho CMS
+const HELP = `${c.bold("create-nexus")} — công cụ viết theme/plugin cho ECX Nexus
 
   ${c.cyan('theme "Tên"')} [--parent default]      tạo theme (child theme với --parent; --blocks: dựng bằng khối, sửa trong Trình dựng)
   ${c.cyan('plugin "Tên"')} [--admin] [--frontend] [--tests]   tạo plugin: plugin.json + một file C# (CMS tự biên dịch)
@@ -97,7 +97,7 @@ try {
     case "theme":
     case "plugin": {
       const name = rest[0];
-      if (!name) throw new Error(`Thiếu tên: create-cms ${cmd} "Tên ${cmd}"`);
+      if (!name) throw new Error(`Thiếu tên: create-nexus ${cmd} "Tên ${cmd}"`);
       const { root } = cmd === "theme"
         ? scaffoldTheme(name, { parent: args.parent, dir: args.dir, blocks: !!args.blocks })
         : scaffoldPlugin(name, { backend: args["no-backend"] ? false : args.project ? "project" : "source", admin: !!args.admin, frontend: !!args.frontend, tests: !!args.tests, dir: args.dir });
@@ -123,7 +123,7 @@ try {
       // Đóng gói → chạy dotnet test cho tests/*.csproj (Cms.Plugin.Testing cài gói lên CMS thử một lần rồi chạy test)
       const testsDir = path.join(dir, "tests");
       if (!fs.existsSync(testsDir) || !fs.readdirSync(testsDir).some((f) => f.endsWith(".csproj")))
-        throw new Error("Không thấy tests/*.csproj — tạo bằng: create-cms plugin \"Tên\" --tests (hoặc xem tài liệu Cms.Plugin.Testing)");
+        throw new Error("Không thấy tests/*.csproj — tạo bằng: create-nexus plugin \"Tên\" --tests (hoặc xem tài liệu Cms.Plugin.Testing)");
       const pkg = await packAndReport(dir);
       const conn = connection();
       const env = { ...process.env, CMS_TEST_PACKAGE: path.resolve(pkg.zipPath), CMS_TEST_SLUG: pkg.manifest.slug,

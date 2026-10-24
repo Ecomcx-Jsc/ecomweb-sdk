@@ -6,7 +6,7 @@
 //
 //   node scripts/release.mjs            → build + đóng gói vào dist-release/
 //   node scripts/release.mjs --check    → như trên + cài thử vào dự án trống, kiểm tra import / .d.ts / "use client"
-// CLI create-cms không cần tarball: chạy thẳng từ repo (npx github:Ecomcx-Jsc/ecomcx-sdk#<tag> …).
+// CLI create-cms không cần tarball: chạy thẳng từ repo (npx github:Ecomcx-Jsc/ecx-nexus-sdk#<tag> …).
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -51,8 +51,8 @@ function npmDeps(deps, version) {
 }
 
 const publishMeta = (pkg, dir) => ({
-  repository: { type: "git", url: "git+https://github.com/Ecomcx-Jsc/ecomcx-sdk.git", directory: dir },
-  homepage: "https://github.com/Ecomcx-Jsc/ecomcx-sdk#readme",
+  repository: { type: "git", url: "git+https://github.com/Ecomcx-Jsc/ecx-nexus-sdk.git", directory: dir },
+  homepage: "https://github.com/Ecomcx-Jsc/ecx-nexus-sdk#readme",
   license: pkg.license ?? "MIT",
   publishConfig: { access: "public", provenance: true },
   dependencies: npmDeps(pkg.dependencies, pkg.version),

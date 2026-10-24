@@ -1,6 +1,6 @@
-# Ecomcx Nexus SDK
+# ECX Nexus SDK
 
-Bộ công cụ phát triển Theme và Plugin chuẩn cho hệ sinh thái **Ecomcx Nexus**.
+Bộ công cụ phát triển Theme và Plugin chuẩn cho hệ sinh thái **ECX Nexus**.
 
 ## Cấu trúc Packages
 
@@ -19,23 +19,23 @@ sdk/
 
 # Sử dụng trực tiếp từ GitHub qua `npx` (Không cần cài đặt)
 
-Sau khi push repo này lên GitHub (`github.com/Ecomcx-Jsc/ecomcx-sdk`), bất kỳ ai cũng có thể chạy ngay lập tức:
+Sau khi push repo này lên GitHub (`github.com/Ecomcx-Jsc/ecx-nexus-sdk`), bất kỳ ai cũng có thể chạy ngay lập tức:
 
 ```bash
 # Tạo plugin mới: plugin.json + một file C# (CMS tự biên dịch, tự tạo bảng, trang quản trị, form)
-npx github:Ecomcx-Jsc/ecomcx-sdk plugin "Tên Plugin"
+npx github:Ecomcx-Jsc/ecx-nexus-sdk plugin "Tên Plugin"
 # Thêm giao diện React riêng khi trang tự sinh không đủ / dự án csproj khi cần thư viện NuGet
-npx github:Ecomcx-Jsc/ecomcx-sdk plugin "Tên Plugin" --admin --frontend
-npx github:Ecomcx-Jsc/ecomcx-sdk plugin "Tên Plugin" --project
+npx github:Ecomcx-Jsc/ecx-nexus-sdk plugin "Tên Plugin" --admin --frontend
+npx github:Ecomcx-Jsc/ecx-nexus-sdk plugin "Tên Plugin" --project
 
 # Tạo theme mới
-npx github:Ecomcx-Jsc/ecomcx-sdk theme "Tên Theme"
+npx github:Ecomcx-Jsc/ecx-nexus-sdk theme "Tên Theme"
 
 # Project tạo từ trước: lên SDK mới nhất (theme-sdk / admin-sdk) rồi kiểm tra lại
-npx github:Ecomcx-Jsc/ecomcx-sdk upgrade
+npx github:Ecomcx-Jsc/ecx-nexus-sdk upgrade
 
 # Đóng gói plugin / theme thành file .zip
-npx github:Ecomcx-Jsc/ecomcx-sdk pack <đường-dẫn-thư-mục>
+npx github:Ecomcx-Jsc/ecx-nexus-sdk pack <đường-dẫn-thư-mục>
 ```
 
 ---
@@ -52,12 +52,12 @@ git init
 
 # 2. Thêm file và commit
 git add .
-git commit -m "feat: initial commit ecomcx-sdk monorepo"
+git commit -m "feat: initial commit ecx-nexus-sdk monorepo"
 
-# 3. Tạo repository mới trên GitHub (ví dụ đặt tên là: ecomcx-sdk)
+# 3. Tạo repository mới trên GitHub (ví dụ đặt tên là: ecx-nexus-sdk)
 # 4. Gắn remote và đẩy lên GitHub
 git branch -M main
-git remote add origin https://github.com/<username>/ecomcx-sdk.git
+git remote add origin https://github.com/<username>/ecx-nexus-sdk.git
 git push -u origin main
 ```
 
@@ -74,8 +74,8 @@ npm không cài được thư mục con của repo git, nên `@ecomcx/nexus-admi
 Cài trong core/plugin:
 
 ```json
-"@ecomcx/nexus-theme-sdk": "https://github.com/Ecomcx-Jsc/ecomcx-sdk/releases/download/vX.Y.Z/cms-theme-sdk-X.Y.Z.tgz",
-"@ecomcx/nexus-admin-sdk": "https://github.com/Ecomcx-Jsc/ecomcx-sdk/releases/download/vX.Y.Z/cms-admin-sdk-X.Y.Z.tgz"
+"@ecomcx/nexus-theme-sdk": "https://github.com/Ecomcx-Jsc/ecx-nexus-sdk/releases/download/vX.Y.Z/cms-theme-sdk-X.Y.Z.tgz",
+"@ecomcx/nexus-admin-sdk": "https://github.com/Ecomcx-Jsc/ecx-nexus-sdk/releases/download/vX.Y.Z/cms-admin-sdk-X.Y.Z.tgz"
 ```
 
-CLI `create-cms` không cần tarball — chạy thẳng từ tag: `npx github:Ecomcx-Jsc/ecomcx-sdk#vX.Y.Z pack`. Core ghim tag trong `scripts/cms-cli.sh`.
+CLI `create-cms` không cần tarball — chạy thẳng từ tag: `npx github:Ecomcx-Jsc/ecx-nexus-sdk#vX.Y.Z pack`. Core ghim tag trong `scripts/cms-cli.sh`.

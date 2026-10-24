@@ -31,7 +31,7 @@ export function scaffoldTheme(name, { parent, dir, blocks = false } = {}) {
   for (const [code, dict] of Object.entries(labels)) write(path.join(root, "locales", `${code}.json`), JSON.stringify(dict, null, 2) + "\n");
 
   write(path.join(root, "package.json"), JSON.stringify({
-    name: `cms-theme-${slug}`, private: true, version: "1.0.0",
+    name: `nexus-theme-${slug}`, private: true, version: "1.0.0",
     description: "Thêm dependencies npm mà theme cần vào đây — Builder sẽ tự cài khi build.",
     dependencies: {},
     devDependencies: {
@@ -164,7 +164,7 @@ export default definePlugin({
   },
 });
 `);
-  write(path.join(root, "README.md"), `# ${name}\n\nTheme cho CMS.\n\n- \`npx ${CLI} validate\` — kiểm tra theme\n- \`npx ${CLI} pack\` — đóng gói thành zip để upload trong Giao diện › Thêm mới\n- \`npx ${CLI} dev --password ...\` — tự đóng gói và cài lên CMS local mỗi khi sửa file\n`);
+  write(path.join(root, "README.md"), `# ${name}\n\nTheme cho ECX Nexus.\n\n- \`npx ${CLI} validate\` — kiểm tra theme\n- \`npx ${CLI} pack\` — đóng gói thành zip để upload trong Giao diện › Thêm mới\n- \`npx ${CLI} dev --password ...\` — tự đóng gói và cài lên ECX Nexus trên máy mỗi khi sửa file\n`);
   return { root, slug };
 }
 
@@ -258,7 +258,7 @@ export function scaffoldSimplePlugin(name, { dir, tests = false } = {}) {
   return scaffoldPlugin(name, { dir, tests });
 }
 
-/** Dự án test xUnit dùng Cms.Plugin.Testing — chạy bằng `create-cms test` (cần .NET SDK). */
+/** Dự án test xUnit dùng EcxNexus.Plugin.Testing (namespace Cms.Plugin.Testing) — chạy bằng `create-nexus test` (cần .NET SDK). */
 function scaffoldTests(root, cls, slug) {
   write(path.join(root, "tests", `${cls}.Tests.csproj`), `<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -268,7 +268,7 @@ function scaffoldTests(root, cls, slug) {
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Cms.Plugin.Testing" Version="1.8.0" />
+    <PackageReference Include="EcxNexus.Plugin.Testing" Version="1.12.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
@@ -280,7 +280,7 @@ using System.Net.Http.Json;
 using Cms.Plugin.Testing;
 using Xunit;
 
-/// Chạy: create-cms env up (một lần) rồi create-cms test — gói plugin được cài + bật trên CMS thử.
+/// Chạy: create-nexus env up (một lần) rồi create-nexus test — gói plugin được cài + bật trên CMS thử.
 public class ${cls}Tests : PluginTest
 {
     [Fact]
@@ -350,7 +350,7 @@ export function scaffoldPlugin(name, { backend = "source", admin = false, fronte
 
   if (backend === "project") {
     const repo = findCmsRepo(root);
-    // Nguồn Cms.Plugin.Sdk: nuget.org; thêm feed local khi ở trong repo CMS hoặc khi đặt CMS_NUGET_FEED (thư mục chứa .nupkg)
+    // Nguồn EcxNexus.Plugin.Sdk: nuget.org; thêm feed local khi ở trong repo CMS hoặc khi đặt CMS_NUGET_FEED (thư mục chứa .nupkg)
     const feed = process.env.CMS_NUGET_FEED ? path.resolve(process.env.CMS_NUGET_FEED) : repo ? path.join(repo, "sdk", "nuget") : null;
     write(path.join(root, "backend", `${cls}.csproj`), `
 <Project Sdk="Microsoft.NET.Sdk">
@@ -365,7 +365,7 @@ export function scaffoldPlugin(name, { backend = "source", admin = false, fronte
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="Cms.Plugin.Sdk" Version="1.8.0">
+    <PackageReference Include="EcxNexus.Plugin.Sdk" Version="1.12.0">
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
@@ -469,7 +469,7 @@ export default definePlugin({
     if (admin) devDeps[ADMIN_SDK] = `^${VERSION}`;
     if (frontend) devDeps[THEME_SDK] = `^${VERSION}`;
     write(path.join(root, "package.json"), JSON.stringify({
-      name: `cms-plugin-${slug}`, private: true, version: "1.0.0",
+      name: `nexus-plugin-${slug}`, private: true, version: "1.0.0",
       description: `Dependencies cho giao diện admin/frontend của plugin ${name}`,
       dependencies: {},
       devDependencies: devDeps,

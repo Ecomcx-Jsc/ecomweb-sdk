@@ -1,6 +1,6 @@
 # @ecomcx/create-nexus
 
-CLI for Ecomcx Nexus CMS themes and plugins: create, validate, pack, test and deploy.
+CLI for ECX Nexus CMS themes and plugins: create, validate, pack, test and deploy.
 
 ```bash
 npm create @ecomcx/nexus theme "My theme"      # new theme (code; --blocks for a block theme)

@@ -1,10 +1,11 @@
 {
   "name": "@ecomcx/create-nexus",
   "version": "1.24.1",
-  "description": "CLI tạo, kiểm tra, đóng gói và triển khai theme/plugin cho CMS",
+  "description": "CLI tạo, kiểm tra, đóng gói và triển khai theme/plugin cho ECX Nexus",
   "type": "module",
   "bin": {
     "create-nexus": "bin/cms.mjs",
+    "nexus": "bin/cms.mjs",
     "create-cms": "bin/cms.mjs",
     "cms": "bin/cms.mjs"
   },

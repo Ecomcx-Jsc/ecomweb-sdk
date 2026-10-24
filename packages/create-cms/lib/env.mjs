@@ -1,11 +1,11 @@
 // Môi trường CMS chạy bằng Docker cho người làm theme/plugin — không cần mã nguồn CMS.
-//   create-cms env up      dựng CMS (Postgres, Redis, API, website, Caddy) + cài đặt sẵn, in tài khoản quản trị
-//   create-cms env status  trạng thái, địa chỉ, tài khoản
-//   create-cms env down    dừng (giữ dữ liệu)  ·  --purge: xoá luôn dữ liệu
-//   create-cms env logs [api|builder|…] [-f]   xem log
+//   create-nexus env up      dựng CMS (Postgres, Redis, API, website, Caddy) + cài đặt sẵn, in tài khoản quản trị
+//   create-nexus env status  trạng thái, địa chỉ, tài khoản
+//   create-nexus env down    dừng (giữ dữ liệu)  ·  --purge: xoá luôn dữ liệu
+//   create-nexus env logs [api|builder|…] [-f]   xem log
 //   --dev        website chạy `next dev`; theme/plugin trong thư mục hiện tại (và thư mục con) được gắn thẳng vào → sửa là thấy
 //   --build DIR  build image từ mã nguồn CMS ở DIR (khi chưa kéo được image dựng sẵn)
-// Tài khoản được lưu ở .cms-env/credentials.json → `create-cms deploy/dev` tự dùng, không cần --password.
+// Tài khoản được lưu ở .cms-env/credentials.json → `create-nexus deploy/dev` tự dùng, không cần --password.
 import { CLI } from "./npm.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -16,7 +16,7 @@ import { c, readJson, run, write } from "./util.mjs";
 
 const cliDir = path.dirname(fileURLToPath(import.meta.url));
 /** Image dựng sẵn của CMS (đổi bằng --api-image/--builder-image hoặc biến CMS_API_IMAGE/CMS_BUILDER_IMAGE). */
-const DEFAULT_IMAGES = { api: "ghcr.io/ecomcx-jsc/ecomcx-nexus-api:latest", builder: "ghcr.io/ecomcx-jsc/ecomcx-nexus-builder:latest" };
+const DEFAULT_IMAGES = { api: "ghcr.io/ecomcx-jsc/ecx-nexus-api:latest", builder: "ghcr.io/ecomcx-jsc/ecx-nexus-builder:latest" };
 
 /** Theme/plugin đang viết ở thư mục hiện tại và thư mục con (+ --mount) → gắn vào Builder khi chạy --dev. */
 export function devMounts(args) {
@@ -35,7 +35,7 @@ export function devMounts(args) {
 /** File cấu hình đi kèm gói (lib/env/) hoặc lấy từ thư mục deploy/ khi chạy trong repo CMS. */
 function asset(name) {
   for (const p of [path.join(cliDir, "env", name), path.resolve(cliDir, "../../../deploy", name)]) if (fs.existsSync(p)) return fs.readFileSync(p, "utf8");
-  throw new Error(`Thiếu file ${name} của create-cms`);
+  throw new Error(`Thiếu file ${name} của create-nexus`);
 }
 
 /** Tìm .cms-env gần nhất (thư mục hiện tại hoặc thư mục cha) — dùng cho deploy/dev. */
@@ -48,7 +48,7 @@ export function findEnv(start = process.cwd()) {
 }
 
 const compose = (o) => `
-# Sinh bởi create-cms env — môi trường thử cho theme/plugin. Không dùng cho website thật.
+# Sinh bởi create-nexus env — môi trường thử cho theme/plugin. Không dùng cho website thật.
 name: ${o.project}
 services:
   init:
@@ -133,7 +133,7 @@ export async function env(action, args) {
     const buildDir = args.build ? path.resolve(args.build) : saved?.buildDir;
     const mounts = dev ? devMounts(args) : [];
     // Môi trường đang chạy dùng lại cổng của nó; môi trường mới thì cổng phải trống
-    if (!saved && !(await portFree(port))) throw new Error(`Cổng ${port} đang được dùng — chọn cổng khác: create-cms env up --port ${port + 1}`);
+    if (!saved && !(await portFree(port))) throw new Error(`Cổng ${port} đang được dùng — chọn cổng khác: create-nexus env up --port ${port + 1}`);
     write(path.join(dir, "docker-compose.yml"), compose({ project, port, url, apiImage, builderImage, dev, buildDir, mounts }));
     write(path.join(dir, "Caddyfile"), asset("Caddyfile"));
     write(path.join(dir, "init-secrets.sh"), asset("init-secrets.sh"));
@@ -153,7 +153,7 @@ export async function env(action, args) {
       try { if (missing.length) await dc("pull", ...missing); }
       catch (e) {
         throw new Error(`Không kéo được image CMS (${apiImage}). Image có thể chưa được phát hành công khai.\n`
-          + `  Có mã nguồn CMS: create-cms env up --build <thư-mục-mã-nguồn>\n  Hoặc chỉ định image khác: --api-image … --builder-image …\n  Chi tiết: ${e.message.split("\n").slice(-2).join(" ")}`);
+          + `  Có mã nguồn CMS: create-nexus env up --build <thư-mục-mã-nguồn>\n  Hoặc chỉ định image khác: --api-image … --builder-image …\n  Chi tiết: ${e.message.split("\n").slice(-2).join(" ")}`);
       }
     }
     try { await dc("up", "-d"); }
@@ -225,11 +225,11 @@ export async function env(action, args) {
     if (saved.password) printInfo(saved, dir); else console.log(`  Website     ${saved.url}  (chưa cài đặt hoặc tự cài bằng màn hình cài đặt)`);
     return;
   }
-  throw new Error("Dùng: create-cms env up [--dev] [--build DIR] | status | logs [dịch vụ] [-f] | down [--purge]");
+  throw new Error("Dùng: create-nexus env up [--dev] [--build DIR] | status | logs [dịch vụ] [-f] | down [--purge]");
 }
 
 function printInfo(cred, dir) {
   console.log(`  Website     ${cred.url}`);
   console.log(`  Quản trị    ${cred.url}/admin   (${cred.user} / ${cred.password})`);
-  console.log(c.dim(`  Tài khoản lưu ở ${path.relative(process.cwd(), path.join(dir, "credentials.json"))} — \`create-cms dev\` tự dùng.`));
+  console.log(c.dim(`  Tài khoản lưu ở ${path.relative(process.cwd(), path.join(dir, "credentials.json"))} — \`create-nexus dev\` tự dùng.`));
 }

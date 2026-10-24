@@ -2,7 +2,7 @@ name: Release SDK packages
 
 # Tạo release (tag vX.Y.Z trùng version của packages/*) → build admin-sdk, theme-sdk (JS + .d.ts) + CLI,
 # đính kèm tarball vào release và publish lên npm: @ecomcx/nexus-admin-sdk, @ecomcx/nexus-theme-sdk, @ecomcx/create-nexus.
-# npm: Trusted Publishing (OIDC, không token) — cấu hình trên npmjs.com cho từng gói: repo Ecomcx-Jsc/ecomcx-sdk, workflow publish.yml.
+# npm: Trusted Publishing (OIDC, không token) — cấu hình trên npmjs.com cho từng gói: repo Ecomcx-Jsc/ecx-nexus-sdk, workflow publish.yml.
 # Bản đầu tiên publish tay (scripts/npm-publish.mjs). Cài: npm i @ecomcx/nexus-theme-sdk
 on:
   release:
