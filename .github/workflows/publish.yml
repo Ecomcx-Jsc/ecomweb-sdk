@@ -54,5 +54,5 @@ jobs:
             if npm view "$name@$(node -p "require('./packages/theme-sdk/package.json').version")" version >/dev/null 2>&1; then
               echo "$name đã có bản này trên npm — bỏ qua"; continue
             fi
-            npm publish "dist-release/$file" --access public --provenance
+            npm publish "./dist-release/$file" --access public --provenance
           done
