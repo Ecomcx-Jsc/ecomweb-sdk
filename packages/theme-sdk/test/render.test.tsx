@@ -121,3 +121,18 @@ test("mục lục: tiêu đề H2–H(maxLevel) của cả bài, neo đúng id; 
   assert.ok(out.includes('class="ecx-spacer" style="height:1.5rem"'), out);
   assert.ok(!out.includes("javascript") && !out.includes("red;"), out);
 });
+
+test("bản nháp (Trình dựng): gắn tài liệu + vị trí cho từng khối, khối lồng trong cột, component bọc display:contents; tắt thì không gắn", async () => {
+  const p = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
+  const doc = { type: "doc", content: [p("A"), { type: "columns", content: [{ type: "column", content: [p("B")] }, { type: "column", content: [p("C")] }] }, { type: "siteTitle" },
+    { type: "bulletList", content: [{ type: "listItem", content: [p("D")] }] }] };
+  const dynamic: RenderContext["dynamic"] = async (node, key) => <h1 key={key}>{node.type}</h1>;
+  assert.ok(!(await html(doc, ctx({ dynamic }))).includes("data-ecx"), "không phải bản nháp: không gắn");
+  const out = await html(doc, ctx({ dynamic, markBlocks: true, source: "template:single" }));
+  assert.ok(out.includes('<p data-ecx-doc="template:single" data-ecx-path="0">A</p>'), out);
+  assert.ok(out.includes('data-ecx-path="1-0-0">B</p>') && out.includes('data-ecx-path="1-1-0">C</p>'), out);
+  assert.ok(/<div[^>]*data-ecx-path="1"/.test(out), "khối cột có vị trí");
+  assert.ok(out.includes('<h1 data-ecx-doc="template:single" data-ecx-path="2">siteTitle</h1>'), "khối động là thẻ HTML → gắn thẳng");
+  assert.ok(!/<li[^>]*data-ecx/.test(out), "mục danh sách không gắn (giữ đúng cấu trúc ul > li)");
+  assert.ok(out.includes('data-ecx-path="3-0-0">D</p>'), "đoạn trong mục danh sách vẫn chọn được");
+});

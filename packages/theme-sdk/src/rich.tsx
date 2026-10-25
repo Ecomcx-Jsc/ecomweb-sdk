@@ -41,6 +41,14 @@ export interface RenderContext {
   inButtons?: boolean;
   /** Tiêu đề của bài (khối mục lục) — renderContent ngoài cùng tính. */
   headings?: Array<{ level: number; id: string; text: string }>;
+  /**
+   * Đang xem bản nháp (Trình dựng / xem trực tiếp): gắn data-ecx-doc + data-ecx-path cho từng khối để khung soạn ở admin
+   * biết người dùng bấm vào khối nào. `source` = tài liệu đang vẽ ("template:single", "part:header", "post:12", "pattern:3").
+   */
+  markBlocks?: boolean;
+  source?: string;
+  /** Khoá của khối richtext đang vẽ — đường dẫn khối = phần khoá sau nó (do renderBlock đặt). */
+  pathRoot?: string;
 }
 
 // Renderer đọc thuộc tính một cách khoan dung (đã chuẩn hoá ở normalizeContent) → kiểu nới cho gọn
@@ -166,7 +174,21 @@ function decorate(el: ReactNode, a: Record<string, any>, key: string, ctx: Rende
 async function renderNode(node: Node, key: string, ctx: RenderContext): Promise<ReactNode> {
   const el = await renderNodeInner(node, key, ctx);
   const a = node.attrs;
-  return a && (a.style || a.blockStyle || a.className || a.anchor) ? decorate(el, a, key, ctx) : el;
+  const out = a && (a.style || a.blockStyle || a.className || a.anchor) ? decorate(el, a, key, ctx) : el;
+  return ctx.markBlocks && ctx.source && ctx.pathRoot != null && key.startsWith(ctx.pathRoot + "-") && !UNMARKED.has(node.type)
+    ? markBlock(out, ctx.source, key.slice(ctx.pathRoot.length + 1), key)
+    : out;
+}
+
+/** Nút không chọn riêng được trong khung soạn (hoặc bọc thêm thẻ sẽ sai cấu trúc HTML: li trong ul, ô trong bảng). */
+const UNMARKED = new Set(["text", "hardBreak", "listItem", "taskItem", "tableRow", "tableCell", "tableHeader"]);
+
+/** Gắn vị trí khối: thẻ HTML thì thêm thuộc tính, component thì bọc thẻ display:contents (không đổi bố cục). */
+function markBlock(el: ReactNode, source: string, path: string, key: string): ReactNode {
+  if (el == null || el === false) return el;
+  const attrs = { "data-ecx-doc": source, "data-ecx-path": path };
+  if (isValidElement(el) && typeof el.type === "string") return cloneElement(el as ReactElement<Record<string, unknown>>, attrs);
+  return <div key={key} style={{ display: "contents" }} {...attrs}>{el}</div>;
 }
 
 async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Promise<ReactNode> {
@@ -422,7 +444,7 @@ async function renderHtml(html: string, key: string, ctx: RenderContext): Promis
 
 async function renderBlock(block: Block, key: string, ctx: RenderContext): Promise<ReactNode> {
   switch (block.type) {
-    case "richtext": return block.data ? await renderNode(block.data as Node, key, ctx) : null;
+    case "richtext": return block.data ? await renderNode(block.data as Node, key, ctx.markBlocks ? { ...ctx, pathRoot: key } : ctx) : null;
     case "html": return await renderHtml(String(block.data?.html ?? ""), key, ctx);
     default: {
       const Comp = await ctx.resolve.block(block.type);

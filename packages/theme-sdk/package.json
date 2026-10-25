@@ -1,6 +1,6 @@
 {
   "name": "@ecomcx/ecomweb-theme-sdk",
-  "version": "1.26.0",
+  "version": "1.27.0",
   "description": "SDK để viết theme và phần frontend của plugin cho Ecomweb",
   "type": "module",
   "main": "./src/index.ts",

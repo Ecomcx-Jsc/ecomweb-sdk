@@ -20,7 +20,7 @@ export async function PostContent({ post, content, className }: { post?: Post | 
     return <div className={cx(className ?? "entry-content", "ecx-content")}><PostPasswordForm postId={post.id} labels={{ intro: t("password.intro"), label: t("password.label"), submit: t("password.submit"), wrong: t("password.wrong") }} /></div>;
   }
   if (!doc?.blocks?.length) return null;
-  const rendered = await renderContent(doc, await contentContext(site, post), (blocks) => applyFilters("post.blocks", blocks, { site, post }, site));
+  const rendered = await renderContent(doc, { ...(await contentContext(site, post)), source: post ? `post:${post.id}` : undefined }, (blocks) => applyFilters("post.blocks", blocks, { site, post }, site));
   return <div className={cx(className ?? "entry-content", "ecx-content")}>{rendered}</div>;
 }
 
@@ -33,7 +33,7 @@ export async function EditableRegion({ name, data, className, children }: { name
   const doc = (await getTemplates().catch(() => null))?.parts[name];
   const site = await getSite();
   const own = doc?.blocks?.length
-    ? <div className={cx(`ecx-region ecx-region-${name}`, "ecx-content", className)}>{await renderContent(doc, await contentContext(site, data?.post, data))}</div>
+    ? <div className={cx(`ecx-region ecx-region-${name}`, "ecx-content", className)}>{await renderContent(doc, { ...(await contentContext(site, data?.post, data)), source: `part:${name}` })}</div>
     : <>{children}</>;
   return <>{await regionOverride(name, own, site, data)}</>;
 }
@@ -48,9 +48,11 @@ async function regionOverride(name: string, fallback: ReactNode, site: Site, dat
 /** Ngữ cảnh vẽ nội dung dùng chung cho bài viết và template khối. */
 export async function contentContext(site: Site, post?: Post | null, data?: ResolveResult): Promise<RenderContext> {
   const t = await getT();
+  // Bản nháp (xem trực tiếp / Trình dựng) không vào cache công khai → được gắn vị trí khối cho khung soạn
+  const markBlocks = await import("next/headers").then(async ({ draftMode }) => (await draftMode()).isEnabled).catch(() => false);
   const blocks = (await getActiveExtensions(site)).flatMap((d) => d.blockTypes ?? []);
   return {
-    site, post, data, blocks,
+    site, post, data, blocks, markBlocks,
     resolve: { shortcode: (name) => findShortcode(name, site), block: (type) => findBlock(type, site) },
     labels: { download: t("file.download"), toc: t("toc.title") },
     boundary: (name, key, el) => <ExtensionBoundary key={key} name={name}>{el}</ExtensionBoundary>,

@@ -115,13 +115,13 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       if (typeof a.ref !== "number" || !ctx.pattern || (ctx.partDepth ?? 0) >= 4) return null;
       const doc = await ctx.pattern(a.ref);
       if (!doc) return null;
-      return <Fragment key={key}>{await renderContent(doc, { ...ctx, partDepth: (ctx.partDepth ?? 0) + 1 })}</Fragment>;
+      return <Fragment key={key}>{await renderContent(doc, { ...ctx, partDepth: (ctx.partDepth ?? 0) + 1, source: `pattern:${a.ref}` })}</Fragment>;
     }
     case "templatePart": {
       if (!a.slug || !ctx.parts || (ctx.partDepth ?? 0) >= 4) return null;
       const doc = await ctx.parts(String(a.slug));
       const Tag = (["header", "footer", "aside", "section"].includes(a.tagName) ? a.tagName : "div") as "div";
-      const part = doc ? <Tag className={cx("ecx-template-part", `ecx-template-part-${a.slug}`)}>{await renderContent(doc, { ...ctx, partDepth: (ctx.partDepth ?? 0) + 1 })}</Tag> : null;
+      const part = doc ? <Tag className={cx("ecx-template-part", `ecx-template-part-${a.slug}`)}>{await renderContent(doc, { ...ctx, partDepth: (ctx.partDepth ?? 0) + 1, source: `part:${a.slug}` })}</Tag> : null;
       const el = ctx.region ? await ctx.region(String(a.slug), part) : part;
       return el == null ? null : <Fragment key={key}>{el}</Fragment>;
     }

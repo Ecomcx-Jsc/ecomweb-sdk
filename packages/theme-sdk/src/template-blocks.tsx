@@ -7,5 +7,5 @@ import type { TemplateProps } from "./types";
 export default async function BlockTemplate({ data, site, template }: TemplateProps) {
   const doc = (await getTemplates()).templates[template];
   if (!doc) return null;
-  return <div className={`ecx-template ecx-template-${template} ecx-content`}>{await renderContent(doc, await contentContext(site, data.post, data))}</div>;
+  return <div className={`ecx-template ecx-template-${template} ecx-content`}>{await renderContent(doc, { ...(await contentContext(site, data.post, data)), source: `template:${template}` })}</div>;
 }
