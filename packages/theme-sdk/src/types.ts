@@ -142,6 +142,8 @@ export interface ThemeManifest {
   blockStyles?: Record<string, Array<{ name: string; label: string }>>;
   /** Trang theme cần có: kích hoạt theme thì CMS tạo trang còn thiếu. locked = theme vẽ toàn bộ, trình soạn chỉ sửa tiêu đề/đường dẫn/SEO. */
   pages?: Array<{ slug: string; title: string; template?: string; locked?: boolean }>;
+  /** Nguồn ngoài website theme cần nạp (CSP): { "style-src": ["https://fonts.googleapis.com"], "font-src": ["https://fonts.gstatic.com"] }. */
+  csp?: Partial<Record<"script-src" | "style-src" | "img-src" | "font-src" | "connect-src" | "frame-src" | "media-src" | "worker-src" | "form-action", string[]>>;
   [key: string]: unknown;
 }
 

@@ -35,6 +35,7 @@ export function validate(dir) {
   }
   if (!manifest.requires?.cms) warnings.push('Nên khai báo requires.cms, vd ">=1.0.0 <2.0.0"');
   checkPermissions(manifest.permissions, errors, warnings);
+  checkCsp(manifest.csp, errors);
 
   if (kind === "theme") {
     const templates = path.join(dir, "templates");
@@ -149,6 +150,23 @@ function argsOf(ast, out = new Set()) {
 
 /** locales/{ngôn-ngữ}.json: { "khoa": "thông điệp ICU" } — cú pháp ICU, khoá và biến khớp giữa các ngôn ngữ. */
 /** Quyền trong manifest: viết sai → lỗi; quyền toàn phần mà chỉ cần vài domain / thư mục riêng → gợi ý quyền hẹp (CMS ≥ 1.8.0). */
+const CSP_DIRECTIVES = ["script-src", "style-src", "img-src", "font-src", "connect-src", "frame-src", "media-src", "worker-src", "form-action"];
+// Giữ khớp CspSources (Cms.Packaging): host https/wss cụ thể, được "*." đầu host, cổng, đường dẫn
+const CSP_SOURCE = /^(https|wss):\/\/(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:(\d{1,5}|\*))?(\/[A-Za-z0-9._~!$&()*+=:@%/-]*)?$/;
+
+/** "csp": nguồn ngoài website cần nạp, vd { "font-src": ["https://fonts.gstatic.com"] } — CMS gộp vào CSP của website. */
+function checkCsp(csp, errors) {
+  if (csp === undefined) return;
+  if (!csp || typeof csp !== "object" || Array.isArray(csp)) { errors.push('"csp" phải có dạng { "script-src": ["https://cdn.example.com"] }'); return; }
+  for (const [directive, list] of Object.entries(csp)) {
+    if (!CSP_DIRECTIVES.includes(directive)) { errors.push(`csp: chỉ thị "${directive}" không hỗ trợ (dùng: ${CSP_DIRECTIVES.join(", ")})`); continue; }
+    if (!Array.isArray(list)) { errors.push(`csp.${directive} phải là mảng nguồn`); continue; }
+    for (const src of list)
+      if (typeof src !== "string" || src.length > 300 || !CSP_SOURCE.test(src))
+        errors.push(`csp.${directive}: nguồn "${src}" không hợp lệ — chỉ nhận host https:// hoặc wss:// cụ thể, vd https://cdn.example.com (không "*", "https:", 'unsafe-…')`);
+  }
+}
+
 function checkPermissions(perms, errors, warnings) {
   if (perms === undefined) return;
   if (!Array.isArray(perms) || perms.some((p) => typeof p !== "string")) { errors.push('"permissions" phải là mảng chuỗi'); return; }
