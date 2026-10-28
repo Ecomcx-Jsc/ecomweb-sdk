@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { getArchives, getComments, getMenu, getMenuById, getPosts, getSite, getTerms, getWidgets } from "./api";
 import { findWidget, getSlotComponents, getSlotItems } from "./runtime";
 import type { Media, MenuItem, Post, ResolveResult, SlotName, WidgetInstance } from "./types";
-import { cx, formatDate, pageLink } from "./utils";
+import { cx, formatDate, pageLink, pageLinkWithQuery } from "./utils";
 import { Img } from "./image";
 import { CommentForm, CommentList, CommentsMore, ExtensionBoundary, LanguageSwitcherClient, Link, SearchFormClient } from "./client";
 import { getT } from "./i18n";
@@ -144,7 +144,11 @@ export async function Pagination({ data, prevLabel, nextLabel }: { data: Resolve
     if (i === 1 || i === data.totalPages || Math.abs(i - data.page) <= 2) pages.push(i);
     else if (pages[pages.length - 1] !== "…") pages.push("…");
   }
-  const link = (p: number) => pageLink(data.basePath, p, data.kind === "search" ? data.search : null);
+  // Danh sách có bộ lọc (?phong-ban=…, ?muc-luong=…) → giữ nguyên bộ lọc khi chuyển trang
+  const hasFilters = Object.keys(data.query ?? {}).some((k) => k !== "s" && k !== "page");
+  const link = (p: number) => hasFilters
+    ? pageLinkWithQuery(data.basePath, p, data.query)
+    : pageLink(data.basePath, p, data.kind === "search" ? data.search : null);
   return (
     <nav className="pagination" aria-label={t("pagination.label")}>
       {data.page > 1 && <Link className="prev" href={link(data.page - 1)}>{prevLabel}</Link>}

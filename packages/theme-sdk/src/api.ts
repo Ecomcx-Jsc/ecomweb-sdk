@@ -121,19 +121,77 @@ export const resolvePath = (path: string, query: Record<string, string | string[
 
 export const getPreview = (token: string) => cmsFetch<ResolveResult>("/preview", { noStore: true, query: { token } });
 
+/** Một điều kiện lọc theo taxonomy: bài phải khớp (hoặc không khớp) các term này. */
+export interface TaxQueryClause {
+  taxonomy: string;
+  terms: string[];
+  /** Mặc định "IN". "NOT IN" = loại bài thuộc các term này. */
+  operator?: "IN" | "NOT IN";
+}
+
+/**
+ * Một điều kiện lọc theo trường tuỳ biến (post.meta). Giá trị so sánh phải đúng kiểu JSON (số là số).
+ *
+ * So bằng (`=`, `!=`, `IN`, `NOT IN`, `EXISTS`, `NOT EXISTS`) chạy trên chỉ mục GIN sẵn có — dùng được
+ * với mọi khoá meta.
+ *
+ * So khoảng (`>`, `>=`, `<`, `<=`, `BETWEEN`, `LIKE`) **chỉ dùng được với khoá đã khai báo
+ * `filterable`** (backend tạo chỉ mục B-tree cho khoá đó lúc khởi động); khoá chưa khai báo trả 422.
+ * Với khoá kiểu số, giá trị phải là số JSON (chuỗi số cũng được, core tự chuyển) — nếu không phép so
+ * sẽ so chuỗi ("100" < "20").
+ */
+export interface MetaQueryClause {
+  key: string;
+  compare: "=" | "!=" | "IN" | "NOT IN" | "EXISTS" | "NOT EXISTS" | ">" | ">=" | "<" | "<=" | "BETWEEN" | "LIKE";
+  /** Bỏ trống với EXISTS / NOT EXISTS. Với LIKE: mẫu có `%` / `_`. */
+  value?: string | number | boolean | (string | number | boolean)[];
+  /** Cận trên của BETWEEN (bắt buộc với BETWEEN). */
+  value2?: string | number;
+}
+
+export interface MetaQuery {
+  /** Mặc định "AND". */
+  relation?: "AND" | "OR";
+  clauses: MetaQueryClause[];
+}
+
 export interface PostQuery {
   /** Mặc định: ngôn ngữ của request hiện tại. */
   locale?: string;
   type?: string; taxonomy?: string; term?: string; authorId?: number; search?: string;
+  /** Lọc nhiều post type cùng lúc (bài viết + trang + job...). Gộp với `type`. */
+  types?: string[];
+  /** Lọc nhiều taxonomy cùng lúc — thay cho taxonomy/term khi cần AND/OR nhiều điều kiện. */
+  taxQuery?: TaxQueryClause[];
+  /** Lọc theo trường tuỳ biến; chạy trong cơ sở dữ liệu trên chỉ mục GIN của posts.meta. */
+  metaQuery?: MetaQuery;
+  /** Chỉ lấy bài thuộc ngữ cảnh này (plugin tự lọc thêm qua filter posts.query). */
+  context?: string;
   include?: number[]; exclude?: number[]; parentId?: number;
   /** true = chỉ bài ghim, false = bỏ bài ghim. */
   sticky?: boolean;
   /** Kèm nội dung đầy đủ (post.content). Mặc định không — danh sách chỉ cần tiêu đề, sapo, ảnh, giúp trang nhẹ và nhanh. */
   withContent?: boolean;
   page?: number; perPage?: number; orderBy?: "date" | "title" | "modified" | "menu_order" | "comment_count"; order?: "asc" | "desc";
+  /**
+   * Sắp xếp theo một khoá meta đã khai báo `filterable` (vd `"gia"`, `"job_deadline"`) — thay cho `orderBy`.
+   * Khoá chưa khai báo trả 422 (không có chỉ mục thì sắp xếp phải quét toàn bảng).
+   */
+  orderByMeta?: string;
 }
-export const getPosts = async ({ withContent, ...q }: PostQuery = {}) =>
-  cmsFetch<{ items: Post[]; total: number; page: number; totalPages: number }>("/posts", { tags: ["posts"], query: clean({ ...q, content: withContent ?? false, locale: q.locale ?? (await getRequestLocale()) } as Record<string, unknown>) });
+export const getPosts = async ({ withContent, ...q }: PostQuery = {}) => {
+  // Bóc tách TRONG thân hàm, không phải trong tham số: chữ ký đã công bố của getPosts nằm trong baseline
+  // hợp đồng (api/theme-sdk.txt) nên thêm tên vào tham số là đổi một dòng đã ký (CI coi là phá hợp đồng).
+  const { taxQuery, metaQuery, ...rest } = q;
+  return cmsFetch<{ items: Post[]; total: number; page: number; totalPages: number }>("/posts", { tags: ["posts"], query: clean({
+    ...rest,
+    // Bộ lọc phức tạp đi dạng JSON — core phân tích và áp thẳng vào câu SQL (không lọc bằng bộ nhớ).
+    taxQuery: taxQuery?.length ? JSON.stringify(taxQuery) : undefined,
+    metaQuery: metaQuery?.clauses?.length ? JSON.stringify(metaQuery) : undefined,
+    content: withContent ?? false,
+    locale: rest.locale ?? (await getRequestLocale()),
+  } as Record<string, unknown>) });
+};
 
 const loc = async (locale?: string) => locale ?? (await getRequestLocale());
 

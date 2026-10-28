@@ -108,6 +108,12 @@ export interface ResolveResult {
   route?: { name: string; path: string; rest: string; owner: string } | null;
   /** Không cho máy tìm kiếm index. */
   noIndex?: boolean;
+  /**
+   * Tham số truy vấn của URL (searchParams) của request hiện tại — server render đọc trực tiếp để
+   * lọc danh sách ngay trên máy chủ. Dùng cho bộ lọc người đọc chọn: `getPosts({ metaQuery: … })`
+   * rồi truyền `data.query` vào để giữ bộ lọc khi chuyển trang (xem `pageLinkWithQuery`).
+   */
+  query?: Record<string, string>;
 }
 
 /** Props mà mọi template của theme nhận được. */

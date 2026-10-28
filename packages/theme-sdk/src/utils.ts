@@ -30,6 +30,25 @@ export function pageLink(basePath: string, page: number, search?: string | null)
   return search ? `${path}${path.includes("?") ? "&" : "?"}s=${encodeURIComponent(search)}` : path;
 }
 
+/**
+ * Link của một trang trong danh sách CÓ bộ lọc: giữ nguyên mọi tham số truy vấn hiện có (phòng ban,
+ * mức lương, từ khoá…) và chỉ đổi số trang. Truyền `data.query` của trang vào.
+ *
+ *   <Link href={pageLinkWithQuery(data.basePath, 2, data.query)}>2</Link>
+ */
+export function pageLinkWithQuery(basePath: string, page: number, query?: Record<string, string> | null) {
+  const base = basePath === "/" ? "" : basePath.replace(/\/$/, "");
+  const path = page <= 1 ? base || "/" : `${base}/page/${page}`;
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(query ?? {})) {
+    // "page" do đường dẫn quyết định; tham số rỗng không cần giữ
+    if (k === "page" || v === "" || v === undefined || v === null) continue;
+    params.set(k, v);
+  }
+  const qs = params.toString();
+  return qs ? `${path}${path.includes("?") ? "&" : "?"}${qs}` : path;
+}
+
 export function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
