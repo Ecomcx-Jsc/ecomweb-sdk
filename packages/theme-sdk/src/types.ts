@@ -160,6 +160,18 @@ export interface ThemeManifest {
   pages?: Array<{ slug: string; title: string; template?: string; locked?: boolean }>;
   /** Nguồn ngoài website theme cần nạp (CSP): { "style-src": ["https://fonts.googleapis.com"], "font-src": ["https://fonts.gstatic.com"] }. */
   csp?: Partial<Record<"script-src" | "style-src" | "img-src" | "font-src" | "connect-src" | "frame-src" | "media-src" | "worker-src" | "form-action", string[]>>;
+  /**
+   * Kiểu nội dung của theme (CMS ≥ 1.15, như plugin.json — giống functions.php của WordPress):
+   * { "su-kien": { "label": "Sự kiện", "rewriteSlug": "su-kien", "taxonomies": ["khoa"] } }.
+   * Đăng ký khi theme (hoặc theme con) đang dùng; không đè kiểu của core/plugin.
+   */
+  postTypes?: Record<string, Record<string, JsonValue>>;
+  /** Phân loại của theme: { "khoa": { "label": "Khoa", "hierarchical": true, "postTypes": ["su-kien"] } }. */
+  taxonomies?: Record<string, Record<string, JsonValue>>;
+  /** Meta bài của theme: { "ngay-bat-dau": { "filterable": true, "indexType": "date" } } — lọc/sắp xếp/facet được. */
+  postMeta?: Record<string, Record<string, JsonValue>>;
+  /** Meta thành viên: { "hoc-vi": { "public": true } } — hiện trong hồ sơ tác giả (Author.meta). */
+  userMeta?: Record<string, { public?: boolean }>;
   [key: string]: unknown;
 }
 
