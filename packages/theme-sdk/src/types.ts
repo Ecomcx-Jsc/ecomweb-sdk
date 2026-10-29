@@ -3,7 +3,15 @@ import type { ComponentType, ReactNode } from "react";
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };
 export type JsonObject = { [k: string]: JsonValue };
 
-export interface Author { id: number; name: string; slug: string; avatarUrl?: string | null; bio?: string | null }
+export interface Author {
+  id: number; name: string; slug: string; avatarUrl?: string | null; bio?: string | null;
+  /** Meta công khai của thành viên (plugin khai báo `UserMeta` Public), vd `{ khoa: "cntt" }`. */
+  meta?: JsonObject;
+  /** Số bài đã đăng — chỉ có trong danh sách {@link getAuthors}. */
+  postCount?: number | null;
+  /** Dữ liệu plugin thêm qua filter api.author.response. */
+  extra?: JsonObject;
+}
 
 export interface MediaSize { url: string; width: number; height: number; webpUrl?: string | null }
 export interface Media {
@@ -14,6 +22,8 @@ export interface Media {
   webpUrl?: string | null;
   /** Điểm lấy nét 0–1 (object-position). */
   focalX?: number | null; focalY?: number | null;
+  title?: string;
+  createdAt?: string;
 }
 
 export interface Term {
