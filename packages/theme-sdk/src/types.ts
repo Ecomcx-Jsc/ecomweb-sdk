@@ -269,6 +269,11 @@ export interface FilterMap {
   "robots.txt": (content: string, ctx: { site: Site }) => string | Promise<string>;
   /** Sửa danh sách URL của sitemap.xml. */
   "sitemap.entries": (entries: SitemapEntry[], ctx: { site: Site }) => SitemapEntry[] | Promise<SitemapEntry[]>;
+  /**
+   * Đổi thứ tự / thêm tên template trước khi theme chọn (core ≥ 1.15) — vd plugin "Sự kiện" thêm "plugin-su-kien" lên đầu
+   * cho kiểu nội dung của nó và khai báo template đó trong `definePlugin({ templates })`. Theme có template trùng tên vẫn thắng.
+   */
+  "template.hierarchy": (templates: string[], ctx: { site: Site; data: ResolveResult }) => string[] | Promise<string[]>;
   /** Thêm/bớt class của thẻ <body> (vd "logged-in", "has-promo-bar") */
   "body.class": (classes: string[], ctx: { site: Site }) => string[] | Promise<string[]>;
   /** Cho phép các filter tùy biến bất kỳ của plugin/theme */
