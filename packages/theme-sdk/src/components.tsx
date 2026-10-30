@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { getArchives, getComments, getMenu, getMenuById, getPosts, getSite, getTerms, getWidgets } from "./api";
+import { getArchives, getComments, getMenu, getMenuById, getPosts, getSite, getTerms, getWidgets, requestUnlock } from "./api";
 import { findWidget, getSlotComponents, getSlotItems } from "./runtime";
 import type { Media, MenuItem, Post, ResolveResult, SlotName, WidgetInstance } from "./types";
 import { cx, formatDate, pageLink, pageLinkWithQuery } from "./utils";
@@ -183,7 +183,8 @@ export function TermLinks({ terms, separator = ", " }: { terms?: Array<{ id: num
 export async function Comments({ post, title }: { post: Post; title?: string }) {
   if (post.commentStatus !== "open" && post.commentCount === 0) return null;
   if (post.passwordProtected && !post.content) return null; // bài có mật khẩu: ẩn bình luận tới khi mở khoá
-  const [site, page, t] = await Promise.all([getSite(), getComments(post.id), getT()]);
+  const unlock = post.passwordProtected ? await requestUnlock() : undefined;
+  const [site, page, t] = await Promise.all([getSite(), getComments(post.id, 1, unlock), getT()]);
   const comments = page?.items ?? [];
   const dateSite = { dateFormat: site.dateFormat, timezone: site.timezone, locale: site.locale };
   title ??= t("comments.title");

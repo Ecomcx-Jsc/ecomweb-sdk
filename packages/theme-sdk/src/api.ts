@@ -325,9 +325,22 @@ export const getMenu = async (location: string, locale?: string) =>
 export const getMenuById = (id: number) => cmsFetch<Menu | null>(`/menus/id/${id}`, { tags: ["menus"] });
 export const getWidgets = async (area: string, locale?: string) =>
   cmsFetch<WidgetInstance[]>(`/widgets/${area}`, { tags: ["widgets"], query: clean({ locale: await loc(locale) }) });
-/** Bình luận đã duyệt theo trang (số mỗi trang, thứ tự: Cài đặt › Thảo luận). */
-export const getComments = (postId: number, page = 1) =>
-  cmsFetch<CommentPage>(`/comments/${postId}`, { tags: [`comments:${postId}`], query: page > 1 ? { page } : undefined });
+/**
+ * Bình luận đã duyệt theo trang (số mỗi trang, thứ tự: Cài đặt › Thảo luận).
+ * Bài có mật khẩu (core >= 1.15): CMS chỉ trả bình luận khi có token mở khoá — unlock = giá trị cookie cms-unlock (không cache).
+ */
+export const getComments = (postId: number, page = 1, unlock?: string) =>
+  cmsFetch<CommentPage>(`/comments/${postId}`, {
+    tags: [`comments:${postId}`], noStore: !!unlock, query: page > 1 ? { page } : undefined, headers: unlock ? { [UNLOCK_HEADER]: unlock } : undefined,
+  });
+
+/** Cookie mở khoá bài có mật khẩu của request hiện tại (server component); ngoài request → undefined. */
+export async function requestUnlock(): Promise<string | undefined> {
+  try {
+    const { cookies } = await import("next/headers");
+    return (await cookies()).get(UNLOCK_COOKIE)?.value;
+  } catch { return undefined; }
+}
 export const getArchives = async (locale?: string) =>
   cmsFetch<Array<{ year: number; month: number; count: number; link: string }>>("/archives", { tags: ["posts"], query: clean({ locale: await loc(locale) }) });
 export const getLanguages = () => cmsFetch<{ defaultLocale: string; languages: Array<{ code: string; name: string; isDefault: boolean; flag?: string }> }>("/languages", { tags: ["site"] });
