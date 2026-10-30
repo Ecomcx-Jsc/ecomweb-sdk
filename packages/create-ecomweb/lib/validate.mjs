@@ -90,12 +90,17 @@ export function validate(dir) {
         if (j.category && !/^[a-z][a-z0-9-]{0,30}$/.test(j.category)) errors.push(`patterns/${f}: category "${j.category}" không hợp lệ`);
       } catch (e) { errors.push(`patterns/${f}: JSON lỗi — ${e.message}`); }
     }
+    contentDeclarations(manifest, errors, true);
+    if (["postTypes", "taxonomies", "postMeta", "userMeta"].some((k) => manifest[k] && Object.keys(manifest[k]).length))
+      warnings.push("Theme khai báo kiểu nội dung / phân loại / meta: cần CMS ≥ 1.15.0; đổi theme có khai báo khác thì API tự khởi động lại vài giây");
     if (manifest.screenshot && !fs.existsSync(path.join(dir, manifest.screenshot))) warnings.push(`Không thấy ảnh ${manifest.screenshot}`);
     if (fs.existsSync(path.join(dir, "node_modules"))) warnings.push("node_modules sẽ bị loại khỏi gói");
   } else {
-    const declared = ["collections", "settings", "postTypes", "taxonomies", "postStatuses", "postMeta", "capabilities", "menus"].some((k) => manifest[k] && Object.keys(manifest[k]).length);
-    for (const key of Object.keys(manifest.postMeta ?? {}))
-      if (!/^[A-Za-z0-9_][A-Za-z0-9_.:-]{0,99}$/.test(key)) errors.push(`postMeta: khoá "${key}" không hợp lệ (chữ, số, _ - . :, tối đa 100 ký tự)`);
+    const declared = ["collections", "settings", "postTypes", "taxonomies", "postStatuses", "postMeta", "userMeta", "imageSizes", "capabilities", "menus"].some((k) => manifest[k] && Object.keys(manifest[k]).length);
+    contentDeclarations(manifest, errors);
+    for (const [name, size] of Object.entries(manifest.imageSizes ?? {}))
+      if (!/^[a-z0-9_-]{1,40}$/.test(name) || !(size?.width >= 1 && size.width <= 4000) || !((size.height ?? 0) >= 0 && (size.height ?? 0) <= 4000))
+        errors.push(`imageSizes: cỡ "${name}" không hợp lệ (tên a-z 0-9 _ -, width 1–4000, height 0–4000)`);
     for (const name of Object.keys(manifest.pageTemplates ?? {}))
       if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(name)) errors.push(`pageTemplates: tên template "${name}" không hợp lệ (chữ thường, số, gạch ngang)`);
     if (!manifest.backend && !manifest.admin && !manifest.frontend && !declared) errors.push("Plugin cần ít nhất một phần: backend, admin, frontend hoặc khai báo (collections, settings, postTypes…)");
@@ -273,3 +278,12 @@ function findLegacyCalls(srcDir) {
   return out;
 }
 
+/** Khai báo nội dung dùng chung cho plugin.json và theme.json (cùng quy tắc với core — Cms.Packaging/Manifests.cs). */
+function contentDeclarations(manifest, errors, checkNames = false) {
+  for (const key of Object.keys(manifest.postMeta ?? {}))
+    if (!/^[A-Za-z0-9_][A-Za-z0-9_.:-]{0,99}$/.test(key)) errors.push(`postMeta: khoá "${key}" không hợp lệ (chữ, số, _ - . :, tối đa 100 ký tự)`);
+  for (const key of Object.keys(manifest.userMeta ?? {}))
+    if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$/.test(key)) errors.push(`userMeta: khoá "${key}" không hợp lệ (chữ, số, _ - . :, tối đa 100 ký tự, không bắt đầu bằng _)`);
+  if (checkNames) for (const name of [...Object.keys(manifest.postTypes ?? {}), ...Object.keys(manifest.taxonomies ?? {})])
+    if (!/^[a-z][a-z0-9_-]{0,31}$/.test(name)) errors.push(`Tên kiểu nội dung / phân loại "${name}" không hợp lệ (a-z, 0-9, _ -, bắt đầu bằng chữ, tối đa 32 ký tự)`);
+}

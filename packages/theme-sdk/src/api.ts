@@ -1,5 +1,5 @@
 import { createFetchKit, isFetchKitError } from "next-fetch-kit";
-import type { PostContentDoc, CommentPage, Menu, Post, ResolveResult, Site, Term, WidgetInstance } from "./types";
+import type { Author, PostContentDoc, CommentPage, Media, Menu, Post, ResolveResult, Site, Term, WidgetInstance } from "./types";
 import { getRequestLocale } from "./locale";
 
 /**
@@ -172,7 +172,18 @@ export interface PostQuery {
   sticky?: boolean;
   /** Kèm nội dung đầy đủ (post.content). Mặc định không — danh sách chỉ cần tiêu đề, sapo, ảnh, giúp trang nhẹ và nhanh. */
   withContent?: boolean;
-  page?: number; perPage?: number; orderBy?: "date" | "title" | "modified" | "menu_order" | "comment_count"; order?: "asc" | "desc";
+  /**
+   * `relevance` = theo độ khớp với `search` (trang tìm kiếm dùng mặc định); `rand` = ngẫu nhiên (kết quả vẫn được
+   * cache, đổi khi cache hết hạn hoặc nội dung đổi).
+   */
+  page?: number; perPage?: number; orderBy?: "date" | "title" | "modified" | "menu_order" | "comment_count" | "id" | "slug" | "rand" | "relevance"; order?: "asc" | "desc";
+  /** Ngày đăng từ (gồm cả mốc), ISO-8601 hoặc Date — vd sự kiện / tin tức từ đầu năm học. */
+  after?: string | Date;
+  /** Ngày đăng trước (không gồm mốc). */
+  before?: string | Date;
+  /** Năm đăng (UTC); kèm `month` 1–12 để lấy một tháng — trang lưu trữ. */
+  year?: number;
+  month?: number;
   /**
    * Sắp xếp theo một khoá meta đã khai báo `filterable` (vd `"gia"`, `"job_deadline"`) — thay cho `orderBy`.
    * Khoá chưa khai báo trả 422 (không có chỉ mục thì sắp xếp phải quét toàn bảng).
@@ -184,7 +195,7 @@ export const getPosts = async ({ withContent, ...q }: PostQuery = {}) => {
   // hợp đồng (api/theme-sdk.txt) nên thêm tên vào tham số là đổi một dòng đã ký (CI coi là phá hợp đồng).
   const { taxQuery, metaQuery, ...rest } = q;
   return cmsFetch<{ items: Post[]; total: number; page: number; totalPages: number }>("/posts", { tags: ["posts"], query: clean({
-    ...rest,
+    ...postQueryParams(rest),
     // Bộ lọc phức tạp đi dạng JSON — core phân tích và áp thẳng vào câu SQL (không lọc bằng bộ nhớ).
     taxQuery: taxQuery?.length ? JSON.stringify(taxQuery) : undefined,
     metaQuery: metaQuery?.clauses?.length ? JSON.stringify(metaQuery) : undefined,
@@ -194,6 +205,94 @@ export const getPosts = async ({ withContent, ...q }: PostQuery = {}) => {
 };
 
 const loc = async (locale?: string) => locale ?? (await getRequestLocale());
+
+/** Tham số đơn giản của PostQuery → query string (Date → ISO). */
+function postQueryParams(q: Omit<PostQuery, "taxQuery" | "metaQuery" | "withContent">): Record<string, unknown> {
+  const iso = (d?: string | Date) => (d instanceof Date ? d.toISOString() : d);
+  return { ...q, after: iso(q.after), before: iso(q.before) };
+}
+
+/** Một trang của danh sách công khai (term, tác giả, media). */
+export interface ListPage<T> { items: T[]; total: number; page: number; totalPages: number }
+
+/** Một giá trị facet: slug term (facet phân loại) hoặc giá trị meta, kèm số bài. */
+export interface FacetValue { value: string; count: number; termId?: number | null; name?: string | null; parentId?: number | null }
+export interface FacetResult { total: number; facets: Record<string, FacetValue[]> }
+
+/**
+ * Đếm số bài theo từng giá trị (bộ lọc có số đếm: "Khoa CNTT (12)") trên đúng tập bài mà {@link getPosts} trả về với
+ * cùng điều kiện. `facets`: tên phân loại công khai ("category") và/hoặc `"meta:khoá"` (khoá khai báo `filterable`).
+ * Tối đa 5 facet × 100 giá trị, đếm trong PostgreSQL.
+ * @example const { facets } = await getFacets(["khoa", "meta:hoc-ky"], { type: "khoa-hoc", taxQuery })
+ */
+export async function getFacets(facets: string[], query: Omit<PostQuery, "page" | "perPage" | "withContent" | "orderBy" | "order" | "orderByMeta"> = {}) {
+  const { taxQuery, metaQuery, ...rest } = query;
+  return cmsFetch<FacetResult>("/posts/facets", { tags: ["posts"], query: clean({
+    ...postQueryParams(rest),
+    facets: facets.join(","),
+    taxQuery: taxQuery?.length ? JSON.stringify(taxQuery) : undefined,
+    metaQuery: metaQuery?.clauses?.length ? JSON.stringify(metaQuery) : undefined,
+    locale: rest.locale ?? (await getRequestLocale()),
+  } as Record<string, unknown>) });
+}
+
+export interface TermQuery {
+  taxonomy: string;
+  locale?: string;
+  /** Tìm theo tên, không phân biệt dấu. */
+  search?: string;
+  /** Chỉ term con trực tiếp của term này; 0 = chỉ term gốc. */
+  parent?: number;
+  include?: number[]; exclude?: number[];
+  hideEmpty?: boolean;
+  /** Chỉ term có meta khoá này (và đúng giá trị nếu có metaValue). */
+  metaKey?: string; metaValue?: string;
+  orderBy?: "name" | "slug" | "count" | "id"; order?: "asc" | "desc";
+  /** perPage 1–500 (mặc định 100). */
+  page?: number; perPage?: number;
+  /** Tham số thêm cho plugin (filter terms.query đọc trong Query). */
+  params?: Record<string, string>;
+}
+/** Danh sách term có phân trang, lọc theo cha / từ khoá / meta, sắp xếp — bản đầy đủ của {@link getTerms}. */
+export const queryTerms = async ({ params, ...q }: TermQuery) =>
+  cmsFetch<ListPage<Term>>("/terms", { tags: ["terms"], query: clean({ ...params, ...q, locale: await loc(q.locale) }) });
+
+export interface AuthorQuery {
+  locale?: string;
+  /** Tìm theo tên hiển thị, không phân biệt dấu. */
+  search?: string;
+  include?: number[]; exclude?: number[];
+  /** Lọc theo meta công khai (khoá khai báo `UserMeta` Public), vd metaKey "khoa". Khoá không công khai → 422. */
+  metaKey?: string; metaValue?: string;
+  orderBy?: "name" | "post_count" | "id"; order?: "asc" | "desc";
+  /** perPage 1–100 (mặc định 20). */
+  page?: number; perPage?: number;
+  /** Tham số thêm cho plugin (filter authors.query), vd plugin danh bạ thêm vai trò "giang-vien". */
+  params?: Record<string, string>;
+}
+/**
+ * Danh sách tác giả công khai (trang "Đội ngũ", danh bạ): mặc định thành viên có bài đã đăng; plugin mở rộng qua
+ * filter authors.query. Chỉ có tên, slug, ảnh, tiểu sử, meta công khai — không bao giờ có email.
+ */
+export const getAuthors = async ({ params, ...q }: AuthorQuery = {}) =>
+  cmsFetch<ListPage<Author>>("/authors", { tags: ["authors"], query: clean({ ...params, ...q, locale: await loc(q.locale) }) });
+
+export interface MediaQuery {
+  /** Tìm theo tiêu đề, alt, chú thích, tên file — không phân biệt dấu. */
+  search?: string;
+  /** Tiền tố kiểu file: "image/", "video/", "application/pdf". */
+  mime?: string;
+  folder?: number;
+  include?: number[]; exclude?: number[];
+  orderBy?: "date" | "title" | "id" | "size"; order?: "asc" | "desc";
+  /** perPage 1–100 (mặc định 20). */
+  page?: number; perPage?: number;
+  /** Tham số thêm cho plugin (filter media.query). */
+  params?: Record<string, string>;
+}
+/** Danh sách media (thư viện ảnh, tài liệu tải về) — plugin giới hạn / mở rộng qua filter media.query. */
+export const getMedia = async ({ params, ...q }: MediaQuery = {}) =>
+  cmsFetch<ListPage<Media>>("/media", { tags: ["media"], query: clean({ ...params, ...q }) });
 
 export const getPost = async (type: string, slug: string, locale?: string) =>
   cmsFetch<Post>(`/posts/${type}/${encodeURIComponent(slug)}`, { tags: ["posts"], query: clean({ locale: await loc(locale) }) }).catch(() => null);
@@ -226,9 +325,22 @@ export const getMenu = async (location: string, locale?: string) =>
 export const getMenuById = (id: number) => cmsFetch<Menu | null>(`/menus/id/${id}`, { tags: ["menus"] });
 export const getWidgets = async (area: string, locale?: string) =>
   cmsFetch<WidgetInstance[]>(`/widgets/${area}`, { tags: ["widgets"], query: clean({ locale: await loc(locale) }) });
-/** Bình luận đã duyệt theo trang (số mỗi trang, thứ tự: Cài đặt › Thảo luận). */
-export const getComments = (postId: number, page = 1) =>
-  cmsFetch<CommentPage>(`/comments/${postId}`, { tags: [`comments:${postId}`], query: page > 1 ? { page } : undefined });
+/**
+ * Bình luận đã duyệt theo trang (số mỗi trang, thứ tự: Cài đặt › Thảo luận).
+ * Bài có mật khẩu (core >= 1.15): CMS chỉ trả bình luận khi có token mở khoá — unlock = giá trị cookie cms-unlock (không cache).
+ */
+export const getComments = (postId: number, page = 1, unlock?: string) =>
+  cmsFetch<CommentPage>(`/comments/${postId}`, {
+    tags: [`comments:${postId}`], noStore: !!unlock, query: page > 1 ? { page } : undefined, headers: unlock ? { [UNLOCK_HEADER]: unlock } : undefined,
+  });
+
+/** Cookie mở khoá bài có mật khẩu của request hiện tại (server component); ngoài request → undefined. */
+export async function requestUnlock(): Promise<string | undefined> {
+  try {
+    const { cookies } = await import("next/headers");
+    return (await cookies()).get(UNLOCK_COOKIE)?.value;
+  } catch { return undefined; }
+}
 export const getArchives = async (locale?: string) =>
   cmsFetch<Array<{ year: number; month: number; count: number; link: string }>>("/archives", { tags: ["posts"], query: clean({ locale: await loc(locale) }) });
 export const getLanguages = () => cmsFetch<{ defaultLocale: string; languages: Array<{ code: string; name: string; isDefault: boolean; flag?: string }> }>("/languages", { tags: ["site"] });

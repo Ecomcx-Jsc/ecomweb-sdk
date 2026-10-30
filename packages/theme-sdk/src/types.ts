@@ -3,7 +3,15 @@ import type { ComponentType, ReactNode } from "react";
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };
 export type JsonObject = { [k: string]: JsonValue };
 
-export interface Author { id: number; name: string; slug: string; avatarUrl?: string | null; bio?: string | null }
+export interface Author {
+  id: number; name: string; slug: string; avatarUrl?: string | null; bio?: string | null;
+  /** Meta công khai của thành viên (plugin khai báo `UserMeta` Public), vd `{ khoa: "cntt" }`. */
+  meta?: JsonObject;
+  /** Số bài đã đăng — chỉ có trong danh sách {@link getAuthors}. */
+  postCount?: number | null;
+  /** Dữ liệu plugin thêm qua filter api.author.response. */
+  extra?: JsonObject;
+}
 
 export interface MediaSize { url: string; width: number; height: number; webpUrl?: string | null }
 export interface Media {
@@ -14,6 +22,8 @@ export interface Media {
   webpUrl?: string | null;
   /** Điểm lấy nét 0–1 (object-position). */
   focalX?: number | null; focalY?: number | null;
+  title?: string;
+  createdAt?: string;
 }
 
 export interface Term {
@@ -150,6 +160,18 @@ export interface ThemeManifest {
   pages?: Array<{ slug: string; title: string; template?: string; locked?: boolean }>;
   /** Nguồn ngoài website theme cần nạp (CSP): { "style-src": ["https://fonts.googleapis.com"], "font-src": ["https://fonts.gstatic.com"] }. */
   csp?: Partial<Record<"script-src" | "style-src" | "img-src" | "font-src" | "connect-src" | "frame-src" | "media-src" | "worker-src" | "form-action", string[]>>;
+  /**
+   * Kiểu nội dung của theme (CMS ≥ 1.15, như plugin.json — giống functions.php của WordPress):
+   * { "su-kien": { "label": "Sự kiện", "rewriteSlug": "su-kien", "taxonomies": ["khoa"] } }.
+   * Đăng ký khi theme (hoặc theme con) đang dùng; không đè kiểu của core/plugin.
+   */
+  postTypes?: Record<string, Record<string, JsonValue>>;
+  /** Phân loại của theme: { "khoa": { "label": "Khoa", "hierarchical": true, "postTypes": ["su-kien"] } }. */
+  taxonomies?: Record<string, Record<string, JsonValue>>;
+  /** Meta bài của theme: { "ngay-bat-dau": { "filterable": true, "indexType": "date" } } — lọc/sắp xếp/facet được. */
+  postMeta?: Record<string, Record<string, JsonValue>>;
+  /** Meta thành viên: { "hoc-vi": { "public": true } } — hiện trong hồ sơ tác giả (Author.meta). */
+  userMeta?: Record<string, { public?: boolean }>;
   [key: string]: unknown;
 }
 
@@ -247,6 +269,11 @@ export interface FilterMap {
   "robots.txt": (content: string, ctx: { site: Site }) => string | Promise<string>;
   /** Sửa danh sách URL của sitemap.xml. */
   "sitemap.entries": (entries: SitemapEntry[], ctx: { site: Site }) => SitemapEntry[] | Promise<SitemapEntry[]>;
+  /**
+   * Đổi thứ tự / thêm tên template trước khi theme chọn (core ≥ 1.15) — vd plugin "Sự kiện" thêm "plugin-su-kien" lên đầu
+   * cho kiểu nội dung của nó và khai báo template đó trong `definePlugin({ templates })`. Theme có template trùng tên vẫn thắng.
+   */
+  "template.hierarchy": (templates: string[], ctx: { site: Site; data: ResolveResult }) => string[] | Promise<string[]>;
   /** Thêm/bớt class của thẻ <body> (vd "logged-in", "has-promo-bar") */
   "body.class": (classes: string[], ctx: { site: Site }) => string[] | Promise<string[]>;
   /** Cho phép các filter tùy biến bất kỳ của plugin/theme */
