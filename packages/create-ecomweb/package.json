@@ -1,6 +1,6 @@
 {
   "name": "@ecomcx/create-ecomweb",
-  "version": "1.29.0",
+  "version": "1.30.0",
   "description": "CLI tạo, kiểm tra, đóng gói và triển khai theme/plugin cho Ecomweb",
   "type": "module",
   "bin": {

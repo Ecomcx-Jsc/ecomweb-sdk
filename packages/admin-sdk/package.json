@@ -1,6 +1,6 @@
 {
   "name": "@ecomcx/ecomweb-admin-sdk",
-  "version": "1.29.0",
+  "version": "1.30.0",
   "description": "SDK cho phần admin của plugin: đăng ký trang, meta box, widget dashboard và dùng bộ UI của admin.",
   "type": "module",
   "main": "./src/index.ts",
