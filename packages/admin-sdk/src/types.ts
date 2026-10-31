@@ -59,6 +59,43 @@ export interface TermMetaBox {
   component: ComponentType<TermMetaBoxProps>;
 }
 
+/**
+ * Đối tượng của plugin lưu trong bảng riêng (vd "ecomcx-ecommerce/order") — plugin chủ khai báo bằng ctx.Objects.Register ở backend
+ * (hoặc bảng [PluginTable] có cột [ObjectMeta]); danh sách nằm trong bootstrap của admin (`objectTypes`).
+ */
+export interface ObjectMetaBoxProps {
+  /** Tên đối tượng "{slug}/{name}". */
+  object: string;
+  /** Mã đối tượng; bỏ trống khi đang tạo mới. */
+  id?: string | number;
+  /** Dữ liệu đang sửa của đối tượng (chỉ để đọc, vd tổng tiền đơn hàng) — tuỳ plugin chủ. */
+  record?: Record<string, any>;
+  /** Meta hiện tại (đã gồm thay đổi chưa lưu). */
+  meta: Record<string, any>;
+  /** Đặt meta — plugin chủ lưu cùng đối tượng khi bấm Lưu. */
+  setMeta(key: string, value: any): void;
+}
+
+/** Hộp thêm vào trang sửa đối tượng của plugin khác (CMS ≥ 1.18.0), vd trường tuỳ biến cho đơn hàng. */
+export interface ObjectMetaBox {
+  id: string;
+  title: string;
+  /** Tên đối tượng "{slug}/{name}"; bỏ trống = mọi đối tượng. */
+  objects?: string[];
+  context?: "main" | "side";
+  priority?: number;
+  /** Trả false để ẩn hộp với đối tượng này (vd không có nhóm trường nào áp dụng). */
+  visible?(props: ObjectMetaBoxProps): boolean;
+  component: ComponentType<ObjectMetaBoxProps>;
+}
+
+/** Chỗ vẽ hộp của plugin khác trong trang sửa đối tượng của mình (plugin chủ dùng). */
+export interface ObjectMetaBoxesProps extends ObjectMetaBoxProps {
+  context?: "main" | "side" | "all";
+  excludeIds?: string[];
+  className?: string;
+}
+
 export interface MetaBox {
   id: string;
   title: string;
@@ -328,6 +365,8 @@ export interface UiKit {
   Section: ComponentType<{ title: ReactNode; children: ReactNode; defaultOpen?: boolean; actions?: ReactNode }>;
   Tabs: ComponentType<{ value: string; onChange(v: string): void; items: Array<{ value: string; label: ReactNode; count?: number }> }>;
   MetaBoxes: ComponentType<MetaBoxesProps>;
+  /** Hộp của plugin khác cho đối tượng trong bảng riêng (CMS ≥ 1.18.0). */
+  ObjectMetaBoxes?: ComponentType<ObjectMetaBoxesProps>;
   Slot: ComponentType<{ name: string; props?: any; fallback?: ReactNode; postType?: string; className?: string }>;
   Fill: ComponentType<{ name: string; priority?: number; children: ReactNode }>;
 
@@ -376,6 +415,8 @@ export interface CmsAdmin {
   registerDashboardWidget(widget: DashboardWidget): void;
   registerPostListColumn(column: PostListColumn): void;
   registerTermMetaBox(box: TermMetaBox): void;
+  registerObjectMetaBox?(box: ObjectMetaBox): void;
+  getObjectMetaBoxes?(object?: string): ObjectMetaBox[];
   registerSlot(slot: AdminSlotItem): void;
   getSlots(slot: string, postType?: string): Array<AdminSlotItem>;
   registerPostRowAction(action: PostRowAction): void;

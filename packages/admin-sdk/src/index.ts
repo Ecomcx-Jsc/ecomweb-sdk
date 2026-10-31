@@ -12,6 +12,13 @@ export const registerDashboardWidget = (w: DashboardWidget) => host().registerDa
 export const registerPostListColumn = (c: import("./types").PostListColumn) => host().registerPostListColumn(c);
 /** Thêm hộp vào form sửa chuyên mục/thẻ (dữ liệu lưu trong term.meta). */
 export const registerTermMetaBox = (b: import("./types").TermMetaBox) => host().registerTermMetaBox(b);
+/**
+ * Thêm hộp vào trang sửa đối tượng của plugin khác (đơn hàng, mã giảm giá, dòng bảng [PluginTable] có cột [ObjectMeta]…) —
+ * giá trị đặt qua setMeta được plugin chủ lưu cùng đối tượng. CMS < 1.18.0: bỏ qua.
+ */
+export const registerObjectMetaBox = (b: import("./types").ObjectMetaBox) => host().registerObjectMetaBox?.(b);
+/** Hộp đã đăng ký cho một đối tượng (bỏ trống = tất cả). */
+export const getObjectMetaBoxes = (object?: string) => host().getObjectMetaBoxes?.(object) ?? [];
 /** Lấy các MetaBox đã đăng ký trong hệ thống (tùy chọn lọc theo postType). */
 export const getMetaBoxes = (postType?: string) => (host().getMetaBoxes ? host().getMetaBoxes!(postType) : []);
 /** Hook lấy toàn bộ state plugin UI trong host. */
@@ -144,6 +151,8 @@ export const IconButton = ui("IconButton");
 export const Section = ui("Section");
 export const Tabs = ui("Tabs");
 export const MetaBoxes = ui("MetaBoxes");
+/** Plugin chủ vẽ chỗ cho hộp của plugin khác trong trang sửa đối tượng của mình (CMS < 1.18.0: không vẽ gì). */
+export const ObjectMetaBoxes = ui("ObjectMetaBoxes", () => null);
 export const Slot = ui("Slot");
 export const Fill = ui("Fill");
 
