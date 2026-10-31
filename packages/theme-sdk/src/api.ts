@@ -296,6 +296,9 @@ export const getMedia = async ({ params, ...q }: MediaQuery = {}) =>
 
 export const getPost = async (type: string, slug: string, locale?: string) =>
   cmsFetch<Post>(`/posts/${type}/${encodeURIComponent(slug)}`, { tags: ["posts"], query: clean({ locale: await loc(locale) }) }).catch(() => null);
+/** Bài đã đăng theo id (core ≥ 1.20.0 có hàm này; endpoint có từ trước). Không có / chưa đăng → null. */
+export const getPostById = async (id: number) =>
+  cmsFetch<Post>(`/posts/id/${id}`, { tags: ["posts", `post:${id}`] }).catch(() => null);
 export const getTerms = async (taxonomy: string, hideEmpty = true, locale?: string) =>
   cmsFetch<Term[]>(`/terms/${taxonomy}`, { tags: ["terms"], query: clean({ hideEmpty, locale: await loc(locale) }) });
 /** Cookie giữ token bản nháp của Trình dựng (website đang ở chế độ xem trước). */

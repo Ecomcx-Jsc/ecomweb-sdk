@@ -24,6 +24,25 @@ export const getMetaBoxes = (postType?: string) => (host().getMetaBoxes ? host()
 /** Hook lấy toàn bộ state plugin UI trong host. */
 export const usePluginUi = () => (host().usePluginUi ? host().usePluginUi!() : { metaBoxes: [], pages: {}, dashboardWidgets: [], postListColumns: [], termMetaBoxes: [], loaded: true, errors: [] });
 export const useApi = <T = any>(path: string | null) => host().useApi<T>(path);
+/**
+ * Đường dẫn của trang plugin: tham số theo mẫu đã đăng ký, query, điều hướng (CMS ≥ 1.20.0):
+ *   registerPage({ path: "/orders/:id", component: OrderPage });
+ *   function OrderPage() { const { params, navigate } = useAdminRoute(); … navigate("/orders"); }
+ * CMS cũ: params rỗng, navigate tải lại trang.
+ */
+export const useAdminRoute = (): import("./types").AdminRoute => host().useAdminRoute?.() ?? {
+  path: typeof location === "undefined" ? "/" : location.pathname, params: {},
+  query: typeof location === "undefined" ? {} : Object.fromEntries(new URLSearchParams(location.search)),
+  navigate: (to: string) => { if (typeof location !== "undefined") location.assign(to); },
+};
+/** Điều hướng trong admin từ bất kỳ đâu (kể cả ngoài component) — CMS < 1.20.0: tải lại trang. */
+export const navigate = (to: string, opts?: { replace?: boolean }) => {
+  const h = host();
+  if (h.navigate) h.navigate(to, opts);
+  else if (typeof location !== "undefined") location.assign(to);
+};
+/** Loại trường của plugin cho form tự sinh (settings, widget) — CMS < 1.20.0: bỏ qua (form hiện ô chữ). */
+export const registerFieldType = (def: import("./types").FieldTypeDefinition) => host().registerFieldType?.(def);
 export const can = (capability: string) => host().can(capability);
 /**
  * Khối cho trình soạn nội dung, khai báo bằng defineBlock (file dùng chung với phần website của plugin):

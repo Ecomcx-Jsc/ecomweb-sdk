@@ -44,6 +44,11 @@ export const AUTH_LABELS = {
   sending: "Đang xử lý…", error: "Có lỗi xảy ra, vui lòng thử lại", logout: "Đăng xuất",
   noAccount: "Chưa có tài khoản?", register: "Đăng ký", forgot: "Quên mật khẩu?", haveAccount: "Đã có tài khoản?", login2: "Đăng nhập",
   registerClosed: "Website hiện không mở đăng ký thành viên.", missingToken: "Liên kết không hợp lệ — hãy yêu cầu đặt lại mật khẩu lần nữa.",
+  // Hồ sơ (core ≥ 1.20)
+  bio: "Giới thiệu", currentPassword: "Mật khẩu hiện tại", currentPasswordForEmail: "Mật khẩu hiện tại (cần khi đổi email)",
+  submitProfile: "Lưu hồ sơ", submitPassword: "Đổi mật khẩu", notSignedIn: "Bạn cần đăng nhập để xem trang này.",
+  deleteWarning: "Xoá tài khoản là vĩnh viễn: bạn không đăng nhập được nữa, bài viết của bạn không còn tác giả.",
+  deleteConfirm: "Tôi hiểu, xoá tài khoản của tôi", submitDelete: "Xoá tài khoản",
 };
 export type AuthLabels = typeof AUTH_LABELS;
 
@@ -75,6 +80,7 @@ export function LoginForm({ redirectTo, labels, links = true, paths, fields }: {
   const [challenge, setChallenge] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const providers = useSignInProviders();
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -107,11 +113,32 @@ export function LoginForm({ redirectTo, labels, links = true, paths, fields }: {
       )}
       <p><button type="submit" disabled={busy}>{busy ? L.sending : challenge ? L.verify : L.submitLogin}</button></p>
       <Status error={error} />
+      {!challenge && providers.length > 0 && (
+        <p className="auth-providers">
+          {providers.map((p) => (
+            <a key={p.id} className={`auth-provider auth-provider-${p.id}`}
+              href={`${p.url}&returnTo=${encodeURIComponent(safeRedirect(redirectParam, redirectTo ?? P.home))}`}>
+              {p.iconUrl && <img src={p.iconUrl} alt="" width={18} height={18} />}{p.label}
+            </a>
+          ))}
+        </p>
+      )}
       {links && !challenge && (
         <p className="auth-links"><a href={P.forgotPassword}>{L.forgot}</a> · {L.noAccount} <a href={P.register}>{L.register}</a></p>
       )}
     </form>
   );
+}
+
+/** Nút "Đăng nhập bằng …" của plugin (ISignInProvider, core ≥ 1.20.0). Core cũ không trả providers → không có nút. */
+export interface SignInProvider { id: string; label: string; iconUrl?: string | null; url: string }
+
+function useSignInProviders(): SignInProvider[] {
+  const [list, setList] = useState<SignInProvider[]>([]);
+  useEffect(() => {
+    authApi.get<{ providers?: SignInProvider[] }>("/options").then(({ data }) => setList(data.providers ?? [])).catch(() => setList([]));
+  }, []);
+  return list;
 }
 
 /** Đăng ký thành viên (chỉ khi quản trị viên bật "Ai cũng có thể đăng ký"). Vai trò = vai trò mặc định trong Cài đặt. */
@@ -250,4 +277,117 @@ export function useCurrentUser(): CurrentUser | null | undefined {
     authApi.get<{ user: CurrentUser | null }>("/me").then(({ data }) => setUser(data.user)).catch(() => setUser(null));
   }, []);
   return user;
+}
+
+/**
+ * Sửa hồ sơ của thành viên đang đăng nhập (core ≥ 1.20.0): tên hiển thị, giới thiệu, email. Đổi email cần mật khẩu hiện tại.
+ * Đặt trong trang tài khoản của theme (vd template "account"); khách chưa đăng nhập thấy lời nhắn.
+ */
+export function ProfileForm({ labels, fields, onSaved }: { labels?: Partial<AuthLabels>; fields?: ReactNode; onSaved?(user: CurrentUser): void }) {
+  const L = { ...AUTH_LABELS, ...labels };
+  const user = useCurrentUser();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const email = String(fd.get("email") ?? "").trim();
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const { data } = await authApi.post<{ user: CurrentUser; message: string }>("/profile", {
+        body: {
+          displayName: fd.get("displayName"), bio: fd.get("bio"),
+          email: email && email !== user?.email ? email : null, currentPassword: fd.get("currentPassword") || null,
+        },
+      });
+      setMessage(data.message);
+      onSaved?.(data.user);
+    } catch (err) {
+      setError(errorMessage(err, L.error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (user === undefined) return null;
+  if (user === null) return <p className="auth-form profile-signed-out">{L.notSignedIn}</p>;
+  return (
+    <form className="auth-form profile-form" onSubmit={onSubmit}>
+      <Field label={L.displayName}><input name="displayName" autoComplete="name" required maxLength={100} defaultValue={user.displayName} /></Field>
+      <Field label={L.bio}><textarea name="bio" rows={3} maxLength={2000} /></Field>
+      <Field label={L.email}><input name="email" type="email" autoComplete="email" required maxLength={200} defaultValue={user.email} /></Field>
+      <Field label={L.currentPasswordForEmail}><input name="currentPassword" type="password" autoComplete="current-password" /></Field>
+      {fields}
+      <p><button type="submit" disabled={busy}>{busy ? L.sending : L.submitProfile}</button></p>
+      <Status error={error} message={message} />
+    </form>
+  );
+}
+
+/** Đổi mật khẩu của thành viên đang đăng nhập (core ≥ 1.20.0); các thiết bị khác bị đăng xuất. */
+export function ChangePasswordForm({ labels }: { labels?: Partial<AuthLabels> }) {
+  const L = { ...AUTH_LABELS, ...labels };
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const { data } = await authApi.post<{ message: string }>("/password", { body: { currentPassword: fd.get("currentPassword"), password: fd.get("password") } });
+      form.reset();
+      setMessage(data.message);
+    } catch (err) {
+      setError(errorMessage(err, L.error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="auth-form password-form" onSubmit={onSubmit}>
+      <Field label={L.currentPassword}><input name="currentPassword" type="password" autoComplete="current-password" required /></Field>
+      <Field label={L.newPassword}><input name="password" type="password" autoComplete="new-password" required minLength={10} /></Field>
+      <p><button type="submit" disabled={busy}>{busy ? L.sending : L.submitPassword}</button></p>
+      <Status error={error} message={message} />
+    </form>
+  );
+}
+
+/**
+ * Thành viên tự xoá tài khoản (core ≥ 1.20.0): nhập lại mật khẩu và đánh dấu xác nhận. Tài khoản quản trị không xoá được ở đây.
+ * Xong thì đăng xuất và chuyển về <paramref name="redirectTo"/>.
+ */
+export function DeleteAccountForm({ labels, redirectTo = "/" }: { labels?: Partial<AuthLabels>; redirectTo?: string }) {
+  const L = { ...AUTH_LABELS, ...labels };
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    setBusy(true); setError("");
+    try {
+      await authApi.post("/delete-account", { body: { password: fd.get("password") } });
+      window.location.assign(safeRedirect(redirectTo));
+    } catch (err) {
+      setError(errorMessage(err, L.error));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="auth-form delete-account-form" onSubmit={onSubmit}>
+      <p className="delete-account-warning">{L.deleteWarning}</p>
+      <Field label={L.password}><input name="password" type="password" autoComplete="current-password" required /></Field>
+      <p className="auth-field"><label><input name="confirm" type="checkbox" required /> {L.deleteConfirm}</label></p>
+      <p><button type="submit" className="danger" disabled={busy}>{busy ? L.sending : L.submitDelete}</button></p>
+      <Status error={error} />
+    </form>
+  );
 }

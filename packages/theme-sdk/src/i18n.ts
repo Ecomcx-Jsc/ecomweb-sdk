@@ -2,6 +2,7 @@ import { IntlMessageFormat } from "intl-messageformat";
 import { cache } from "react";
 import { getSite } from "./api";
 import { getActiveTheme } from "./runtime";
+import { formatMessage } from "./i18n-format";
 
 /** Chữ mặc định của các component trong SDK (theme có thể ghi đè trong locales/{code}.json). */
 export const BUILTIN: Record<string, Record<string, string>> = {
@@ -25,6 +26,10 @@ export const BUILTIN: Record<string, Record<string, string>> = {
     "auth.login2": "Đăng nhập", "auth.registerClosed": "Website hiện không mở đăng ký thành viên.",
     "auth.missingToken": "Liên kết không hợp lệ — hãy yêu cầu đặt lại mật khẩu lần nữa.", "auth.signedInAs": "Bạn đang đăng nhập với tên {name}.",
     "file.download": "Tải tệp", "form.submit": "Gửi", "form.sending": "Đang gửi…", "form.error": "Không gửi được, vui lòng thử lại",
+    "auth.bio": "Giới thiệu", "auth.currentPassword": "Mật khẩu hiện tại", "auth.currentPasswordForEmail": "Mật khẩu hiện tại (cần khi đổi email)",
+    "auth.submitProfile": "Lưu hồ sơ", "auth.submitPassword": "Đổi mật khẩu", "auth.notSignedIn": "Bạn cần đăng nhập để xem trang này.",
+    "auth.deleteWarning": "Xoá tài khoản là vĩnh viễn: bạn không đăng nhập được nữa, bài viết của bạn không còn tác giả.",
+    "auth.deleteConfirm": "Tôi hiểu, xoá tài khoản của tôi", "auth.submitDelete": "Xoá tài khoản",
   },
   en: {
     "search.placeholder": "Search…", "search.button": "Search", "search.label": "Keyword", "navigation.menu": "Menu", "toc.title": "Contents",
@@ -46,6 +51,10 @@ export const BUILTIN: Record<string, Record<string, string>> = {
     "auth.login2": "Log in", "auth.registerClosed": "Registration is currently closed.",
     "auth.missingToken": "Invalid link — please request a new password reset.", "auth.signedInAs": "You are logged in as {name}.",
     "file.download": "Download", "form.submit": "Send", "form.sending": "Sending…", "form.error": "Could not send, please try again",
+    "auth.bio": "Bio", "auth.currentPassword": "Current password", "auth.currentPasswordForEmail": "Current password (needed to change your email)",
+    "auth.submitProfile": "Save profile", "auth.submitPassword": "Change password", "auth.notSignedIn": "Please log in to see this page.",
+    "auth.deleteWarning": "Deleting your account is permanent: you can no longer log in and your posts will have no author.",
+    "auth.deleteConfirm": "I understand, delete my account", "auth.submitDelete": "Delete account",
   },
 };
 
@@ -56,7 +65,8 @@ export type Translator = ((key: string, vars?: Record<string, string | number>) 
  * `{count, plural, one {# comment} other {# comments}}`, chọn `{gender, select, …}`.
  * Thứ tự tra: locales của theme (con → cha) → chữ có sẵn của SDK; ngôn ngữ hiện tại → mặc định → tiếng Anh → chính key.
  */
-export const getT = cache(async (): Promise<Translator> => {
+/** Từ điển theo thứ tự tra cho ngôn ngữ hiện tại (theme con → cha → SDK; hiện tại → mặc định → tiếng Anh). */
+const getDicts = cache(async () => {
   const site = await getSite();
   const theme = await getActiveTheme(site);
   const order = [...new Set([site.locale, site.defaultLocale, "en"])];
@@ -68,22 +78,32 @@ export const getT = cache(async (): Promise<Translator> => {
     }
     if (BUILTIN[code]) dicts.push({ code, dict: BUILTIN[code] });
   }
+  return { site, dicts };
+});
+
+export const getT = cache(async (): Promise<Translator> => {
+  const { site, dicts } = await getDicts();
   const compiled = new Map<string, IntlMessageFormat | null>();
   const t = ((key: string, vars?: Record<string, string | number>) => {
     const hit = dicts.find((d) => d.dict[key] !== undefined);
-    if (!hit) return key;
-    const src = hit.dict[key];
-    if (!src.includes("{") && !src.includes("'")) return src;
-    const id = `${hit.code}\0${key}`;
-    if (!compiled.has(id)) {
-      try { compiled.set(id, new IntlMessageFormat(src, hit.code, undefined, { ignoreTag: true })); } catch { compiled.set(id, null); }
-    }
-    const f = compiled.get(id);
-    try { if (f) return String(f.format(vars)); } catch { /* thiếu biến → thay thô như bản cũ */ }
-    let s = src;
-    if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
-    return s;
+    return hit ? formatMessage(hit.dict[key], hit.code, vars, compiled, `${hit.code}\0${key}`) : key;
   }) as Translator;
   t.locale = site.locale;
   return t;
 });
+
+/** Chuỗi đã chọn đúng ngôn ngữ để truyền xuống trình duyệt (<TranslationsProvider>). */
+export interface ClientMessages { locale: string; messages: Record<string, { code: string; text: string }> }
+
+/**
+ * Lấy các chuỗi cần cho component client (core ≥ 1.20.0) — chỉ khoá bắt đầu bằng một trong <paramref name="prefixes"/>
+ * (vd ["cart.", "auth."]) để không gửi cả từ điển xuống trình duyệt. Truyền kết quả vào <TranslationsProvider value={…}>.
+ */
+export async function getClientMessages(prefixes: string[]): Promise<ClientMessages> {
+  const { site, dicts } = await getDicts();
+  const messages: ClientMessages["messages"] = {};
+  for (const d of dicts)
+    for (const [key, text] of Object.entries(d.dict))
+      if (!(key in messages) && prefixes.some((p) => key.startsWith(p))) messages[key] = { code: d.code, text };
+  return { locale: site.locale, messages };
+}

@@ -133,6 +133,37 @@ export interface AdminPage {
   component: ComponentType<{ path: string }>;
 }
 
+/**
+ * Đường dẫn hiện tại của trang plugin (useAdminRoute, CMS ≥ 1.20.0). registerPage nhận mẫu "/orders/:id" (một đoạn)
+ * hoặc "/orders/*" (phần còn lại, params["*"]).
+ */
+export interface AdminRoute {
+  /** Đường dẫn trong admin, vd "/orders/12". */
+  path: string;
+  params: Record<string, string>;
+  /** Tham số sau "?" của URL. */
+  query: Record<string, string>;
+  /** Điều hướng trong admin (không tải lại trang). */
+  navigate(to: string, opts?: { replace?: boolean }): void;
+}
+
+/** Props component của loại trường plugin (registerFieldType, CMS ≥ 1.20.0). */
+export interface FieldTypeProps {
+  field: { key: string; type: string; label: string; options?: string[]; help?: string; default?: unknown };
+  value: any;
+  onChange(value: any): void;
+}
+
+/**
+ * Loại trường cho form tự sinh của admin (settings plugin — ISettingsRegistry / plugin.json "settings", widget):
+ * khai báo trường với Type = tên này ở backend, vd new FieldDefinition("brand", "shop/color-range", "Màu").
+ */
+export interface FieldTypeDefinition {
+  /** Tên dạng "slug/tên" để không trùng loại có sẵn của core. */
+  type: string;
+  component: ComponentType<FieldTypeProps>;
+}
+
 export interface DashboardWidget { id: string; title: string; component: ComponentType }
 
 export interface Notify {
@@ -429,6 +460,12 @@ export interface CmsAdmin {
   getPostRowActions(postType?: string): Array<PostRowAction>;
   getMetaBoxes?(postType?: string): MetaBox[];
   usePluginUi?(): any;
+  /** CMS ≥ 1.20.0 */
+  useAdminRoute?(): AdminRoute;
+  /** CMS ≥ 1.20.0 */
+  navigate?(to: string, opts?: { replace?: boolean }): void;
+  /** CMS ≥ 1.20.0 */
+  registerFieldType?(def: FieldTypeDefinition): void;
   /** Hook React lấy dữ liệu đơn giản: const { data, loading, error, reload } = useApi("/admin/...") */
   useApi<T = any>(path: string | null): { data: T | undefined; loading: boolean; error: Error | null; reload(): void };
   currentUser(): { id: number; displayName: string; capabilities: string[] } | null;

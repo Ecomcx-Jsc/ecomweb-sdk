@@ -10,6 +10,16 @@ import type { Comment, CommentPage } from "./types";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { createFetchKit, isFetchKitError } from "next-fetch-kit";
 
+export { pluginClient, PluginApiError, emit, on, useEvent, TranslationsProvider, useT, type PluginClient, type PluginRequestOptions } from "./browser";
+
+/**
+ * Bảng tên sự kiện phía trình duyệt → dữ liệu (emit / on / useEvent, core ≥ 1.20.0). Theme / plugin khai báo kiểu cho sự kiện của mình:
+ *   declare module "@ecomcx/ecomweb-theme-sdk/client" { interface BrowserEvents { "shop.cart.changed": { count: number } } }
+ * Tên nên có tiền tố slug plugin (như hook backend).
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface BrowserEvents {}
+
 // ---------------------------------------------------------------------------
 // Cô lập lỗi của plugin/theme: phần nào ném lỗi khi hiển thị thì ẩn phần đó, trang vẫn hiện bình thường
 // ---------------------------------------------------------------------------

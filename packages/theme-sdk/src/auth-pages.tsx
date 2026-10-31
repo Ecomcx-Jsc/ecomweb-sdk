@@ -42,4 +42,7 @@ const LABEL_KEYS: Record<keyof AuthLabels, string> = {
   submitForgot: "auth.submitForgot", newPassword: "auth.newPassword", submitReset: "auth.submitReset", sending: "auth.sending",
   error: "auth.error", logout: "auth.logout", noAccount: "auth.noAccount", register: "auth.register", forgot: "auth.forgot",
   haveAccount: "auth.haveAccount", login2: "auth.login2", registerClosed: "auth.registerClosed", missingToken: "auth.missingToken",
+  bio: "auth.bio", currentPassword: "auth.currentPassword", currentPasswordForEmail: "auth.currentPasswordForEmail", submitProfile: "auth.submitProfile",
+  submitPassword: "auth.submitPassword", notSignedIn: "auth.notSignedIn", deleteWarning: "auth.deleteWarning", deleteConfirm: "auth.deleteConfirm",
+  submitDelete: "auth.submitDelete",
 };
