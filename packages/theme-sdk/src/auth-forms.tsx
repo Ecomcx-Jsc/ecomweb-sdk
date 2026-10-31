@@ -285,23 +285,33 @@ export function useCurrentUser(): CurrentUser | null | undefined {
  */
 export function ProfileForm({ labels, fields, onSaved }: { labels?: Partial<AuthLabels>; fields?: ReactNode; onSaved?(user: CurrentUser): void }) {
   const L = { ...AUTH_LABELS, ...labels };
-  const user = useCurrentUser();
+  const loaded = useCurrentUser();
+  // Bản đã lưu gần nhất: so email với bản này (không phải bản lúc mở trang) để lần lưu sau không đòi mật khẩu lại
+  const [saved, setSaved] = useState<CurrentUser | null>(null);
+  const user = saved ?? loaded;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
     const email = String(fd.get("email") ?? "").trim();
+    const bio = String(fd.get("bio") ?? "");
     setBusy(true); setError(""); setMessage("");
     try {
       const { data } = await authApi.post<{ user: CurrentUser; message: string }>("/profile", {
         body: {
-          displayName: fd.get("displayName"), bio: fd.get("bio"),
+          displayName: fd.get("displayName"),
+          // Core không trả bio (cũ) và ô để trống → không gửi, tránh xoá giới thiệu đang có
+          bio: user?.bio === undefined && !bio ? null : bio,
           email: email && email !== user?.email ? email : null, currentPassword: fd.get("currentPassword") || null,
         },
       });
+      const pw = form.elements.namedItem("currentPassword");
+      if (pw instanceof HTMLInputElement) pw.value = "";
+      setSaved(data.user);
       setMessage(data.message);
       onSaved?.(data.user);
     } catch (err) {
@@ -316,7 +326,7 @@ export function ProfileForm({ labels, fields, onSaved }: { labels?: Partial<Auth
   return (
     <form className="auth-form profile-form" onSubmit={onSubmit}>
       <Field label={L.displayName}><input name="displayName" autoComplete="name" required maxLength={100} defaultValue={user.displayName} /></Field>
-      <Field label={L.bio}><textarea name="bio" rows={3} maxLength={2000} /></Field>
+      <Field label={L.bio}><textarea name="bio" rows={3} maxLength={2000} defaultValue={user.bio ?? ""} /></Field>
       <Field label={L.email}><input name="email" type="email" autoComplete="email" required maxLength={200} defaultValue={user.email} /></Field>
       <Field label={L.currentPasswordForEmail}><input name="currentPassword" type="password" autoComplete="current-password" /></Field>
       {fields}

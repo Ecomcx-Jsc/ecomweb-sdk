@@ -289,5 +289,5 @@ export function LanguageSwitcherClient({ languages, current, defaultLocale, labe
   );
 }
 
-export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, LogoutButton, useCurrentUser, extraFields, AUTH_LABELS, AUTH_PATHS, type AuthLabels, type AuthPaths } from "./auth-forms";
+export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, LogoutButton, useCurrentUser, extraFields, ProfileForm, ChangePasswordForm, DeleteAccountForm, AUTH_LABELS, AUTH_PATHS, type AuthLabels, type AuthPaths, type SignInProvider } from "./auth-forms";
 export { safeRedirect, type CurrentUser } from "./auth-shared";

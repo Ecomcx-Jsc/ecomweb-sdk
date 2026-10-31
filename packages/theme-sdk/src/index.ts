@@ -10,7 +10,7 @@ export { getRequestLocale, localeHref, LOCALE_HEADER } from "./locale";
 export { CommentForm, CommentList, CommentsMore, ExtensionBoundary, PostPasswordForm, Link, isInternalHref, type LinkProps } from "./client";
 export { getPreference } from "./preferences";
 export { getCurrentUser, getAccessToken, requireUser, userCan, safeRedirect, ACCESS_COOKIE, REFRESH_COOKIE, type CurrentUser } from "./auth";
-export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, LogoutButton, useCurrentUser, ProfileForm, ChangePasswordForm, DeleteAccountForm, AUTH_LABELS, AUTH_PATHS, type AuthLabels, type AuthPaths } from "./auth-forms";
+export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, LogoutButton, useCurrentUser, ProfileForm, ChangePasswordForm, DeleteAccountForm, AUTH_LABELS, AUTH_PATHS, type AuthLabels, type AuthPaths, type SignInProvider } from "./auth-forms";
 export { buildDocumentMetadata } from "./metadata";
 
 /** Lấy giá trị Customizer của theme đang active. */

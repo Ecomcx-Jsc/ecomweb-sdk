@@ -10,9 +10,17 @@ export interface CurrentUser {
   displayName: string;
   roles: string[];
   capabilities: string[];
+  /** Giới thiệu (core ≥ 1.20.0). */
+  bio?: string | null;
 }
 
-/** Chỉ nhận đường dẫn nội bộ ("/account") — chặn chuyển hướng ra trang ngoài (?redirect=https://lừa-đảo). */
+/**
+ * Chỉ nhận đường dẫn nội bộ ("/account") — chặn chuyển hướng ra trang ngoài (?redirect=https://lừa-đảo).
+ * Trình duyệt bỏ tab / xuống dòng và coi "\" như "/" khi phân tích URL, nên "/<TAB>/evil.com" hay "/\evil.com" thành "//evil.com":
+ * chặn mọi ký tự điều khiển và dấu "\" ở bất kỳ vị trí nào, không chỉ ở đầu.
+ */
 export function safeRedirect(target: string | null | undefined, fallback = "/") {
-  return target && target.startsWith("/") && !target.startsWith("//") && !target.startsWith("/\\") ? target : fallback;
+  // eslint-disable-next-line no-control-regex
+  if (!target || !target.startsWith("/") || /[\u0000-\u001f\u007f\\]/.test(target)) return fallback;
+  return target.startsWith("//") ? fallback : target;
 }
