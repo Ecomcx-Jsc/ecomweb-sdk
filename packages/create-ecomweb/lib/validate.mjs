@@ -34,6 +34,7 @@ export function validate(dir) {
     if (!okShape) errors.push('translations phải có dạng { "en": { "Chuỗi gốc": "Bản dịch" } }');
   }
   if (!manifest.requires?.cms) warnings.push('Nên khai báo requires.cms, vd ">=1.0.0 <2.0.0"');
+  else if (narrowCmsUpperBound(manifest.requires.cms)) warnings.push(narrowCmsUpperBound(manifest.requires.cms));
   checkPermissions(manifest.permissions, errors, warnings);
   checkCsp(manifest.csp, errors);
 
@@ -286,4 +287,24 @@ function contentDeclarations(manifest, errors, checkNames = false) {
     if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$/.test(key)) errors.push(`userMeta: khoá "${key}" không hợp lệ (chữ, số, _ - . :, tối đa 100 ký tự, không bắt đầu bằng _)`);
   if (checkNames) for (const name of [...Object.keys(manifest.postTypes ?? {}), ...Object.keys(manifest.taxonomies ?? {})])
     if (!/^[a-z][a-z0-9_-]{0,31}$/.test(name)) errors.push(`Tên kiểu nội dung / phân loại "${name}" không hợp lệ (a-z, 0-9, _ -, bắt đầu bằng chữ, tối đa 32 ký tự)`);
+}
+
+/**
+ * Giới hạn trên hẹp hơn hết major (vd "<1.9.1", "<=1.9.0", "~1.6.0"): core 1.9.2 vẫn cài được (chỉ cảnh báo "chưa kiểm thử",
+ * CMS ≥ 1.20.0) nhưng core cũ hơn 1.20.0 sẽ TỪ CHỐI cài. Core không bớt API trong một major → nên để mở tới major kế tiếp.
+ */
+export function narrowCmsUpperBound(range) {
+  const parts = String(range).trim().split(/\s+/);
+  const min = parts.map((p) => /^(?:>=|\^|~)?v?(\d+)\.(\d+)/.exec(p)).find(Boolean);
+  const major = min ? Number(min[1]) : null;
+  const narrow = parts.some((p) => {
+    const m = /^(<=?|~)v?(\d+)(?:\.(\d+))?(?:\.(\d+))?/.exec(p);
+    if (!m) return false;
+    if (m[1] === "~") return true;
+    const [maj, minor, patch] = [Number(m[2]), Number(m[3] ?? 0), Number(m[4] ?? 0)];
+    return m[1] === "<=" || minor !== 0 || patch !== 0 || (major !== null && maj === major);
+  });
+  if (!narrow) return null;
+  const suggest = major !== null && min ? `">=${min[1]}.${min[2]}.0 <${major + 1}.0.0"` : '">=1.0.0 <2.0.0"';
+  return `requires.cms "${range}" chặn trước các bản core sau này dù vẫn tương thích (trong một major core chỉ thêm API, không bớt) — nên dùng ${suggest}`;
 }
