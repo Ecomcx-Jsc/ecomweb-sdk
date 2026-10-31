@@ -1,6 +1,6 @@
 {
   "name": "@ecomcx/create-ecomweb",
-  "version": "1.30.0",
+  "version": "1.31.0",
   "description": "CLI tạo, kiểm tra, đóng gói và triển khai theme/plugin cho Ecomweb",
   "type": "module",
   "bin": {
@@ -15,7 +15,7 @@
   "dependencies": {
     "@ecomcx/ecomweb-admin-sdk": "file:../admin-sdk",
     "@ecomcx/ecomweb-content": "^1.14.0",
-    "adm-zip": "0.5.18",
+    "adm-zip": "0.6.1",
     "esbuild": "0.25.12",
     "intl-messageformat": "12.1.3"
   },

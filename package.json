@@ -1,6 +1,6 @@
 {
   "name": "ecomweb-sdk",
-  "version": "1.30.0",
+  "version": "1.31.0",
   "description": "Ecomweb SDK - Developer Tools, CLI and Libraries for Theme & Plugin Development",
   "type": "module",
   "bin": {
@@ -12,7 +12,7 @@
   ],
   "dependencies": {
     "@ecomcx/ecomweb-content": "^1.14.0",
-    "adm-zip": "0.5.18",
+    "adm-zip": "0.6.1",
     "esbuild": "0.25.12",
     "intl-messageformat": "12.1.3"
   },
