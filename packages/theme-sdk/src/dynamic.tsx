@@ -88,6 +88,58 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
     case "comments":
       return post && ctx.data?.post?.id === post.id ? <Comments key={key} post={post} /> : null;
 
+    // H1 của trang lưu trữ / tìm kiếm / tác giả (trang chủ dạng danh sách bài: tên trang)
+    case "queryTitle": {
+      const d = ctx.data;
+      if (!d) return null;
+      const t = await getT();
+      const Tag = `h${Math.min(6, Math.max(1, a.level ?? 1))}` as "h1";
+      const text = d.search != null ? t("query.search", { q: d.search })
+        : d.term ? (a.prefix ? t(d.term.taxonomy === "post_tag" ? "query.tag" : "query.category", { name: d.term.name }) : d.term.name)
+        : d.author ? (a.prefix ? t("query.author", { name: d.author.name }) : d.author.name)
+        : d.title || site.title;
+      return <Tag key={key} className="ecx-query-title" style={align(a)}>{text}</Tag>;
+    }
+    case "termDescription":
+      return ctx.data?.term?.description ? <div key={key} className="ecx-term-description" style={align(a)}>{ctx.data.term.description}</div> : null;
+    case "breadcrumbs": {
+      const d = ctx.data;
+      if (!d) return null;
+      const t = await getT();
+      const items: Array<{ name: string; href?: string }> = [];
+      if (a.showHome !== false) items.push({ name: t("breadcrumbs.home"), href: localeHref(site, "/") });
+      const cat = d.post?.terms?.category?.[0];
+      if (d.post && cat) items.push({ name: cat.name, href: cat.link });
+      const current = d.post?.title ?? d.term?.name ?? d.author?.name ?? (d.search != null ? t("query.search", { q: d.search }) : d.title);
+      if (a.showCurrent !== false && current) items.push({ name: current });
+      if (items.length < 2) return null;
+      const base = (site.url ?? "").replace(/\/$/, "");
+      // Schema BreadcrumbList: Google hiện đường dẫn thay cho URL trong kết quả tìm kiếm
+      const jsonLd = { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: items.map((it, i) => ({ "@type": "ListItem", position: i + 1, name: it.name, ...(it.href ? { item: /^https?:/.test(it.href) ? it.href : base + it.href } : {}) })) };
+      return (
+        <nav key={key} className="ecx-breadcrumbs" aria-label={t("breadcrumbs.label")}>
+          <ol>{items.map((it, i) => <li key={i}>{i > 0 && <span className="ecx-breadcrumbs-sep" aria-hidden="true">{a.separator ?? "›"}</span>}{it.href ? <Link href={it.href}>{it.name}</Link> : <span aria-current="page">{it.name}</span>}</li>)}</ol>
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+        </nav>
+      );
+    }
+    case "postNavigation": {
+      const cur = ctx.data?.post;
+      if (!cur || !cur.publishedAt) return null;
+      const t = await getT();
+      const [prev, next] = await Promise.all([
+        getPosts({ type: cur.type, perPage: 1, before: cur.publishedAt, orderBy: "date", order: "desc", exclude: [cur.id] }).then((r) => r.items[0]).catch(() => undefined),
+        getPosts({ type: cur.type, perPage: 1, after: cur.publishedAt, orderBy: "date", order: "asc", exclude: [cur.id] }).then((r) => r.items[0]).catch(() => undefined),
+      ]);
+      if (!prev && !next) return null;
+      return (
+        <nav key={key} className="ecx-post-navigation" aria-label={t("postNav.label")}>
+          {prev ? <Link className="ecx-post-navigation-prev" href={prev.link} rel="prev"><span>{t("postNav.previous")}</span>{a.showTitle !== false && <strong>{prev.title}</strong>}</Link> : <span />}
+          {next ? <Link className="ecx-post-navigation-next" href={next.link} rel="next"><span>{t("postNav.next")}</span>{a.showTitle !== false && <strong>{next.title}</strong>}</Link> : <span />}
+        </nav>
+      );
+    }
+
     case "query": {
       let posts: Post[]; let data: ResolveResult | undefined;
       if (a.inherit !== false && ctx.data?.posts) { posts = ctx.data.posts; data = ctx.data; }

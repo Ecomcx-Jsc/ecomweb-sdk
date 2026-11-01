@@ -5,6 +5,8 @@ import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { BlockProps, ShortcodeProps, Site } from "../src/types";
 import { renderContent, type RenderContext } from "../src/rich";
+import { renderDynamic } from "../src/dynamic";
+import { configureRuntime } from "../src/runtime";
 
 // Hợp đồng của renderer: mỗi fixture của @ecomcx/ecomweb-content vẽ ra đúng HTML đã duyệt (snapshots/). Đổi renderer có chủ đích:
 // UPDATE_SNAPSHOTS=1 node scripts/test.mjs theme-sdk, rồi xem kỹ diff.
@@ -176,4 +178,29 @@ test("gắn dữ liệu: nguồn lõi core/post, core/post-meta, core/site", asy
   assert.equal(get("core/post-meta", { key: "obj" }), undefined);
   assert.equal(get("core/site", { field: "logo" }), "https://e.vn/logo.png");
   assert.equal(get("core/post", { field: "password" }), undefined);
+});
+
+test("khối theme 1.15: tiêu đề trang lưu trữ là H1 theo ngữ cảnh, mô tả chuyên mục, breadcrumb có schema BreadcrumbList", async () => {
+  // Chữ của khối theo ngôn ngữ website (getT đọc /site): trả về website tiếng Việt, không cần CMS chạy
+  configureRuntime({ themes: {}, plugins: {} });
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = (async (u: RequestInfo | URL) => new Response(JSON.stringify(/\/site\b/.test(String(u)) ? { title: "Test", language: "vi", locale: "vi", url: "https://example.com" } : { items: [], total: 0 }), { headers: { "content-type": "application/json" } })) as typeof fetch;
+  try {
+  const doc = (...content: unknown[]) => ({ version: 1, blocks: [{ type: "richtext", data: { type: "doc", content } }] });
+  const term = { id: 3, taxonomy: "category", name: "Tin tức", slug: "tin-tuc", description: "Tin mới nhất của công ty", link: "/category/tin-tuc" };
+  const data = { kind: "archive", title: "Tin tức", term, page: 1, totalPages: 1, total: 0, basePath: "/category/tin-tuc", templates: [], locale: "vi", alternates: [] } as never;
+  const out = await html(doc({ type: "breadcrumbs" }, { type: "queryTitle", attrs: { prefix: true } }, { type: "termDescription" }), ctx({ data, dynamic: renderDynamic }));
+  assert.match(out, /<h1 class="ecx-query-title">Chuyên mục: Tin tức<\/h1>/);
+  assert.equal((out.match(/<h1/g) ?? []).length, 1);
+  assert.match(out, /<div class="ecx-term-description">Tin mới nhất của công ty<\/div>/);
+  assert.match(out, /<nav class="ecx-breadcrumbs" aria-label="Đường dẫn"><ol><li><a href="\/(vi)?">Trang chủ<\/a><\/li><li><span class="ecx-breadcrumbs-sep" aria-hidden="true">›<\/span><span aria-current="page">Tin tức<\/span><\/li><\/ol>/);
+  const ld = JSON.parse(out.match(/<script type="application\/ld\+json">(.*?)<\/script>/)![1]);
+  assert.equal(ld["@type"], "BreadcrumbList");
+  assert.deepEqual(ld.itemListElement.map((i: { name: string; item?: string }) => [i.name, i.item]), [["Trang chủ", "https://example.com/vi"], ["Tin tức", undefined]]);
+  // Tìm kiếm
+  const search = await html(doc({ type: "queryTitle" }), ctx({ data: { kind: "search", search: "áo thun", title: "", page: 1, totalPages: 1, total: 0, basePath: "/", templates: [], locale: "vi", alternates: [] } as never, dynamic: renderDynamic }));
+  assert.match(search, /<h1 class="ecx-query-title">Kết quả tìm kiếm: áo thun<\/h1>/);
+  // Ngoài template (nội dung bài, không có ngữ cảnh trang): không vẽ
+  assert.equal(await html(doc({ type: "queryTitle" }, { type: "breadcrumbs" }), ctx({ dynamic: renderDynamic })), "");
+  } finally { globalThis.fetch = origFetch; }
 });

@@ -7,7 +7,7 @@ import { formatMessage } from "./i18n-format";
 /** Chữ mặc định của các component trong SDK (theme có thể ghi đè trong locales/{code}.json). */
 export const BUILTIN: Record<string, Record<string, string>> = {
   vi: {
-    "search.placeholder": "Tìm kiếm…", "search.button": "Tìm", "search.label": "Từ khoá", "navigation.menu": "Menu", "toc.title": "Mục lục",
+    "search.placeholder": "Tìm kiếm…", "search.button": "Tìm", "search.label": "Từ khoá", "navigation.menu": "Menu", "toc.title": "Mục lục", "query.search": "Kết quả tìm kiếm: {q}", "query.category": "Chuyên mục: {name}", "query.tag": "Thẻ: {name}", "query.author": "Tác giả: {name}", "breadcrumbs.home": "Trang chủ", "breadcrumbs.label": "Đường dẫn", "postNav.previous": "Bài trước", "postNav.next": "Bài sau", "postNav.label": "Bài khác",
     "pagination.prev": "« Trước", "pagination.next": "Sau »", "pagination.label": "Phân trang",
     "comments.title": "Bình luận", "comments.closed": "Bình luận đã đóng.",
     "comments.form.title": "Để lại bình luận", "comments.form.content": "Bình luận", "comments.form.name": "Tên",
@@ -32,7 +32,7 @@ export const BUILTIN: Record<string, Record<string, string>> = {
     "auth.deleteConfirm": "Tôi hiểu, xoá tài khoản của tôi", "auth.submitDelete": "Xoá tài khoản",
   },
   en: {
-    "search.placeholder": "Search…", "search.button": "Search", "search.label": "Keyword", "navigation.menu": "Menu", "toc.title": "Contents",
+    "search.placeholder": "Search…", "search.button": "Search", "search.label": "Keyword", "navigation.menu": "Menu", "toc.title": "Contents", "query.search": "Search results: {q}", "query.category": "Category: {name}", "query.tag": "Tag: {name}", "query.author": "Author: {name}", "breadcrumbs.home": "Home", "breadcrumbs.label": "Breadcrumb", "postNav.previous": "Previous", "postNav.next": "Next", "postNav.label": "More posts",
     "pagination.prev": "« Previous", "pagination.next": "Next »", "pagination.label": "Pagination",
     "comments.title": "Comments", "comments.closed": "Comments are closed.",
     "comments.form.title": "Leave a comment", "comments.form.content": "Comment", "comments.form.name": "Name",

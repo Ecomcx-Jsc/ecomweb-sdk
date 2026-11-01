@@ -200,15 +200,25 @@ a { color: var(--primary); }
     { type: "column", content: [{ type: "navigation", attrs: { location: "primary" } }] },
   ] }));
   write(path.join(root, "parts", "footer.json"), doc({ type: "copyright" }));
+  // SEO: mỗi trang đúng một H1 — trang danh sách / lưu trữ dùng queryTitle (tên chuyên mục, kết quả tìm kiếm…), bài / trang dùng postTitle
   write(path.join(root, "templates", "index.json"), doc(part("header", "header"), main(
+    { type: "queryTitle" },
+    { type: "query", attrs: { inherit: true }, content: [
+      { type: "postTemplate", content: [{ type: "postTitle", attrs: { level: 2, link: true } }, { type: "postDate" }, { type: "postExcerpt" }] },
+      { type: "pagination" },
+      { type: "queryEmpty", content: [p("Chưa có bài viết.")] },
+    ] }), part("footer", "footer")));
+  write(path.join(root, "templates", "archive.json"), doc(part("header", "header"), main(
+    { type: "breadcrumbs" }, { type: "queryTitle" }, { type: "termDescription" },
     { type: "query", attrs: { inherit: true }, content: [
       { type: "postTemplate", content: [{ type: "postTitle", attrs: { level: 2, link: true } }, { type: "postDate" }, { type: "postExcerpt" }] },
       { type: "pagination" },
       { type: "queryEmpty", content: [p("Chưa có bài viết.")] },
     ] }), part("footer", "footer")));
   write(path.join(root, "templates", "single.json"), doc(part("header", "header"), main(
-    { type: "postTitle" }, { type: "postDate" }, { type: "featuredImage" }, { type: "postContent" }, { type: "postTerms" }, { type: "comments" }), part("footer", "footer")));
-  write(path.join(root, "templates", "page.json"), doc(part("header", "header"), main({ type: "postTitle" }, { type: "postContent" }), part("footer", "footer")));
+    { type: "breadcrumbs" }, { type: "postTitle" }, { type: "postDate" }, { type: "featuredImage" }, { type: "postContent" }, { type: "postTerms" },
+    { type: "postNavigation" }, { type: "comments" }), part("footer", "footer")));
+  write(path.join(root, "templates", "page.json"), doc(part("header", "header"), main({ type: "breadcrumbs" }, { type: "postTitle" }, { type: "postContent" }), part("footer", "footer")));
   write(path.join(root, "templates", "404.json"), doc(part("header", "header"), main(
     { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "Không tìm thấy trang" }] }, { type: "search" }), part("footer", "footer")));
 }

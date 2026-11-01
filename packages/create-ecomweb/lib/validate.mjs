@@ -66,6 +66,7 @@ export function validate(dir) {
       if (manifest.editing !== "blocks" && folder === "templates" && fs.readdirSync(d).some((f) => f.endsWith(".json")))
         warnings.push('templates/*.json chỉ được dùng khi theme.json có "editing": "blocks"');
     }
+    warnings.push(...seoStructure(dir));
     for (const f of manifest.settings ?? []) {
       if (!f.key) errors.push("settings: thiếu key");
       if (!FIELD_TYPES.includes(f.type)) errors.push(`settings.${f.key}: type "${f.type}" không hợp lệ (${FIELD_TYPES.join(", ")})`);
@@ -308,3 +309,34 @@ export function narrowCmsUpperBound(range) {
   const suggest = major !== null && min ? `">=${min[1]}.${min[2]}.0 <${major + 1}.0.0"` : '">=1.0.0 <2.0.0"';
   return `requires.cms "${range}" chặn trước các bản core sau này dù vẫn tương thích (trong một major core chỉ thêm API, không bớt) — nên dùng ${suggest}`;
 }
+
+/**
+ * SEO: mỗi template khối (ghép cả phần dùng chung) nên có đúng một H1 — tiêu đề bài (postTitle), tiêu đề trang lưu trữ (queryTitle)
+ * hoặc khối tiêu đề cấp 1. Header có tên website là H1 làm mọi trang thành hai H1.
+ */
+export function seoStructure(dir) {
+  const out = [];
+  const read = (folder, name) => { try { const j = JSON.parse(fs.readFileSync(path.join(dir, folder, `${name}.json`), "utf8")); return j.blocks?.find((b) => b.type === "richtext")?.data ?? (j.type === "doc" ? j : null); } catch { return null; } };
+  const h1s = (node, seen = new Set(), inLoop = false) => {
+    if (!node || typeof node !== "object") return 0;
+    let n = 0;
+    const lvl = node.attrs?.level;
+    if (!inLoop && ((node.type === "postTitle" || node.type === "queryTitle") && (lvl ?? 1) === 1)) n++;
+    if (node.type === "heading" && lvl === 1) n++;
+    if (node.type === "siteTitle" && lvl === 1) n++;
+    if (node.type === "templatePart" && node.attrs?.slug && !seen.has(node.attrs.slug)) { seen.add(node.attrs.slug); n += h1s(read("parts", node.attrs.slug), seen, inLoop); }
+    const loop = inLoop || node.type === "postTemplate";
+    for (const c of node.content ?? []) n += h1s(c, seen, loop);
+    return n;
+  };
+  const tdir = path.join(dir, "templates");
+  if (!fs.existsSync(tdir)) return out;
+  for (const f of fs.readdirSync(tdir).filter((x) => x.endsWith(".json"))) {
+    const name = f.replace(/\.json$/, "");
+    const n = h1s(read("templates", name));
+    if (n === 0) out.push(`SEO: templates/${f} không có thẻ H1 — thêm "Tiêu đề bài" (postTitle) hoặc "Tiêu đề trang lưu trữ" (queryTitle)`);
+    else if (n > 1) out.push(`SEO: templates/${f} có ${n} thẻ H1 (tính cả header / footer) — mỗi trang chỉ nên có một H1`);
+  }
+  return out;
+}
+

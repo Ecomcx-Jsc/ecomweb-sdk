@@ -24,7 +24,7 @@ try {
     entryPoints: entries, bundle: true, platform: "node", format: "esm", outdir: out, outbase: path.join(root, "packages"),
     outExtension: { ".js": ".mjs" }, jsx: "automatic", logLevel: "warning", packages: "external",
     // Gói trong repo (packages/x) được bundle từ nguồn TS; @ecomcx/ecomweb-content và thư viện ngoài (react…) lấy từ node_modules
-    plugins: [{ name: "workspace", setup(b) { b.onResolve({ filter: /^@cms\/[\w-]+$/ }, (a) => {
+    plugins: [{ name: "next-esm", setup(b) { b.onResolve({ filter: /^next\/[\w-]+$/ }, (a) => ({ path: `${a.path}.js`, external: true })); } }, { name: "workspace", setup(b) { b.onResolve({ filter: /^@cms\/[\w-]+$/ }, (a) => {
       const src = path.join(root, "packages", a.path.slice(5), "src", "index.ts");
       if (existsSync(src)) return { path: src };
       // Gói @cms ngoài repo (vd @ecomcx/ecomweb-content cài từ GitHub): tìm từ thư mục của file đang import, bundle luôn vào test
