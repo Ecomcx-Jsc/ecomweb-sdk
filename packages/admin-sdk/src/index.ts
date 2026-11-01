@@ -66,6 +66,13 @@ export const registerBlockPanel = (panel: import("./types").BlockPanel) => host(
  * CMS cũ (chưa có tab Mẫu) → bỏ qua, không lỗi.
  */
 export const registerPattern = (pattern: import("./types").EditorPattern) => host().editor.registerPattern?.(pattern);
+/**
+ * Nguồn dữ liệu cho mục "Gắn dữ liệu" của trình soạn (đoạn văn, tiêu đề, ảnh, nút…):
+ *   registerBindingSource({ name: "shop/product", label: "%binding.product%", fields: [{ value: "price", label: "%binding.price%" }] })
+ * Website lấy giá trị bằng definePlugin({ bindingSources: { "shop/product": (args, ctx) => … } }) của theme-sdk.
+ * CMS cũ → bỏ qua, không lỗi.
+ */
+export const registerBindingSource = (source: import("./types").EditorBindingSource) => host().editor.registerBindingSource?.(source);
 export { defineBlock, type BlockDefinition, type BlockDefinitionInput, type BlockAttrSpec } from "@ecomcx/ecomweb-content";
 /** Thêm node/mark TipTap cho trình soạn (cấp thấp — khối thường dùng registerBlock). */
 export const registerEditorExtension = (pack: import("./types").EditorExtensionPack) => host().editor.register(pack);

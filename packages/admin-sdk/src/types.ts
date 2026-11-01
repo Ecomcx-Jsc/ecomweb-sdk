@@ -242,6 +242,25 @@ export interface PostRowAction {
 export type AdminListName = "users" | "comments" | "media";
 
 /** Mẫu (pattern): đoạn nội dung dựng sẵn, chèn = chép khối vào bài. */
+/**
+ * Nguồn dữ liệu để gắn vào thuộc tính của khối (mục "Gắn dữ liệu" trong trình soạn). Tên trùng với nguồn plugin cung cấp
+ * cho website qua definePlugin({ bindingSources }) của theme-sdk — trình soạn chỉ hiện lựa chọn + xem trước, website lấy giá trị thật.
+ */
+export interface EditorBindingSource {
+  /** "slug/tên". */
+  name: string;
+  /** Nhận "%khoá%" (locales của plugin). */
+  label: string;
+  /** Trường chọn được (đặt vào args[argKey]); nhãn nhận "%khoá%". Không có → ô nhập tự do. */
+  fields?: Array<{ value: string; label: string }>;
+  /** Tên tham số (mặc định "field"). */
+  argKey?: string;
+  /** Chỉ cho các thuộc tính này (vd ["src"]). */
+  attributes?: string[];
+  /** Giá trị xem trước trong trình soạn. */
+  preview?(args: Record<string, string | number | boolean>): string | undefined | Promise<string | undefined>;
+}
+
 export interface EditorPattern {
   /** "slug-plugin/tên". */
   name: string;
@@ -496,6 +515,8 @@ export interface CmsAdmin {
     registerBlockPanel?(panel: BlockPanel): void;
     /** Mẫu — đoạn nội dung dựng sẵn trong tab "Mẫu" của trình chèn (CMS ≥ 1.12.0). */
     registerPattern?(pattern: EditorPattern): void;
+    /** Nguồn gắn dữ liệu cho khối (CMS có trình soạn v2 — @ecomcx/ecomweb-editor ≥ 1.19). */
+    registerBindingSource?(source: EditorBindingSource): void;
     tiptap: { Node: any; Mark: any; Extension: any; mergeAttributes: (...attrs: any[]) => Record<string, any> };
   };
 }
