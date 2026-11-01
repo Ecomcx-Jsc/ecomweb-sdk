@@ -32,7 +32,6 @@
   "author": "Ecomweb Team",
   "license": "MIT",
   "devDependencies": {
-    "@ecomcx/ecomweb-content": "file:../ecomweb-package/ecomweb-content",
     "@types/node": "22.20.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
