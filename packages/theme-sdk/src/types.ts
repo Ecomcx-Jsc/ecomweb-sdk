@@ -300,6 +300,11 @@ export interface PluginDefinition {
   blocks?: Record<string, ComponentType<BlockProps>>;
   /** Định nghĩa khối (defineBlock, file dùng chung với phần admin) — website chuẩn hoá thuộc tính + nâng phiên bản trước khi vẽ. */
   blockTypes?: import("@ecomcx/ecomweb-content").BlockDefinition[];
+  /**
+   * Nguồn gắn dữ liệu (attrs.bindings của khối, @ecomcx/ecomweb-content 1.15): { "shop/product": async ({ id, field }, { post }) => … }.
+   * Khối lõi (đoạn văn, tiêu đề, ảnh, nút) hiện giá trị trả về; trả null/undefined → giữ nội dung gõ tay.
+   */
+  bindingSources?: Record<string, import("./bindings").BindingSource>;
   /** File ở gốc website: { "/news-sitemap.xml": handler }. Đường dẫn phải khai báo trong plugin.json → frontend.routes. */
   routes?: Record<string, PluginRoute>;
   /**

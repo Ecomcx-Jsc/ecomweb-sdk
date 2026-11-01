@@ -3,6 +3,7 @@ import { ExtensionBoundary, PostPasswordForm } from "./client";
 import { applyFilters, findBlock, findRegion, findShortcode, getActiveExtensions } from "./runtime";
 import type { Post, PostContentDoc, ResolveResult, Site } from "./types";
 import { getPattern, getSite, getTemplates } from "./api";
+import { CORE_BINDING_SOURCES } from "./bindings";
 import { getT } from "./i18n";
 import { renderDynamic } from "./dynamic";
 import { renderContent, type RenderContext } from "./rich";
@@ -60,5 +61,10 @@ export async function contentContext(site: Site, post?: Post | null, data?: Reso
     parts: async (slug) => (await getTemplates().catch(() => null))?.parts[slug] ?? null,
     region: (name, fallback) => regionOverride(name, fallback, site, data),
     pattern: (ref) => getPattern(ref),
+    binding: async (source, args, c) => {
+      const fn = CORE_BINDING_SOURCES[source] ?? (await getActiveExtensions(site)).map((d) => d.bindingSources?.[source]).find(Boolean);
+      // Bài của vòng lặp (query) / bài đang xem / bài của nội dung
+      return fn ? fn(args, { site, post: c.post ?? post, data: c.data ?? data }) : undefined;
+    },
   };
 }

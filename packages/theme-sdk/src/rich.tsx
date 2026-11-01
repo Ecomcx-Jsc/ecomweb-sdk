@@ -39,6 +39,8 @@ export interface RenderContext {
   styles?: Map<string, string>;
   /** Đang vẽ bên trong nhóm nút (`buttons`): nút không bọc thêm đoạn văn. */
   inButtons?: boolean;
+  /** Lấy giá trị của nguồn gắn dữ liệu (attrs.bindings). Không có → bỏ qua bindings (giữ nội dung gõ tay). */
+  binding?(source: string, args: Record<string, string | number | boolean>, ctx: RenderContext): Promise<unknown>;
   /** Tiêu đề của bài (khối mục lục) — renderContent ngoài cùng tính. */
   headings?: Array<{ level: number; id: string; text: string }>;
   /**
@@ -171,7 +173,33 @@ function decorate(el: ReactNode, a: Record<string, any>, key: string, ctx: Rende
   return <div key={key} className={extra || undefined} id={a.anchor}>{el}</div>;
 }
 
+/** Thuộc tính gắn được của khối lõi (ngoài danh sách bị bỏ qua). */
+const BINDABLE: Record<string, readonly string[]> = { paragraph: ["content"], heading: ["content"], image: ["src", "alt", "caption"], button: ["text", "href"] };
+const URL_ATTRS = new Set(["src", "href"]);
+/**
+ * Áp gắn dữ liệu: thay chữ / thuộc tính bằng giá trị của nguồn lúc hiển thị. Giá trị là chữ thường (không HTML), đường dẫn qua safeUrl;
+ * nguồn không có / trả về rỗng → giữ nội dung gõ tay. Lỗi của nguồn (plugin) chỉ bỏ qua thuộc tính đó.
+ */
+async function applyBindings(node: Node, ctx: RenderContext): Promise<Node> {
+  const bindings = node.attrs?.bindings as Record<string, { source: string; args?: Record<string, string | number | boolean> }> | undefined;
+  const allowed = BINDABLE[node.type];
+  if (!bindings || !allowed || !ctx.binding) return node;
+  let out: Node = node;
+  for (const [attr, b] of Object.entries(bindings)) {
+    if (!allowed.includes(attr) || typeof b?.source !== "string") continue;
+    let v: unknown;
+    try { v = await ctx.binding(b.source, b.args ?? {}, ctx); } catch (e) { console.warn(`[cms] binding ${b.source} lỗi:`, (e as Error).message); continue; }
+    if (v === null || v === undefined || v === "") continue;
+    const text = String(v);
+    if (attr === "content") out = { ...out, content: [{ type: "text", text }] };
+    else if (URL_ATTRS.has(attr)) { const u = safeUrl(text, ""); if (u) out = { ...out, attrs: { ...out.attrs, [attr]: u } }; }
+    else out = { ...out, attrs: { ...out.attrs, [attr]: text } };
+  }
+  return out;
+}
+
 async function renderNode(node: Node, key: string, ctx: RenderContext): Promise<ReactNode> {
+  if (node.attrs?.bindings) node = await applyBindings(node, ctx);
   const el = await renderNodeInner(node, key, ctx);
   const a = node.attrs;
   const out = a && (a.style || a.blockStyle || a.className || a.anchor) ? decorate(el, a, key, ctx) : el;

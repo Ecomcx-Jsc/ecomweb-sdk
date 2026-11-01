@@ -21,3 +21,4 @@ export async function getThemeSettings() {
 export { PluginForm } from "./plugin-form";
 export type { PluginFormField } from "./plugin-form-client";
 export { defineBlock, type BlockDefinition, type BlockDefinitionInput, type BlockAttrSpec } from "@ecomcx/ecomweb-content";
+export { BINDABLE, CORE_BINDING_SOURCES, type BindingContext, type BindingSource } from "./bindings";

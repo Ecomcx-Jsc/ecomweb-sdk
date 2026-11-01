@@ -136,3 +136,44 @@ test("bản nháp (Trình dựng): gắn tài liệu + vị trí cho từng kh�
   assert.ok(!/<li[^>]*data-ecx/.test(out), "mục danh sách không gắn (giữ đúng cấu trúc ul > li)");
   assert.ok(out.includes('data-ecx-path="3-0-0">D</p>'), "đoạn trong mục danh sách vẫn chọn được");
 });
+
+// ---------------------------------------------------------------------------
+// Gắn dữ liệu (@ecomcx/ecomweb-content 1.15 — attrs.bindings)
+// ---------------------------------------------------------------------------
+test("gắn dữ liệu: tiêu đề / đoạn / ảnh / nút lấy giá trị của nguồn; giá trị được escape, đường dẫn độc bị chặn", async () => {
+  const values: Record<string, unknown> = { title: "Áo <b>đẹp</b>", price: 199000, img: "https://cdn.vn/a.jpg", bad: "javascript:alert(1)", none: null };
+  const c = { ...ctx(), binding: async (source: string, args: Record<string, string | number | boolean>) => (source === "shop/product" ? values[String(args.field)] : undefined) };
+  const doc = { type: "doc", content: [
+    { type: "heading", attrs: { level: 2, bindings: { content: { source: "shop/product", args: { field: "title" } } } }, content: [{ type: "text", text: "gõ tay" }] },
+    { type: "paragraph", attrs: { bindings: { content: { source: "shop/product", args: { field: "price" } } } }, content: [{ type: "text", text: "0đ" }] },
+    { type: "paragraph", attrs: { bindings: { content: { source: "shop/product", args: { field: "none" } } } }, content: [{ type: "text", text: "giữ nguyên" }] },
+    { type: "image", attrs: { src: "https://x/old.png", bindings: { src: { source: "shop/product", args: { field: "img" } }, alt: { source: "shop/product", args: { field: "title" } } } } },
+    { type: "button", attrs: { text: "Mua", href: "/old", bindings: { href: { source: "shop/product", args: { field: "bad" } }, text: { source: "shop/product", args: { field: "price" } } } } },
+    { type: "paragraph", attrs: { bindings: { secret: { source: "shop/product", args: { field: "title" } } } }, content: [{ type: "text", text: "thuộc tính lạ bỏ qua" }] },
+  ] };
+  const out = await html(doc, c as RenderContext);
+  assert.match(out, /<h2[^>]*>Áo &lt;b&gt;đẹp&lt;\/b&gt;<\/h2>/);
+  assert.match(out, /<p>199000<\/p>/);
+  assert.match(out, /<p>giữ nguyên<\/p>/);
+  assert.match(out, /<img src="https:\/\/cdn\.vn\/a\.jpg"[^>]*alt="Áo &lt;b&gt;đẹp&lt;\/b&gt;"/);
+  assert.match(out, /href="\/old"/);
+  assert.doesNotMatch(out, /javascript:/);
+  assert.match(out, />199000<\/a>/);
+  assert.match(out, /thuộc tính lạ bỏ qua/);
+  // Không có bộ giải (website cũ): nội dung gõ tay
+  assert.match(await html(doc), /gõ tay/);
+});
+
+test("gắn dữ liệu: nguồn lõi core/post, core/post-meta, core/site", async () => {
+  const { CORE_BINDING_SOURCES } = await import("../src/bindings");
+  const site = { title: "ECOMCX", tagline: "Khẩu hiệu", url: "https://e.vn", themeSettings: { logo: { url: "https://e.vn/logo.png" } } } as unknown as Site;
+  const post = { title: "Bài A", excerpt: "Tóm tắt", link: "/bai-a", locale: "vi", publishedAt: "2026-11-01T00:00:00Z", author: { name: "Mai" }, featuredMedia: { url: "https://e.vn/a.jpg" }, meta: { price: 10, obj: { x: 1 } } } as never;
+  const get = (s: string, args: Record<string, string>) => CORE_BINDING_SOURCES[s](args, { site, post });
+  assert.equal(get("core/post", { field: "title" }), "Bài A");
+  assert.equal(get("core/post", { field: "author" }), "Mai");
+  assert.equal(get("core/post", { field: "featuredImage" }), "https://e.vn/a.jpg");
+  assert.equal(get("core/post-meta", { key: "price" }), "10");
+  assert.equal(get("core/post-meta", { key: "obj" }), undefined);
+  assert.equal(get("core/site", { field: "logo" }), "https://e.vn/logo.png");
+  assert.equal(get("core/post", { field: "password" }), undefined);
+});
