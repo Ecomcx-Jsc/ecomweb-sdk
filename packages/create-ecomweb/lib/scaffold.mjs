@@ -3,6 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { c, pascal, slugify, write, findCmsRepo } from "./util.mjs";
 
+/** Bản Ecomweb.Plugin.Sdk / .Testing cho plugin dạng dự án và dự án test — cùng bản với core có các API mà SDK npm này nhắm tới (CMS 1.20.0). */
+export const PLUGIN_SDK_VERSION = "1.20.0";
+
 export function scaffoldTheme(name, { parent, dir, blocks = false } = {}) {
   const slug = slugify(name);
   const root = path.resolve(dir ?? slug);
@@ -258,8 +261,32 @@ export function scaffoldSimplePlugin(name, { dir, tests = false } = {}) {
   return scaffoldPlugin(name, { dir, tests });
 }
 
+/**
+ * Nguồn gói Ecomweb.Plugin.Sdk / .Testing: nuget.org, cộng feed local khi đặt CMS_NUGET_FEED (thư mục chứa .nupkg) hoặc khi
+ * plugin nằm trong repo core (sdk/nuget, tạo bằng scripts/pack-sdk.sh).
+ */
+function nugetFeed(root) {
+  if (process.env.CMS_NUGET_FEED) return path.resolve(process.env.CMS_NUGET_FEED);
+  const repo = findCmsRepo(root);
+  return repo ? path.join(repo, "sdk", "nuget") : null;
+}
+
+/** nuget.config: khai báo XML phải là ký tự đầu tiên của file (dòng trống phía trước → dotnet restore báo lỗi đọc file). */
+function writeNugetConfig(dir, feed) {
+  write(path.join(dir, "nuget.config"), `<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+    <add key="cms-local" value="${feed}" />
+  </packageSources>
+</configuration>
+`);
+}
+
 /** Dự án test xUnit dùng Ecomweb.Plugin.Testing (namespace Cms.Plugin.Testing) — chạy bằng `create-ecomweb test` (cần .NET SDK). */
 function scaffoldTests(root, cls, slug) {
+  const feed = nugetFeed(root);
+  if (feed) writeNugetConfig(path.join(root, "tests"), feed);
   write(path.join(root, "tests", `${cls}.Tests.csproj`), `<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -268,7 +295,7 @@ function scaffoldTests(root, cls, slug) {
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Ecomweb.Plugin.Testing" Version="1.13.0" />
+    <PackageReference Include="Ecomweb.Plugin.Testing" Version="${PLUGIN_SDK_VERSION}" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
@@ -349,9 +376,7 @@ export function scaffoldPlugin(name, { backend = "source", admin = false, fronte
   if (backend === "source") write(path.join(root, `${cls}.cs`), pluginSource(name, slug, cls));
 
   if (backend === "project") {
-    const repo = findCmsRepo(root);
-    // Nguồn Ecomweb.Plugin.Sdk: nuget.org; thêm feed local khi ở trong repo CMS hoặc khi đặt CMS_NUGET_FEED (thư mục chứa .nupkg)
-    const feed = process.env.CMS_NUGET_FEED ? path.resolve(process.env.CMS_NUGET_FEED) : repo ? path.join(repo, "sdk", "nuget") : null;
+    const feed = nugetFeed(root);
     write(path.join(root, "backend", `${cls}.csproj`), `
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -365,7 +390,7 @@ export function scaffoldPlugin(name, { backend = "source", admin = false, fronte
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="Ecomweb.Plugin.Sdk" Version="1.13.0">
+    <PackageReference Include="Ecomweb.Plugin.Sdk" Version="${PLUGIN_SDK_VERSION}">
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
@@ -390,15 +415,7 @@ export function scaffoldPlugin(name, { backend = "source", admin = false, fronte
   </ItemGroup>
 </Project>
 `);
-    if (feed) write(path.join(root, "backend", "nuget.config"), `
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <packageSources>
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-    <add key="cms-local" value="${feed}" />
-  </packageSources>
-</configuration>
-`);
+    if (feed) writeNugetConfig(path.join(root, "backend"), feed);
     write(path.join(root, "backend", `${cls}Plugin.cs`), pluginSource(name, slug, cls));
   }
 
@@ -450,6 +467,7 @@ registerMetaBox({
   if (frontend) {
     write(path.join(root, "frontend", "index.tsx"), `
 import { definePlugin } from "@ecomcx/ecomweb-theme-sdk";
+
 
 /** Phần hiển thị ngoài website: shortcode, widget, slot, filter. */
 export default definePlugin({

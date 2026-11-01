@@ -29,7 +29,7 @@ const HELP = `${c.bold("create-ecomweb")} — công cụ viết theme/plugin cho
   ${c.cyan("test")} [thư-mục]                      đóng gói + chạy test xUnit trong tests/ trên CMS thử (Cms.Plugin.Testing)
   ${c.cyan("check")} [thư-mục]                     chạy thử trên CMS: manifest, biên dịch, quét bảo mật (như khi cài / nộp Store)
   ${c.cyan("pack")} [thư-mục] [--out dist]         đóng gói → dist/<slug>-<version>.zip
-  ${c.cyan("deploy")} [thư-mục] [--activate]       đóng gói + cài lên CMS (--url, --user, --password)
+  ${c.cyan("deploy")} [thư-mục] [--activate]       đóng gói + cài lên CMS (--url, --user, --password; --accept-permissions, --accept-risk)
   ${c.cyan("dev")} [thư-mục]                       tự đóng gói + cài lại mỗi khi sửa file
   ${c.cyan("env")} up [--dev] [--build DIR] | status | logs [api|builder] [-f] | down [--purge]
                                       CMS chạy bằng Docker để thử theme/plugin (--dev: sửa là thấy, không build lại)
@@ -47,6 +47,8 @@ function connection() {
     user: args.user ?? (process.env.CMS_USER ? undefined : saved?.user),
     password: args.password ?? (process.env.CMS_PASSWORD ? undefined : saved?.password),
     activate: !!args.activate,
+    acceptPermissions: !!args["accept-permissions"],
+    acceptRisk: !!args["accept-risk"],
   };
 }
 

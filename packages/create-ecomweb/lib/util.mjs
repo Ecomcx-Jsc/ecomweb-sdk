@@ -85,7 +85,8 @@ export function findCmsRepo(start = process.cwd()) {
   if (process.env.CMS_REPO && fs.existsSync(path.join(process.env.CMS_REPO, "sdk"))) return path.resolve(process.env.CMS_REPO);
   let dir = path.resolve(start);
   for (let i = 0; i < 8; i++) {
-    if (fs.existsSync(path.join(dir, "sdk", "theme-sdk", "package.json")) && fs.existsSync(path.join(dir, "backend"))) return dir;
+    // Repo core: backend/src/Cms.Plugin.Sdk (bố cục cũ còn có sdk/theme-sdk — SDK npm nay ở repo ecomweb-sdk riêng)
+    if (fs.existsSync(path.join(dir, "backend", "src", "Cms.Plugin.Sdk")) || (fs.existsSync(path.join(dir, "sdk", "theme-sdk", "package.json")) && fs.existsSync(path.join(dir, "backend")))) return dir;
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
