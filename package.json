@@ -1,6 +1,6 @@
 {
   "name": "ecomweb-sdk",
-  "version": "1.33.0",
+  "version": "1.34.0",
   "description": "Ecomweb SDK - Developer Tools, CLI and Libraries for Theme & Plugin Development",
   "type": "module",
   "bin": {
