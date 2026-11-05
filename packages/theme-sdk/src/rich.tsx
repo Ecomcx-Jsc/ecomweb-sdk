@@ -1,5 +1,5 @@
 import { Fragment, cloneElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
-import { DYNAMIC_NODES, colorCss, embedInfo, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { DYNAMIC_NODES, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
@@ -160,7 +160,7 @@ function decorate(el: ReactNode, a: Record<string, any>, key: string, ctx: Rende
   const style = a.style && typeof a.style === "object" ? (a.style as BlockStyle) : null;
   const cls = style ? styleClass(style) : null;
   if (style && cls && ctx.styles && !ctx.styles.has(cls)) ctx.styles.set(cls, styleCss(style, cls));
-  const extra = cx(cls, a.blockStyle && `ecx-is-${a.blockStyle}`, a.className);
+  const extra = cx(cls, motionClasses(style), a.blockStyle && `ecx-is-${a.blockStyle}`, a.className);
   if (isValidElement(el) && el.type !== Fragment && typeof el.type === "string") {
     const e = el as ReactElement<{ className?: string; style?: CSSProperties; id?: string }>;
     let inline = e.props.style;

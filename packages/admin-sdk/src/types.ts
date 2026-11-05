@@ -515,6 +515,9 @@ export interface CmsAdmin {
     registerBlockPanel?(panel: BlockPanel): void;
     /** Mẫu — đoạn nội dung dựng sẵn trong tab "Mẫu" của trình chèn (CMS ≥ 1.12.0). */
     registerPattern?(pattern: EditorPattern): void;
+    /** Hiệu ứng chuyển động thêm vào danh sách chọn ở tab Kiểu dáng › Chuyển động của mọi khối (CMS có mục Chuyển động trong trình soạn, kèm `@ecomcx/ecomweb-content` ≥ 1.16). */
+    registerAnimation?(effect: MotionEffect): void;
+    unregisterAnimation?(id: string): void;
     /** Nguồn gắn dữ liệu cho khối (CMS có trình soạn v2 — @ecomcx/ecomweb-editor ≥ 1.19). */
     registerBindingSource?(source: EditorBindingSource): void;
     tiptap: { Node: any; Mark: any; Extension: any; mergeAttributes: (...attrs: any[]) => Record<string, any> };
@@ -525,6 +528,20 @@ export interface CmsAdmin {
 export interface RegisterBlockOptions {
   icon?: any;
   edit?: import("react").ComponentType<{ attrs: Record<string, any>; setAttrs(attrs: Record<string, unknown>): void; selected: boolean; children?: import("react").ReactNode }>;
+}
+
+/** Hiệu ứng khi cuộn tới do plugin thêm: lưu vào `style.motion.in`; website dùng `@keyframes ecx-in-<id>` (plugin tự nạp CSS cho website). */
+export interface MotionEffect {
+  /** Mã `[a-z][a-z0-9-]{0,39}`, nên có tiền tố plugin ("acme-bounce"); không trùng hiệu ứng lõi (fade, slide-up, zoom-in…). */
+  id: string;
+  /** Nhãn trong danh sách — truyền chuỗi đã dịch (dùng `__()` / `t()` của plugin). */
+  label: string;
+  /** Nhóm trong danh sách chọn; bỏ trống = "Plugin". */
+  group?: string;
+  /** CSS chứa `@keyframes ecx-in-<id>` để xem thử trong trình soạn. */
+  css?: string;
+  /** Thứ tự (nhỏ đứng trước, mặc định 10). */
+  order?: number;
 }
 
 /** Props của panel plugin trong tab "Khối". */

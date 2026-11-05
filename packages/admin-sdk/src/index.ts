@@ -61,6 +61,14 @@ export const registerBlock = (def: import("@ecomcx/ecomweb-content").BlockDefini
  */
 export const registerBlockPanel = (panel: import("./types").BlockPanel) => host().editor.registerBlockPanel?.(panel);
 /**
+ * Thêm hiệu ứng khi cuộn tới vào danh sách chọn của mọi khối (tab Kiểu dáng › Chuyển động). Plugin cần nạp CSS `@keyframes ecx-in-<id>`
+ * cho website (slot "head") và đặt cùng chuỗi đó ở `css` để xem thử trong trình soạn:
+ *   registerAnimation({ id: "acme-bounce", label: __("Nảy"), group: "Acme", css: "@keyframes ecx-in-acme-bounce{…}" })
+ * CMS cũ → bỏ qua, không lỗi.
+ */
+export const registerAnimation = (effect: import("./types").MotionEffect) => host().editor.registerAnimation?.(effect);
+export const unregisterAnimation = (id: string) => host().editor.unregisterAnimation?.(id);
+/**
  * Thêm mẫu (đoạn dựng sẵn) vào tab "Mẫu" của trình chèn:
  *   registerPattern({ name: "shop/product-hero", title: "%pattern.hero%", category: "hero", content: { type: "doc", content: [...] } })
  * CMS cũ (chưa có tab Mẫu) → bỏ qua, không lỗi.

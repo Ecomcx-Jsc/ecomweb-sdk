@@ -40,6 +40,15 @@ for (const file of readdirSync(fixtures).filter((f) => f.endsWith(".json")).sort
   });
 }
 
+test("chuyển động: khối có hiệu ứng cuộn nhận class ecx-in (observer tìm thấy), hover thuần thì không", async () => {
+  const out = await html({ type: "doc", content: [
+    { type: "paragraph", attrs: { style: { motion: { in: "fade", repeat: true } } }, content: [{ type: "text", text: "A" }] },
+    { type: "paragraph", attrs: { style: { motion: { hover: "lift" } } }, content: [{ type: "text", text: "B" }] },
+  ] });
+  assert.match(out, /<p class="ecx-s-\w+ ecx-in ecx-in-repeat">A<\/p>/);
+  assert.match(out, /<p class="ecx-s-\w+">B<\/p>/);
+});
+
 test("nút của plugin dùng renderer khối, có nội dung con", async () => {
   const out = await html({ type: "doc", content: [{ type: "demo/callout", attrs: { tone: "warning" }, content: [{ type: "paragraph", content: [{ type: "text", text: "Chú ý" }] }] }] });
   assert.equal(out, '<aside class="callout callout-warning"><p>Chú ý</p></aside>');
