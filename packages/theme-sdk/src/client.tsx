@@ -291,3 +291,20 @@ export function LanguageSwitcherClient({ languages, current, defaultLocale, labe
 
 export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, LogoutButton, useCurrentUser, extraFields, ProfileForm, ChangePasswordForm, DeleteAccountForm, AUTH_LABELS, AUTH_PATHS, type AuthLabels, type AuthPaths, type SignInProvider } from "./auth-forms";
 export { safeRedirect, type CurrentUser } from "./auth-shared";
+
+/** Khối countdown: đếm ngược tới `target` (ms). Dựng lần đầu cùng giá trị trên máy chủ, rồi cập nhật mỗi giây. */
+export function CountdownClient({ target, label, expiredText }: { target: number; label?: string; expiredText?: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
+  const left = Math.max(0, target - now);
+  if (left === 0 && expiredText) return <div className="ecx-countdown is-expired">{expiredText}</div>;
+  const p = (n: number) => String(n).padStart(2, "0");
+  const s = Math.floor(left / 1000);
+  const parts: Array<[string, number]> = [["d", Math.floor(s / 86400)], ["h", Math.floor(s / 3600) % 24], ["m", Math.floor(s / 60) % 60], ["s", s % 60]];
+  return (
+    <div className="ecx-countdown" role="timer" aria-live="off" suppressHydrationWarning>
+      {label && <p className="ecx-countdown-label">{label}</p>}
+      <div className="ecx-countdown-parts">{parts.map(([u, n]) => <span key={u} className={`ecx-countdown-${u}`}><strong>{p(n)}</strong><small>{u}</small></span>)}</div>
+    </div>
+  );
+}

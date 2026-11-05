@@ -3,6 +3,7 @@ import { DYNAMIC_NODES, colorCss, embedInfo, motionClasses, normalizeContent, sa
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
+import { CountdownClient } from "./client";
 
 /**
  * Vẽ nội dung (định dạng của CMS — @ecomcx/ecomweb-content) thành React, không phụ thuộc trình soạn.
@@ -16,6 +17,8 @@ export interface RenderContext {
     /** Khối của plugin: khối cấp cao nhất và nút trong nội dung soạn thảo dùng chung một renderer (definePlugin → blocks). */
     block(type: string): Promise<ComponentType<BlockProps> | null>;
   };
+  /** Filter "block.render": plugin bọc / thay phần tử đã vẽ của MỌI khối (kể cả khối lõi). Chỉ có khi có plugin đăng ký filter này. */
+  filterBlock?(node: Node, el: ReactNode): Promise<ReactNode>;
   /** Bọc component của plugin (lỗi chỉ ẩn phần đó). Mặc định: không bọc. */
   boundary?(name: string, key: string, el: ReactNode): ReactNode;
   /** Khối của plugin (defineBlock) — chuẩn hoá thuộc tính + nâng phiên bản khối lưu bằng bản cũ. */
@@ -26,8 +29,10 @@ export interface RenderContext {
   data?: ResolveResult;
   /** Vẽ khối động (@ecomcx/ecomweb-content DYNAMIC_NODES). Không có → khối động bị bỏ qua. */
   dynamic?(node: RenderNode, key: string, ctx: RenderContext, children: (ctx: RenderContext, nodes?: RenderNode[]) => Promise<ReactNode[]>): Promise<ReactNode>;
+  /** Tên nhóm của khối accordion đang vẽ: các `details` con dùng chung `name` để mở một mục thì mục khác đóng. */
+  accordion?: string;
   /** Bài của vòng lặp `query` gần nhất (+ dữ liệu phân trang khi dùng danh sách của trang). */
-  query?: { posts: Post[]; data?: ResolveResult };
+  query?: { posts: Post[]; data?: ResolveResult; pageParam?: string };
   /** Nội dung template part theo slug (khối templatePart). */
   parts?(slug: string): Promise<ContentDoc | null>;
   partDepth?: number;
@@ -200,7 +205,8 @@ async function applyBindings(node: Node, ctx: RenderContext): Promise<Node> {
 
 async function renderNode(node: Node, key: string, ctx: RenderContext): Promise<ReactNode> {
   if (node.attrs?.bindings) node = await applyBindings(node, ctx);
-  const el = await renderNodeInner(node, key, ctx);
+  let el = await renderNodeInner(node, key, ctx);
+  if (ctx.filterBlock && node.type !== "text" && node.type !== "doc") el = await ctx.filterBlock(node, el);
   const a = node.attrs;
   const out = a && (a.style || a.blockStyle || a.className || a.anchor) ? decorate(el, a, key, ctx) : el;
   return ctx.markBlocks && ctx.source && ctx.pathRoot != null && key.startsWith(ctx.pathRoot + "-") && !UNMARKED.has(node.type)
@@ -245,11 +251,11 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       return <Tag key={key} id={id || undefined} style={alignStyle(a)}>{await children()}</Tag>;
     }
     case "bulletList": return <ul key={key}>{await children()}</ul>;
-    case "orderedList": return <ol key={key} start={a.start && a.start !== 1 ? a.start : undefined}>{await children()}</ol>;
+    case "orderedList": return <ol key={key} start={a.start && a.start !== 1 ? a.start : undefined} reversed={a.reversed === true || undefined}>{await children()}</ol>;
     case "listItem": return <li key={key}>{await children()}</li>;
     case "taskList": return <ul key={key} className="ecx-task-list task-list">{await children()}</ul>;
     case "taskItem": return <li key={key} className="ecx-task-item task-item"><input type="checkbox" checked={!!a.checked} readOnly /> {await children()}</li>;
-    case "blockquote": return <blockquote key={key}>{await children()}</blockquote>;
+    case "blockquote": return <blockquote key={key}>{await children()}{a.citation && <cite>{a.citation}</cite>}</blockquote>;
     case "codeBlock": return <pre key={key}><code className={a.language ? `language-${a.language}` : undefined}>{plainText(node)}</code></pre>;
     case "hardBreak": return <br key={key} />;
     case "horizontalRule": return <hr key={key} />;
@@ -259,28 +265,31 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const sizes = a.width ? `(max-width: ${a.width}px) 100vw, ${a.width}px` : (a.sizes || "(max-width: 1024px) 100vw, 1024px");
       const img = <img src={safeUrl(a.src, "")} srcSet={a.srcset || undefined} sizes={a.srcset ? sizes : undefined}
         alt={a.alt ?? ""} title={a.title ?? undefined} width={a.width ?? undefined} height={a.height ?? undefined} loading="lazy" decoding="async" />;
-      const pic = a.webpSrcset ? <picture><source type="image/webp" srcSet={a.webpSrcset} sizes={sizes} />{img}</picture> : img;
+      const bare = a.webpSrcset ? <picture><source type="image/webp" srcSet={a.webpSrcset} sizes={sizes} />{img}</picture> : img;
+      // next: ảnh có liên kết (href qua safeUrl; mở tab mới thì noopener)
+      const pic = a.href ? <a href={safeUrl(a.href)} target={a.linkTarget === "_blank" ? "_blank" : undefined} rel={a.linkTarget === "_blank" ? "noopener noreferrer" : undefined}>{bare}</a> : bare;
       const cls = cx("ecx-image cms-image", a.align && `ecx-align-${a.align} align${a.align}`, a.mediaId && `ecx-image-${a.mediaId} cms-image-${a.mediaId}`);
       return a.caption || a.align ? <figure key={key} className={cls}>{pic}{a.caption && <figcaption>{a.caption}</figcaption>}</figure> : <Fragment key={key}>{pic}</Fragment>;
     }
     case "gallery": {
       const items = (a.images ?? []) as Array<{ src: string; srcset?: string; webpSrcset?: string; alt?: string; caption?: string; width?: number; height?: number; full?: string }>;
       const cols = Math.min(6, Math.max(1, Number(a.columns) || 3));
+      const crop = a.imageCrop !== false; // next: imageCrop=false giữ nguyên tỉ lệ ảnh
       return (
         <figure key={key} className={cx("ecx-gallery cms-gallery", `ecx-gallery-columns-${cols} columns-${cols}`)} style={{ display: "grid", gap: 8, gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
           {items.map((im, i) => {
-            const el = <img src={safeUrl(im.src, "")} srcSet={im.srcset || undefined} sizes={`(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`} alt={im.alt ?? ""} width={im.width} height={im.height} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", aspectRatio: "1" }} />;
+            const el = <img src={safeUrl(im.src, "")} srcSet={im.srcset || undefined} sizes={`(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`} alt={im.alt ?? ""} width={im.width} height={im.height} loading="lazy" decoding="async" style={crop ? { width: "100%", height: "100%", objectFit: "cover", aspectRatio: "1" } : { width: "100%", height: "auto" }} />;
             const pic = im.webpSrcset ? <picture><source type="image/webp" srcSet={im.webpSrcset} sizes={`(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`} />{el}</picture> : el;
-            return <figure key={i} className="ecx-gallery-item cms-gallery-item" style={{ margin: 0 }}>{im.full ? <a href={safeUrl(im.full)}>{pic}</a> : pic}{im.caption && <figcaption>{im.caption}</figcaption>}</figure>;
+            return <figure key={i} className="ecx-gallery-item cms-gallery-item" style={{ margin: 0 }}>{im.full && a.linkTo !== "none" ? <a href={safeUrl(im.full)}>{pic}</a> : pic}{im.caption && <figcaption>{im.caption}</figcaption>}</figure>;
           })}
           {a.caption && <figcaption className="ecx-gallery-caption cms-gallery-caption" style={{ gridColumn: "1 / -1" }}>{a.caption}</figcaption>}
         </figure>
       );
     }
     case "video":
-      return <figure key={key} className="ecx-video cms-video"><video src={safeUrl(a.src, "")} poster={a.poster ? safeUrl(a.poster, "") : undefined} controls preload="metadata" playsInline style={{ width: "100%", height: "auto" }} />{a.caption && <figcaption>{a.caption}</figcaption>}</figure>;
+      return <figure key={key} className="ecx-video cms-video"><video src={safeUrl(a.src, "")} poster={a.poster ? safeUrl(a.poster, "") : undefined} controls={a.controls !== false} autoPlay={a.autoplay === true} loop={a.loop === true} muted={a.muted === true || a.autoplay === true} preload={["none", "metadata", "auto"].includes(a.preload) ? a.preload : "metadata"} playsInline={a.playsInline !== false} style={{ width: "100%", height: "auto" }} />{a.caption && <figcaption>{a.caption}</figcaption>}</figure>;
     case "audio":
-      return <figure key={key} className="ecx-audio cms-audio"><audio src={safeUrl(a.src, "")} controls preload="metadata" style={{ width: "100%" }} />{a.caption && <figcaption>{a.caption}</figcaption>}</figure>;
+      return <figure key={key} className="ecx-audio cms-audio"><audio src={safeUrl(a.src, "")} controls autoPlay={a.autoplay === true} loop={a.loop === true} preload={["none", "metadata", "auto"].includes(a.preload) ? a.preload : "metadata"} style={{ width: "100%" }} />{a.caption && <figcaption>{a.caption}</figcaption>}</figure>;
     case "file": {
       const isPdf = String(a.mime ?? "").includes("pdf") || /\.pdf($|\?)/i.test(String(a.src ?? ""));
       return (
@@ -386,8 +395,27 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     }
     case "pullquote":
       return <figure key={key} className="ecx-pullquote"><blockquote><p>{await children()}</p></blockquote>{a.citation && <figcaption>{a.citation}</figcaption>}</figure>;
+    case "accordion": {
+      const sub = a.multiple === true ? ctx : { ...ctx, accordion: `ecx-acc-${key}` };
+      return <div key={key} className="ecx-accordion">{await Promise.all((node.content ?? []).map((c, i) => renderNode(c, `${key}-${i}`, sub)))}</div>;
+    }
+    case "countdown": {
+      const ms = Date.parse(String(a.target ?? ""));
+      if (!Number.isFinite(ms)) return null;
+      return <CountdownClient key={key} target={ms} label={a.label ? String(a.label) : undefined} expiredText={a.expiredText ? String(a.expiredText) : undefined} />;
+    }
+    case "rating": {
+      const max = Math.min(10, Math.max(1, Math.round(Number(a.max) || 5)));
+      const v = Math.min(max, Math.max(0, Number(a.value) || 0));
+      return (
+        <div key={key} className="ecx-rating" role="img" aria-label={`${v}/${max}`}>
+          {Array.from({ length: max }, (_, i) => <span key={i} aria-hidden="true" className={i < Math.round(v) ? "is-on" : "is-off"} style={{ color: i < Math.round(v) ? "#f59e0b" : "#d4d4d8" }}>★</span>)}
+          {a.label && <span className="ecx-rating-label"> {String(a.label)}</span>}
+        </div>
+      );
+    }
     case "details":
-      return <details key={key} className="ecx-details" open={a.open === true || undefined}><summary>{a.summary || "…"}</summary>{await children()}</details>;
+      return <details key={key} className="ecx-details" name={ctx.accordion} open={a.open === true || undefined}><summary>{a.summary || "…"}</summary>{await children()}</details>;
     case "customHtml":
       // Máy chủ đã lọc HTML khi người soạn thiếu quyền unfiltered_html (ContentSanitizer)
       return a.html ? <div key={key} className="ecx-html" dangerouslySetInnerHTML={{ __html: String(a.html) }} /> : null;

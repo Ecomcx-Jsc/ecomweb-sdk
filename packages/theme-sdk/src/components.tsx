@@ -134,7 +134,15 @@ export async function SearchForm({ defaultValue, placeholder, buttonLabel }: { d
   return <SearchFormClient action={localeHref(site, "/")} defaultValue={defaultValue} placeholder={placeholder ?? t("search.placeholder")} label={t("search.label")} buttonLabel={buttonLabel ?? t("search.button")} />;
 }
 
-export async function Pagination({ data, prevLabel, nextLabel }: { data: ResolveResult; prevLabel?: string; nextLabel?: string }) {
+function paramLink(data: ResolveResult, param: string, p: number) {
+  const q = new URLSearchParams(Object.entries(data.query ?? {}).filter(([k]) => k !== param));
+  if (p > 1) q.set(param, String(p));
+  const s = q.toString();
+  return s ? `${data.basePath}?${s}` : data.basePath;
+}
+
+/** `pageParam`: phân trang bằng tham số URL (?qpage=2) thay cho /page/2 — dùng cho khối Query nằm trong trang, không phải trang lưu trữ. */
+export async function Pagination({ data, prevLabel, nextLabel, pageParam }: { data: ResolveResult; prevLabel?: string; nextLabel?: string; pageParam?: string }) {
   if (data.totalPages <= 1) return null;
   const t = await getT();
   prevLabel ??= t("pagination.prev");
@@ -146,7 +154,7 @@ export async function Pagination({ data, prevLabel, nextLabel }: { data: Resolve
   }
   // Danh sách có bộ lọc (?phong-ban=…, ?muc-luong=…) → giữ nguyên bộ lọc khi chuyển trang
   const hasFilters = Object.keys(data.query ?? {}).some((k) => k !== "s" && k !== "page");
-  const link = (p: number) => hasFilters
+  const link = (p: number) => pageParam ? paramLink(data, pageParam, p) : hasFilters
     ? pageLinkWithQuery(data.basePath, p, data.query)
     : pageLink(data.basePath, p, data.kind === "search" ? data.search : null);
   return (

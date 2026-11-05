@@ -75,6 +75,42 @@ test("URL độc bị vô hiệu ở mọi chỗ", async () => {
   assert.ok(!out.toLowerCase().includes("javascript:"), out);
 });
 
+test("video / audio: autoplay luôn kèm muted, loop, controls tắt được, preload ngoài danh sách về metadata", async () => {
+  const v = await html({ type: "doc", content: [{ type: "video", attrs: { src: "/a.mp4", autoplay: true, loop: true, controls: false, preload: "bogus" } }] });
+  assert.match(v, /autoPlay|autoplay/i);
+  assert.match(v, /muted/i);
+  assert.match(v, /loop/i);
+  assert.ok(!/controls/i.test(v), v);
+  assert.match(v, /preload="metadata"/);
+  const plain = await html({ type: "doc", content: [{ type: "video", attrs: { src: "/a.mp4" } }] });
+  assert.match(plain, /controls/i);
+  assert.ok(!/autoplay/i.test(plain), plain);
+  const au = await html({ type: "doc", content: [{ type: "audio", attrs: { src: "/a.mp3", loop: true } }] });
+  assert.match(au, /loop/i);
+});
+
+test("block.render: plugin bọc được khối lõi; không đăng ký thì không có gì thay đổi", async () => {
+  const doc = { type: "doc", content: [{ type: "image", attrs: { src: "/a.jpg", alt: "x" } }, { type: "paragraph", content: [{ type: "text", text: "hi" }] }] };
+  const plain = await html(doc);
+  const seen: string[] = [];
+  const wrapped = await html(doc, ctx({ filterBlock: async (node, el) => { seen.push(node.type); return node.type === "image" ? <div className="lightbox">{el}</div> : el; } }));
+  assert.ok(wrapped.includes('<div class="lightbox"><'), wrapped);
+  assert.deepEqual(seen, ["image", "paragraph"]); // text / doc không qua filter
+  assert.ok(!plain.includes("lightbox"));
+});
+
+test("ảnh có liên kết, trích dẫn có nguồn, danh sách đếm ngược; liên kết độc bị bỏ", async () => {
+  const out = await html({ type: "doc", content: [
+    { type: "image", attrs: { src: "/a.jpg", href: "/to", linkTarget: "_blank" } },
+    { type: "blockquote", attrs: { citation: "An" }, content: [{ type: "paragraph", content: [{ type: "text", text: "q" }] }] },
+    { type: "orderedList", attrs: { reversed: true }, content: [{ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "1" }] }] }] },
+    { type: "image", attrs: { src: "/b.jpg", href: "javascript:alert(1)" } }] });
+  assert.match(out, /<a href="\/to" target="_blank" rel="noopener noreferrer"><img/);
+  assert.match(out, /<cite>An<\/cite>/);
+  assert.match(out, /<ol reversed/);
+  assert.ok(!out.toLowerCase().includes("javascript:"), out);
+});
+
 test("khối lỗi được bọc bởi boundary", async () => {
   const names: string[] = [];
   await html({ type: "doc", content: [{ type: "demo/callout" }] }, ctx({ boundary: (name, key, el) => { names.push(name); return <section key={key}>{el}</section>; } }));
@@ -212,4 +248,31 @@ test("khối theme 1.15: tiêu đề trang lưu trữ là H1 theo ngữ cảnh, 
   // Ngoài template (nội dung bài, không có ngữ cảnh trang): không vẽ
   assert.equal(await html(doc({ type: "queryTitle" }, { type: "breadcrumbs" }), ctx({ dynamic: renderDynamic })), "");
   } finally { globalThis.fetch = origFetch; }
+});
+
+test("accordion: details con dùng chung name (mở một đóng các mục khác); multiple=true thì không; rating và countdown vẽ đúng, ngày hỏng bị bỏ", async () => {
+  const item = (s: string) => ({ type: "details", attrs: { summary: s }, content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] });
+  const one = await html({ type: "doc", content: [{ type: "accordion", attrs: {}, content: [item("A"), item("B")] }] });
+  assert.match(one, /class="ecx-accordion"/);
+  assert.equal((one.match(/name="ecx-acc-[^"]+"/g) ?? []).length, 2);
+  assert.equal(new Set(one.match(/name="ecx-acc-[^"]+"/g)).size, 1);
+  const many = await html({ type: "doc", content: [{ type: "accordion", attrs: { multiple: true }, content: [item("A")] }] });
+  assert.doesNotMatch(many, /<details[^>]* name=/);
+  const stars = await html({ type: "doc", content: [{ type: "rating", attrs: { value: 3.6, max: 5, label: "ok" } }] });
+  assert.equal((stars.match(/is-on/g) ?? []).length, 4);
+  assert.match(stars, /aria-label="3\.6\/5"/);
+  const cd = await html({ type: "doc", content: [{ type: "countdown", attrs: { target: "2999-01-01T00:00:00Z", label: "Sale" } }] });
+  assert.match(cd, /ecx-countdown/);
+  assert.match(cd, /Sale/);
+  assert.equal(await html({ type: "doc", content: [{ type: "countdown", attrs: { target: "không phải ngày" } }] }), "");
+});
+
+test("gallery: linkTo=none bỏ liên kết, imageCrop=false giữ tỉ lệ ảnh", async () => {
+  const img = { src: "/a.jpg", full: "/a-full.jpg", alt: "a" };
+  const g = await html({ type: "doc", content: [{ type: "gallery", attrs: { images: [img], linkTo: "none", imageCrop: false } }] });
+  assert.doesNotMatch(g, /<a /);
+  assert.doesNotMatch(g, /object-fit:cover/);
+  const g2 = await html({ type: "doc", content: [{ type: "gallery", attrs: { images: [img] } }] });
+  assert.match(g2, /<a href="\/a-full\.jpg"/);
+  assert.match(g2, /object-fit:cover/);
 });

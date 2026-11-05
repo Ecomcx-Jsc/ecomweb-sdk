@@ -39,17 +39,19 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       const location = String(a.location ?? "primary");
       const menu = <Menu location={location} className="ecx-navigation-menu" />;
       const t = await getT();
+      // next: overlayMenu never|mobile|always; thiếu thì theo `mobile` cũ
+      const overlay = ["never", "mobile", "always"].includes(a.overlayMenu) ? a.overlayMenu : a.mobile === false ? "never" : "mobile";
       return (
-        <div key={key} className={cx("ecx-navigation", `ecx-navigation-${a.orientation ?? "horizontal"}`, a.mobile !== false && "has-mobile")}>
-          <div className="ecx-navigation-items">{menu}</div>
-          {a.mobile !== false && <details className="ecx-navigation-toggle"><summary aria-label={t("navigation.menu")}>☰</summary>{menu}</details>}
+        <div key={key} className={cx("ecx-navigation", `ecx-navigation-${a.orientation ?? "horizontal"}`, overlay !== "never" && "has-mobile", overlay === "always" && "overlay-always")}>
+          {overlay !== "always" && <div className="ecx-navigation-items">{menu}</div>}
+          {overlay !== "never" && <details className="ecx-navigation-toggle"><summary aria-label={t("navigation.menu")}>☰</summary>{menu}</details>}
         </div>
       );
     }
     case "search":
       return <div key={key} className="ecx-search"><SearchForm defaultValue={ctx.data?.search} placeholder={a.placeholder} buttonLabel={a.buttonText} /></div>;
     case "languageSwitcher":
-      return <LanguageSwitcher key={key} className="ecx-language-switcher" />;
+      return <LanguageSwitcher key={key} className="ecx-language-switcher" variant={a.display === "dropdown" ? "select" : "list"} />;
     case "copyright":
       return <p key={key} className="ecx-copyright" style={align(a)}>© {new Date().getFullYear()} {a.text || site.title}</p>;
 
@@ -74,13 +76,17 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       </div>;
     }
     case "postDate":
-      return post ? <p key={key} className="ecx-post-date" style={align(a)}><PostDate post={post} site={site} /></p> : null;
+      return post ? <p key={key} className="ecx-post-date" style={align(a)}><PostDate post={a.displayType === "modified" ? { ...post, publishedAt: post.updatedAt } : post} site={site} /></p> : null;
     case "postAuthor":
       if (!post?.author) return null;
-      return <p key={key} className="ecx-post-author">
-        {a.avatar && post.author.avatarUrl && <img src={post.author.avatarUrl} alt="" width={32} height={32} style={{ borderRadius: "50%", verticalAlign: "middle", marginRight: 8 }} />}
-        <Link href={localeHref(site, `/author/${post.author.slug}`)} rel="author">{post.author.name}</Link>
-      </p>;
+      {
+        const size = Math.min(128, Math.max(16, Number(a.avatarSize) || 32));
+        const name = a.showName === false ? null : a.link === false ? <span>{post.author.name}</span> : <Link href={localeHref(site, `/author/${post.author.slug}`)} rel="author">{post.author.name}</Link>;
+        return <p key={key} className="ecx-post-author">
+          {a.avatar && post.author.avatarUrl && <img src={post.author.avatarUrl} alt={a.showName === false ? post.author.name : ""} width={size} height={size} style={{ borderRadius: "50%", verticalAlign: "middle", marginRight: name ? 8 : 0 }} />}
+          {name}
+        </p>;
+      }
     case "postTerms": {
       const terms = post?.terms?.[a.taxonomy ?? "category"];
       return terms?.length ? <p key={key} className="ecx-post-terms"><TermLinks terms={terms} separator={a.separator ?? ", "} /></p> : null;
@@ -141,15 +147,22 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
     }
 
     case "query": {
-      let posts: Post[]; let data: ResolveResult | undefined;
+      let posts: Post[]; let data: ResolveResult | undefined; let pageParam: string | undefined;
       if (a.inherit !== false && ctx.data?.posts) { posts = ctx.data.posts; data = ctx.data; }
       else {
         const taxonomy = a.category ? "category" : a.tag ? "post_tag" : undefined;
-        const res = await getPosts({ type: a.postType ?? "post", perPage: a.perPage ?? 10, taxonomy, term: a.category || a.tag || undefined,
-          orderBy: a.orderBy ?? "date", order: a.order ?? "desc" }).catch(() => null);
+        const exclude = String(a.exclude ?? "").split(",").map((x) => Number(x.trim())).filter((x) => Number.isInteger(x) && x > 0);
+        // paginate: khối nằm trong một trang → phân trang bằng ?qpage=N (không đụng /page/N của chính trang)
+        const paginate = a.paginate === true && !!ctx.data;
+        const page = paginate ? Math.max(1, Math.floor(Number(ctx.data?.query?.qpage)) || 1) : 1;
+        const res = await getPosts({ page, type: a.postType ?? "post", perPage: a.perPage ?? 10, taxonomy, term: a.category || a.tag || undefined,
+          orderBy: a.orderBy ?? "date", order: a.order ?? "desc",
+          authorId: typeof a.authorId === "number" ? a.authorId : undefined, search: a.search || undefined, exclude: exclude.length ? exclude : undefined,
+          sticky: a.sticky === "only" ? true : a.sticky === "exclude" ? false : undefined, orderByMeta: a.orderByMeta || undefined }).catch(() => null);
         posts = res?.items ?? [];
+        if (paginate && res && ctx.data) { data = { ...ctx.data, page: res.page, totalPages: res.totalPages, total: res.total }; pageParam = "qpage"; }
       }
-      return <div key={key} className="ecx-query">{await children({ ...ctx, query: { posts, data } })}</div>;
+      return <div key={key} className="ecx-query">{await children({ ...ctx, query: { posts, data, pageParam } })}</div>;
     }
     case "postTemplate": {
       const posts = ctx.query?.posts ?? [];
@@ -160,7 +173,7 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       return <ul key={key} className={cx("ecx-post-template", grid && "is-grid")} style={style}>{items}</ul>;
     }
     case "pagination":
-      return ctx.query?.data ? <Pagination key={key} data={ctx.query.data} /> : null;
+      return ctx.query?.data ? <Pagination key={key} data={ctx.query.data} pageParam={ctx.query.pageParam} /> : null;
     case "queryEmpty":
       return ctx.query && !ctx.query.posts.length ? <div key={key} className="ecx-query-empty">{await children(ctx)}</div> : null;
     case "syncedPattern": {

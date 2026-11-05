@@ -51,9 +51,13 @@ export async function contentContext(site: Site, post?: Post | null, data?: Reso
   const t = await getT();
   // Bản nháp (xem trực tiếp / Trình dựng) không vào cache công khai → được gắn vị trí khối cho khung soạn
   const markBlocks = await import("next/headers").then(async ({ draftMode }) => (await draftMode()).isEnabled).catch(() => false);
-  const blocks = (await getActiveExtensions(site)).flatMap((d) => d.blockTypes ?? []);
+  const extensions = await getActiveExtensions(site);
+  const blocks = extensions.flatMap((d) => d.blockTypes ?? []);
+  // Không plugin nào đăng ký "block.render" thì không tốn một lần gọi filter cho mỗi khối
+  const hasBlockFilter = extensions.some((d) => (d.filters as Record<string, unknown> | undefined)?.["block.render"]);
   return {
     site, post, data, blocks, markBlocks,
+    filterBlock: hasBlockFilter ? (node, el) => applyFilters("block.render", el, { node, site, post }, site) : undefined,
     resolve: { shortcode: (name) => findShortcode(name, site), block: (type) => findBlock(type, site) },
     labels: { download: t("file.download"), toc: t("toc.title") },
     boundary: (name, key, el) => <ExtensionBoundary key={key} name={name}>{el}</ExtensionBoundary>,
