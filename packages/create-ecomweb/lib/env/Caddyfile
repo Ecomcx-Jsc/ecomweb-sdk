@@ -25,7 +25,7 @@
 	}
 
 	# Route API của website Next.js (bình luận, proxy plugin, xem trước, xoá cache)
-	@frontend_api path /api/cms/* /api/revalidate /api/preview /api/preview/*
+	@frontend_api path /api/cms/* /api/revalidate /api/editor-styles /api/preview /api/preview/*
 	handle @frontend_api {
 		reverse_proxy builder:3000 {
 			header_up X-Forwarded-For {client_ip}
