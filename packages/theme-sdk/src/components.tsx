@@ -129,9 +129,9 @@ export async function Slot<P = any>({
 // ---------------------------------------------------------------------------
 
 /** Ô tìm kiếm — gửi về trang chủ của ngôn ngữ hiện tại (/?s= hoặc /en?s=). */
-export async function SearchForm({ defaultValue, placeholder, buttonLabel }: { defaultValue?: string | null; placeholder?: string; buttonLabel?: string }) {
+export async function SearchForm({ defaultValue, placeholder, buttonLabel, postType, showLabel, buttonPosition }: { defaultValue?: string | null; placeholder?: string; buttonLabel?: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below" }) {
   const [t, site] = await Promise.all([getT(), getSite()]);
-  return <SearchFormClient action={localeHref(site, "/")} defaultValue={defaultValue} placeholder={placeholder ?? t("search.placeholder")} label={t("search.label")} buttonLabel={buttonLabel ?? t("search.button")} />;
+  return <SearchFormClient action={localeHref(site, "/")} defaultValue={defaultValue} placeholder={placeholder ?? t("search.placeholder")} label={t("search.label")} buttonLabel={buttonLabel ?? t("search.button")} postType={postType} showLabel={showLabel} buttonPosition={buttonPosition} />;
 }
 
 function paramLink(data: ResolveResult, param: string, p: number) {
@@ -188,11 +188,11 @@ export function TermLinks({ terms, separator = ", " }: { terms?: Array<{ id: num
 // Khu bình luận
 // ---------------------------------------------------------------------------
 
-export async function Comments({ post, title }: { post: Post; title?: string }) {
+export async function Comments({ post, title, perPage, order, avatarSize, showDate }: { post: Post; title?: string; perPage?: number; order?: "asc" | "desc"; avatarSize?: number; showDate?: boolean }) {
   if (post.commentStatus !== "open" && post.commentCount === 0) return null;
   if (post.passwordProtected && !post.content) return null; // bài có mật khẩu: ẩn bình luận tới khi mở khoá
   const unlock = post.passwordProtected ? await requestUnlock() : undefined;
-  const [site, page, t] = await Promise.all([getSite(), getComments(post.id, 1, unlock), getT()]);
+  const [site, page, t] = await Promise.all([getSite(), getComments(post.id, 1, unlock, { perPage, order }), getT()]);
   const comments = page?.items ?? [];
   const dateSite = { dateFormat: site.dateFormat, timezone: site.timezone, locale: site.locale };
   title ??= t("comments.title");
@@ -201,8 +201,8 @@ export async function Comments({ post, title }: { post: Post; title?: string }) 
     <section id="comments" className="comments-area">
       <Slot name="comments.before" props={{ post }} />
       <h2 className="comments-title">{title} ({post.commentCount})</h2>
-      {comments.length > 0 && <CommentList comments={comments} site={dateSite} />}
-      {(page?.totalPages ?? 1) > 1 && <CommentsMore postId={post.id} totalPages={page.totalPages} site={dateSite} labels={{ more: t("comments.more"), loading: t("comments.loading"), error: t("comments.form.error") }} />}
+      {comments.length > 0 && <CommentList comments={comments} site={dateSite} avatarSize={avatarSize} showDate={showDate} />}
+      {(page?.totalPages ?? 1) > 1 && <CommentsMore postId={post.id} totalPages={page.totalPages} site={dateSite} perPage={perPage} order={order} avatarSize={avatarSize} showDate={showDate} labels={{ more: t("comments.more"), loading: t("comments.loading"), error: t("comments.form.error") }} />}
       {post.commentStatus === "open"
         ? <CommentForm postId={post.id} labels={labels} fields={<Slot name="comment_form.fields" props={{ post }} />} />
         : <p className="no-comments">{t("comments.closed")}</p>}

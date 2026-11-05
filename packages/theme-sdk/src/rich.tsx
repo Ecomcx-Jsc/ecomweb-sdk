@@ -1,4 +1,5 @@
 import { Fragment, cloneElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
+import { ICON_PATHS } from "./icons";
 import { DYNAMIC_NODES, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site } from "./types";
 import { cx } from "./utils";
@@ -48,6 +49,8 @@ export interface RenderContext {
   binding?(source: string, args: Record<string, string | number | boolean>, ctx: RenderContext): Promise<unknown>;
   /** Tiêu đề của bài (khối mục lục) — renderContent ngoài cùng tính. */
   headings?: Array<{ level: number; id: string; text: string }>;
+  /** Chú thích của mark `footnote` trong nội dung đang vẽ (đánh số theo thứ tự xuất hiện). shortcut: chỉ gom trong một lần renderContent, mẫu đồng bộ lồng vào không có số. */
+  footnotes?: { notes: Array<{ note: string; mark: object }>; prefix: string };
   /**
    * Đang xem bản nháp (Trình dựng / xem trực tiếp): gắn data-ecx-doc + data-ecx-path cho từng khối để khung soạn ở admin
    * biết người dùng bấm vào khối nào. `source` = tài liệu đang vẽ ("template:single", "part:header", "post:12", "pattern:3").
@@ -92,6 +95,16 @@ function collectHeadings(blocks: Block[]): Array<{ level: number; id: string; te
   return out;
 }
 
+function collectFootnotes(blocks: Block[]): Array<{ note: string; mark: object }> {
+  const out: Array<{ note: string; mark: object }> = [];
+  const walk = (n: Node) => {
+    for (const m of n.marks ?? []) if (m.type === "footnote" && typeof m.attrs?.note === "string" && m.attrs.note) out.push({ note: m.attrs.note, mark: m });
+    for (const c of n.content ?? []) walk(c);
+  };
+  for (const b of blocks) if (b.type === "richtext" && b.data) walk(b.data as Node);
+  return out;
+}
+
 function plainText(node: Node): string {
   if (node.type === "text") return node.text ?? "";
   return (node.content ?? []).map(plainText).join("");
@@ -109,7 +122,7 @@ function alignStyle(attrs?: Record<string, any>): CSSProperties | undefined {
 }
 
 
-function renderMarks(text: ReactNode, marks: Node["marks"], key: string): ReactNode {
+function renderMarks(text: ReactNode, marks: Node["marks"], key: string, ctx?: RenderContext): ReactNode {
   let out = text;
   for (const [i, m] of (marks ?? []).entries()) {
     const k = `${key}-m${i}`;
@@ -119,6 +132,13 @@ function renderMarks(text: ReactNode, marks: Node["marks"], key: string): ReactN
       case "underline": out = <u key={k}>{out}</u>; break;
       case "strike": out = <s key={k}>{out}</s>; break;
       case "code": out = <code key={k}>{out}</code>; break;
+      case "footnote": {
+        const f = ctx?.footnotes;
+        const n = f ? f.notes.findIndex((x) => x.mark === m) + 1 : 0;
+        if (n > 0) out = <Fragment key={k}>{out}<sup className="ecx-footnote-ref" id={`fnref-${f!.prefix}-${n}`}><a href={`#fn-${f!.prefix}-${n}`}>[{n}]</a></sup></Fragment>;
+        break;
+      }
+      case "kbd": out = <kbd key={k}>{out}</kbd>; break;
       case "subscript": out = <sub key={k}>{out}</sub>; break;
       case "superscript": out = <sup key={k}>{out}</sup>; break;
       case "highlight": out = <mark key={k} style={m.attrs?.color ? { background: m.attrs.color } : undefined}>{out}</mark>; break;
@@ -230,7 +250,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
   const a = node.attrs ?? {};
   switch (node.type) {
     case "doc": return <Fragment key={key}>{await children()}</Fragment>;
-    case "text": return renderMarks(node.text ?? "", node.marks, key);
+    case "text": return renderMarks(node.text ?? "", node.marks, key, ctx);
     case "paragraph": {
       // Đoạn văn chỉ chứa shortcode → render component của plugin.
       const text = plainText(node);
@@ -258,6 +278,23 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     case "blockquote": return <blockquote key={key}>{await children()}{a.citation && <cite>{a.citation}</cite>}</blockquote>;
     case "codeBlock": return <pre key={key}><code className={a.language ? `language-${a.language}` : undefined}>{plainText(node)}</code></pre>;
     case "hardBreak": return <br key={key} />;
+    case "pageBreak": return null;
+    case "footnotes": {
+      const f = ctx.footnotes;
+      if (!f?.notes.length) return null;
+      return (
+        <aside key={key} className="ecx-footnotes">
+          {a.title && <p className="ecx-footnotes-title">{a.title}</p>}
+          <ol>{f.notes.map((x, i) => <li key={i} id={`fn-${f.prefix}-${i + 1}`}>{x.note} <a href={`#fnref-${f.prefix}-${i + 1}`} aria-label="↩">↩</a></li>)}</ol>
+        </aside>
+      );
+    }
+    case "icon": {
+      const path = ICON_PATHS[String(a.name)];
+      if (!path) return null;
+      const size = Math.min(128, Math.max(12, Number(a.size) || 24));
+      return <div key={key} className="ecx-icon-block" style={alignStyle(a)}><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" role={a.label ? "img" : undefined} aria-label={a.label || undefined} aria-hidden={a.label ? undefined : true}><path d={path} /></svg></div>;
+    }
     case "horizontalRule": return <hr key={key} />;
     case "image": {
       // Ảnh chèn từ thư viện mang sẵn srcset (JPEG + WebP) và kích thước → responsive, không nhảy layout
@@ -542,7 +579,10 @@ export async function renderContent(content: ContentDoc | unknown, ctx: RenderCo
   const blocks = transform ? await transform(doc.blocks) : doc.blocks;
   // Lần vẽ ngoài cùng gom CSS kiểu dáng của mọi khối (kể cả phần lồng bên trong) thành một thẻ <style>
   const own = !ctx.styles;
-  if (own) ctx = { ...ctx, styles: new Map(), headings: ctx.headings ?? collectHeadings(blocks) };
+  if (own) {
+    const notes = collectFootnotes(blocks);
+    ctx = { ...ctx, styles: new Map(), headings: ctx.headings ?? collectHeadings(blocks), footnotes: ctx.footnotes ?? (notes.length ? { notes, prefix: String(ctx.post?.id ?? "x") } : undefined) };
+  }
   const out = await Promise.all(blocks.map((b, i) => renderBlock(b, b.id ?? `b${i}`, ctx)));
   if (own && ctx.styles!.size) out.unshift(<style key="ecx-styles" data-ecx-styles="">{[...ctx.styles!.values()].join("")}</style>);
   return out;

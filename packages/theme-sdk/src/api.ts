@@ -51,7 +51,21 @@ export class CmsApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
-export interface FetchOptions { tags?: string[]; noStore?: boolean; revalidate?: number; query?: Record<string, unknown>; headers?: Record<string, string>; asUser?: boolean }
+export interface FetchOptions {
+  tags?: string[]; noStore?: boolean; revalidate?: number; query?: Record<string, unknown>; headers?: Record<string, string>; asUser?: boolean;
+  /**
+   * Chiều biến thiên cache (core ≥ 1.22.0) mà plugin đang bật khai báo trong plugin.json › cacheVary: `{ device: "mobile", "flag:ab": "b" }`.
+   * CMS gộp vào khoá cache công khai, mỗi giá trị một bản; chiều chưa ai khai báo bị bỏ qua. Danh sách chiều: GET /api/public/cache-vary.
+   * Đọc header / cookie để biết giá trị sẽ khiến trang thành động — chỉ làm khi plugin thật sự cần.
+   */
+  vary?: Record<string, string>;
+}
+
+/** Header X-CMS-Vary từ `vary` ("device=mobile,flag:ab=b"); rỗng → không gửi. */
+export function varyHeader(vary?: Record<string, string>): Record<string, string> {
+  const parts = Object.entries(vary ?? {}).filter(([k, v]) => /^(device|flag:[a-z][a-z0-9-]{0,23})$/.test(k) && /^[A-Za-z0-9_-]{1,32}$/.test(v)).map(([k, v]) => `${k}=${v.toLowerCase()}`);
+  return parts.length ? { "X-CMS-Vary": parts.join(",") } : {};
+}
 
 /**
  * API không phản hồi (thường là đang khởi động lại vài giây khi bật/tắt plugin backend):
@@ -86,9 +100,10 @@ const isUnavailable = (e: unknown) => isFetchKitError(e) && (!e.status || e.stat
 /** Gọi Public API của CMS. Kết quả được cache và gắn tag "cms" để revalidate khi nội dung thay đổi. */
 export async function cmsFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   if ((breaker.__cmsApiDownUntil ?? 0) > Date.now()) throw new CmsApiError(503, `CMS API tạm thời không phản hồi: ${path}`);
+  const headers = { ...opts.headers, ...varyHeader(opts.vary) };
   const get = () => cmsApi.get<T>(path, opts.noStore
-    ? { cache: "no-store", query: opts.query, headers: opts.headers }
-    : { next: { tags: ["cms", ...(opts.tags ?? [])], revalidate: opts.revalidate ?? 3600 }, query: opts.query, headers: opts.headers });
+    ? { cache: "no-store", query: opts.query, headers }
+    : { next: { tags: ["cms", ...(opts.tags ?? [])], revalidate: opts.revalidate ?? 3600 }, query: opts.query, headers });
   try {
     try { return ((await get()).data ?? null) as T; }
     catch (e) {
@@ -332,9 +347,9 @@ export const getWidgets = async (area: string, locale?: string) =>
  * Bình luận đã duyệt theo trang (số mỗi trang, thứ tự: Cài đặt › Thảo luận).
  * Bài có mật khẩu (core >= 1.15): CMS chỉ trả bình luận khi có token mở khoá — unlock = giá trị cookie cms-unlock (không cache).
  */
-export const getComments = (postId: number, page = 1, unlock?: string) =>
+export const getComments = (postId: number, page = 1, unlock?: string, opts: { perPage?: number; order?: "asc" | "desc" } = {}) =>
   cmsFetch<CommentPage>(`/comments/${postId}`, {
-    tags: [`comments:${postId}`], noStore: !!unlock, query: page > 1 ? { page } : undefined, headers: unlock ? { [UNLOCK_HEADER]: unlock } : undefined,
+    tags: [`comments:${postId}`], noStore: !!unlock, query: clean({ page: page > 1 ? page : undefined, perPage: opts.perPage, order: opts.order }), headers: unlock ? { [UNLOCK_HEADER]: unlock } : undefined,
   });
 
 /** Cookie mở khoá bài có mật khẩu của request hiện tại (server component); ngoài request → undefined. */

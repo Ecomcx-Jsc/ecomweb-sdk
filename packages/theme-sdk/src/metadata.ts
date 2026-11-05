@@ -7,7 +7,7 @@ export async function buildDocumentMetadata(data: ResolveResult, site: Site): Pr
   const base: DocumentMetadata = {
     title: isHome ? `${site.title}${site.tagline ? ` – ${site.tagline}` : ""}` : `${data.title} – ${site.title}`,
     description: data.post?.excerpt || (data.term?.description || undefined) || site.tagline,
-    canonical: data.post?.link ?? (data.basePath || undefined),
+    canonical: data.post?.link ? data.post.link + (Number(data.query?.trang) > 1 ? `?trang=${Math.floor(Number(data.query?.trang))}` : "") : (data.basePath || undefined),
     alternates: Object.fromEntries((data.alternates ?? []).map((a) => [a.locale, a.link])),
     openGraph: {
       title: data.post?.title ?? data.title,

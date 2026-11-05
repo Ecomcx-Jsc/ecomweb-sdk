@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { ExtensionBoundary, PostPasswordForm } from "./client";
+import { ExtensionBoundary, Link, PostPasswordForm } from "./client";
 import { applyFilters, findBlock, findRegion, findShortcode, getActiveExtensions } from "./runtime";
-import type { Post, PostContentDoc, ResolveResult, Site } from "./types";
+import type { Block, Post, PostContentDoc, ResolveResult, Site } from "./types";
 import { getPattern, getSite, getTemplates } from "./api";
 import { CORE_BINDING_SOURCES } from "./bindings";
 import { getT } from "./i18n";
@@ -13,7 +13,7 @@ import { cx } from "./utils";
  * Render nội dung bài viết (định dạng của CMS — @ecomcx/ecomweb-content; phần vẽ ở rich.tsx, không phụ thuộc trình soạn).
  * Luôn có class `ecx-content` (giao diện nền trong @ecomcx/ecomweb-content/style.css, theme ghi đè được); `className` thay cho `entry-content`.
  */
-export async function PostContent({ post, content, className }: { post?: Post | null; content?: PostContentDoc | null; className?: string }) {
+export async function PostContent({ post, content, className, page }: { post?: Post | null; content?: PostContentDoc | null; className?: string; page?: number }) {
   const site = await getSite();
   const doc = content ?? post?.content;
   if (!content && post?.passwordProtected && !post.content) {
@@ -21,8 +21,43 @@ export async function PostContent({ post, content, className }: { post?: Post | 
     return <div className={cx(className ?? "entry-content", "ecx-content")}><PostPasswordForm postId={post.id} labels={{ intro: t("password.intro"), label: t("password.label"), submit: t("password.submit"), wrong: t("password.wrong") }} /></div>;
   }
   if (!doc?.blocks?.length) return null;
-  const rendered = await renderContent(doc, { ...(await contentContext(site, post)), source: post ? `post:${post.id}` : undefined }, (blocks) => applyFilters("post.blocks", blocks, { site, post }, site));
-  return <div className={cx(className ?? "entry-content", "ecx-content")}>{rendered}</div>;
+  // Khối pageBreak chia bài thành nhiều trang (?trang=N): chỉ vẽ trang đang xem + thanh chuyển trang
+  let total = 1;
+  const current = Math.max(1, Math.floor(Number(page)) || 1);
+  const rendered = await renderContent(doc, { ...(await contentContext(site, post)), source: post ? `post:${post.id}` : undefined }, async (blocks) => {
+    const pages = splitPages(await applyFilters("post.blocks", blocks, { site, post }, site));
+    total = pages.length;
+    return pages[Math.min(current, total) - 1];
+  });
+  const n = Math.min(current, total);
+  const t = total > 1 ? await getT() : null;
+  const href = (i: number) => (post?.link ?? "") + (i > 1 ? `?trang=${i}` : "");
+  return (
+    <div className={cx(className ?? "entry-content", "ecx-content")}>
+      {rendered}
+      {t && post && (
+        <nav className="ecx-page-links" aria-label={t("pagination.label")}>
+          {n > 1 && <Link href={href(n - 1)} rel="prev">{t("pagination.prev")}</Link>}
+          {Array.from({ length: total }, (_, i) => i + 1).map((i) => i === n ? <span key={i} aria-current="page">{i}</span> : <Link key={i} href={href(i)}>{i}</Link>)}
+          {n < total && <Link href={href(n + 1)} rel="next">{t("pagination.next")}</Link>}
+        </nav>
+      )}
+    </div>
+  );
+}
+
+/** Cắt khối richtext tại mỗi `pageBreak` cấp cao nhất; khối khác nằm ở trang đang mở. Không có pageBreak → một trang. */
+function splitPages(blocks: Block[]): Block[][] {
+  const pages: Block[][] = [[]];
+  for (const b of blocks) {
+    const nodes = b.type === "richtext" ? ((b.data as { content?: Array<{ type: string }> } | undefined)?.content ?? []) : [];
+    if (!nodes.some((x) => x.type === "pageBreak")) { pages[pages.length - 1].push(b); continue; }
+    let seg: typeof nodes = [];
+    const flush = () => { if (seg.length) pages[pages.length - 1].push({ ...b, data: { ...(b.data as object), content: seg } } as Block); seg = []; };
+    for (const x of nodes) { if (x.type === "pageBreak") { flush(); pages.push([]); } else seg.push(x); }
+    flush();
+  }
+  return pages.filter((p, i) => p.length || i === 0);
 }
 
 /**

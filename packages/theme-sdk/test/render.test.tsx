@@ -305,3 +305,112 @@ test("readMore / commentsCount / avatar / queryTotal / author bio / pagination t
   const qt = await html({ type: "doc", content: [{ type: "queryTotal" }] }, ctx({ query: { posts: [], data: { total: 42, page: 1, totalPages: 1 } as never }, dynamic: renderDynamic }));
   assert.match(qt, /ecx-query-total[^>]*>42</);
 });
+
+test("termList / pageList / archives / mark kbd", async () => {
+  configureRuntime({ themes: {}, plugins: {} });
+  const origFetch = globalThis.fetch;
+  const json = (v: unknown) => new Response(JSON.stringify(v), { headers: { "content-type": "application/json" } });
+  const terms = [{ id: 1, name: "Tin", link: "/category/tin", count: 9, parentId: null }, { id: 2, name: "Con", link: "/category/con", count: 3, parentId: 1 }];
+  const pages = [{ id: 10, title: "Về chúng tôi", link: "/ve", parentId: null }, { id: 11, title: "Đội ngũ", link: "/ve/doi-ngu", parentId: 10 }];
+  globalThis.fetch = (async (u: RequestInfo | URL) => {
+    const url = String(u);
+    if (/\/site\b/.test(url)) return json({ title: "Test", language: "vi", locale: "vi", url: "https://example.com" });
+    if (/\/terms\/category/.test(url)) return json(terms);
+    if (/\/archives/.test(url)) return json([{ year: 2026, month: 11, count: 4, link: "/2026/11" }, { year: 2026, month: 10, count: 2, link: "/2026/10" }]);
+    return json({ items: pages, total: 2, page: 1, totalPages: 1 });
+  }) as typeof fetch;
+  try {
+    const doc = (...content: unknown[]) => ({ version: 1, blocks: [{ type: "richtext", data: { type: "doc", content } }] });
+    const out = await html(doc(
+      { type: "termList", attrs: { showCount: true, hierarchical: true } },
+      { type: "termList", attrs: { display: "cloud" } },
+      { type: "termList", attrs: { taxonomy: "x/../y" } },
+      { type: "pageList", attrs: { depth: 1 } },
+      { type: "archives", attrs: { limit: 1, showCount: false } },
+    ), ctx({ dynamic: renderDynamic }));
+    assert.match(out, /<li><a [^>]*href="\/category\/tin"[^>]*>Tin<\/a> \(9\)<ul><li><a [^>]*>Con<\/a> \(3\)<\/li><\/ul><\/li>/);
+    assert.match(out, /ecx-term-list is-cloud/);
+    assert.equal((out.match(/ecx-term-list/g) ?? []).length, 2); // taxonomy sai bị bỏ
+    assert.match(out, /ecx-page-list"><ul><li><a [^>]*>Về chúng tôi<\/a><\/li><\/ul>/); // depth 1: không có con
+    assert.equal((out.match(/<li><a href="\/2026\//g) ?? []).length, 1);
+    assert.doesNotMatch(out.slice(out.indexOf("ecx-archives")), /\(4\)/);
+    const k = await html(doc({ type: "paragraph", content: [{ type: "text", text: "Ctrl", marks: [{ type: "kbd" }] }] }));
+    assert.match(k, /<kbd>Ctrl<\/kbd>/);
+  } finally { globalThis.fetch = origFetch; }
+});
+
+test("varyHeader: chỉ chiều hợp lệ, giá trị chữ thường, rỗng thì không gửi", async () => {
+  const { varyHeader } = await import("../src/api");
+  assert.deepEqual(varyHeader({ device: "Mobile", "flag:ab": "B" }), { "X-CMS-Vary": "device=mobile,flag:ab=b" });
+  assert.deepEqual(varyHeader({ cookie: "x", "flag:ok": "a b", device: "" }), {});
+  assert.deepEqual(varyHeader(), {});
+});
+
+test("icon / footnotes / loginout / pageBreak", async () => {
+  configureRuntime({ themes: {}, plugins: {} });
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = (async (u: RequestInfo | URL) => new Response(JSON.stringify(/\/site\b/.test(String(u)) ? { title: "Test", language: "vi", locale: "vi", url: "https://example.com", activePlugins: [], activeTheme: null } : { items: [], total: 0 }), { headers: { "content-type": "application/json" } })) as typeof fetch;
+  try {
+    const doc = (...content: unknown[]) => ({ version: 1, blocks: [{ type: "richtext", data: { type: "doc", content } }] });
+    const ic = await html(doc({ type: "icon", attrs: { name: "mail", size: 40, label: "Thư" } }, { type: "icon", attrs: { name: "evil" } }));
+    assert.equal((ic.match(/<svg/g) ?? []).length, 1);
+    assert.match(ic, /width="40"[^>]*role="img" aria-label="Thư"/);
+    const fn = await html(doc(
+      { type: "paragraph", content: [{ type: "text", text: "A", marks: [{ type: "footnote", attrs: { note: "Nguồn <b>1</b>" } }] }, { type: "text", text: " B", marks: [{ type: "footnote", attrs: { note: "Nguồn 2" } }] }] },
+      { type: "footnotes", attrs: { title: "Chú thích" } },
+    ), ctx({ post: { id: 7 } as never }));
+    assert.match(fn, /id="fnref-7-1"><a href="#fn-7-1">\[1\]<\/a>/);
+    assert.match(fn, /id="fnref-7-2"/);
+    assert.match(fn, /<li id="fn-7-1">Nguồn &lt;b&gt;1&lt;\/b&gt; <a href="#fnref-7-1"/);
+    assert.equal(await html(doc({ type: "footnotes" })), ""); // không có chú thích → không vẽ
+    const lo = await html(doc({ type: "loginout" }), ctx({ dynamic: renderDynamic }));
+    assert.match(lo, /ecx-loginout/);
+    // pageBreak: mỗi trang một đoạn + thanh chuyển trang
+    const paged = doc({ type: "paragraph", content: [{ type: "text", text: "Một" }] }, { type: "pageBreak" }, { type: "paragraph", content: [{ type: "text", text: "Hai" }] });
+    const post = { id: 1, link: "/bai", content: paged } as never;
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { PostContent } = await import("../src/content");
+    const p1 = renderToStaticMarkup(await PostContent({ post }));
+    assert.match(p1, /Một/); assert.doesNotMatch(p1, /Hai/);
+    assert.match(p1, /rel="next"[^>]*>Sau »|href="\/bai\?trang=2"/);
+    const p2 = renderToStaticMarkup(await PostContent({ post, page: 2 }));
+    assert.match(p2, /Hai/); assert.doesNotMatch(p2, /Một/);
+    assert.match(p2, /href="\/bai"/);
+    assert.match(renderToStaticMarkup(await PostContent({ post, page: 99 })), /Hai/); // vượt quá → trang cuối
+  } finally { globalThis.fetch = origFetch; }
+});
+
+test("comments: perPage / order đi vào URL lấy bình luận, avatarSize và showDate ảnh hưởng HTML", async () => {
+  configureRuntime({ themes: {}, plugins: {} });
+  const origFetch = globalThis.fetch;
+  const urls: string[] = [];
+  const reply = { id: 1, postId: 5, parentId: null, authorName: "An", content: "Hi", createdAt: "2026-11-05T00:00:00Z", status: "approved", replies: [], avatarUrl: "/a.png" };
+  globalThis.fetch = (async (u: RequestInfo | URL) => {
+    const url = String(u); urls.push(url);
+    const body = /\/site\b/.test(url) ? { title: "T", language: "vi", locale: "vi", url: "https://example.com", activePlugins: [], activeTheme: null } : /\/comments\//.test(url) ? { items: [reply], total: 1, totalAll: 1, page: 1, totalPages: 1 } : { items: [], total: 0 };
+    return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { getComments } = await import("../src/api");
+    const { CommentList } = await import("../src/client");
+    await getComments(5, 2, undefined, { perPage: 5, order: "asc" });
+    const u = urls.find((x) => /\/comments\//.test(x))!;
+    assert.match(u, /page=2/); assert.match(u, /perPage=5/); assert.match(u, /order=asc/);
+    const site = { dateFormat: "dd/MM/yyyy", timezone: "UTC", locale: "vi" };
+    const out = renderToStaticMarkup(<CommentList comments={[reply as never]} site={site as never} avatarSize={64} showDate={false} />);
+    assert.match(out, /width="64" height="64"/);
+    assert.doesNotMatch(out, /<time/);
+    assert.match(renderToStaticMarkup(<CommentList comments={[reply as never]} site={site as never} />), /width="40"[^>]*>.*<time/s);
+  } finally { globalThis.fetch = origFetch; }
+});
+
+test("SearchFormClient: postType thành input ẩn, showLabel hiện nhãn, nút bên trái", async () => {
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { SearchFormClient } = await import("../src/client");
+  const out = renderToStaticMarkup(<SearchFormClient action="/" placeholder="p" label="Từ khoá" buttonLabel="Tìm" postType="page" showLabel buttonPosition="left" />);
+  assert.match(out, /<input type="hidden" name="type" value="page"/);
+  assert.match(out, /<label [^>]*>Từ khoá<\/label>/);
+  assert.ok(out.indexOf("<button") < out.indexOf('type="search"'));
+  assert.doesNotMatch(renderToStaticMarkup(<SearchFormClient action="/" placeholder="p" label="L" buttonLabel="B" />), /name="type"/);
+});

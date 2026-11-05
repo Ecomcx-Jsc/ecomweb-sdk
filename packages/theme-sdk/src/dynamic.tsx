@@ -1,11 +1,11 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
-import { getPosts } from "./api";
-import { Link } from "./client";
+import { getArchives, getPosts, getTerms } from "./api";
+import { Link, LoginOutLink } from "./client";
 import { Comments, FeaturedImage, LanguageSwitcher, Menu, Pagination, PostDate, SearchForm, TermLinks } from "./components";
 import { getT } from "./i18n";
 import { localeHref } from "./locale";
 import { renderContent, type RenderContext, type RenderNode } from "./rich";
-import type { Post, ResolveResult } from "./types";
+import type { Post, ResolveResult, Term } from "./types";
 import { cx } from "./utils";
 
 type Children = (ctx: RenderContext, nodes?: RenderNode[]) => Promise<ReactNode[]>;
@@ -49,7 +49,9 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       );
     }
     case "search":
-      return <div key={key} className="ecx-search"><SearchForm defaultValue={ctx.data?.search} placeholder={a.placeholder} buttonLabel={a.buttonText} /></div>;
+      return <div key={key} className="ecx-search"><SearchForm defaultValue={ctx.data?.search} placeholder={a.placeholder} buttonLabel={a.buttonText}
+        postType={typeof a.postType === "string" && /^[a-z0-9_-]{1,64}$/i.test(a.postType) ? a.postType : undefined} showLabel={a.showLabel === true}
+        buttonPosition={a.buttonPosition === "left" || a.buttonPosition === "below" ? a.buttonPosition : "right"} /></div>;
     case "languageSwitcher":
       return <LanguageSwitcher key={key} className="ecx-language-switcher" variant={a.display === "dropdown" ? "select" : "list"} />;
     case "copyright":
@@ -63,7 +65,7 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
     case "postContent": {
       if (!post || !ctx.data) return null;
       const { PostContent } = await import("./content");
-      return <PostContent key={key} post={post} />;
+      return <PostContent key={key} post={post} page={Number(ctx.data.query?.trang)} />;
     }
     case "postExcerpt":
       if (!post?.excerpt) return null;
@@ -101,12 +103,53 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
     }
     case "queryTotal":
       return ctx.query?.data ? <p key={key} className="ecx-query-total" style={align(a)}>{ctx.query.data.total}</p> : null;
+    case "loginout": {
+      const t = await getT();
+      return <p key={key} className="ecx-loginout" style={align(a)}><LoginOutLink loginHref={localeHref(site, "/login")} loginText={a.loginText || t("auth.submitLogin")} logoutText={a.logoutText || t("auth.logout")} /></p>;
+    }
+    case "termList": {
+      const taxonomy = String(a.taxonomy ?? "category");
+      if (!/^[a-z0-9_-]{1,64}$/i.test(taxonomy)) return null;
+      const terms = await getTerms(taxonomy, a.hideEmpty !== false).catch(() => [] as Term[]);
+      if (!terms.length) return null;
+      const label = (t: Term) => <><Link href={t.link} rel="tag">{t.name}</Link>{a.showCount === true && <> ({t.count})</>}</>;
+      if (a.display === "cloud") {
+        const max = Math.max(...terms.map((t) => t.count), 1);
+        return <p key={key} className="ecx-term-list is-cloud">{terms.map((t) => <span key={t.id} style={{ fontSize: `${(0.8 + (t.count / max) * 0.9).toFixed(2)}em`, marginRight: "0.5em" }}>{label(t)}</span>)}</p>;
+      }
+      if (a.hierarchical === true) {
+        const ids = new Set(terms.map((t) => t.id));
+        const tree = (parent: number | null, depth: number): ReactNode => {
+          const rows = terms.filter((t) => (parent === null ? !t.parentId || !ids.has(t.parentId) : t.parentId === parent));
+          return rows.length && depth < 5 ? <ul>{rows.map((t) => <li key={t.id}>{label(t)}{tree(t.id, depth + 1)}</li>)}</ul> : null;
+        };
+        return <nav key={key} className="ecx-term-list">{tree(null, 0)}</nav>;
+      }
+      return <ul key={key} className="ecx-term-list">{terms.map((t) => <li key={t.id}>{label(t)}</li>)}</ul>;
+    }
+    case "pageList": {
+      const pages = (await getPosts({ type: "page", perPage: 50, orderBy: "menu_order", order: "asc" }).catch(() => null))?.items ?? [];
+      const rootId = typeof a.parentId === "number" ? a.parentId : null;
+      const maxDepth = Math.min(3, Math.max(1, Number(a.depth) || 2));
+      const ids = new Set(pages.map((p) => p.id));
+      const tree = (parent: number | null, depth: number): ReactNode => {
+        const rows = pages.filter((p) => (parent === null ? !p.parentId || !ids.has(p.parentId) : p.parentId === parent));
+        return rows.length && depth < maxDepth ? <ul>{rows.map((p) => <li key={p.id}><Link href={p.link}>{p.title}</Link>{tree(p.id, depth + 1)}</li>)}</ul> : null;
+      };
+      const list = tree(rootId, 0);
+      return list ? <nav key={key} className="ecx-page-list">{list}</nav> : null;
+    }
+    case "archives": {
+      const [rows, t] = await Promise.all([getArchives().catch(() => []), getT()]);
+      if (!rows.length) return null;
+      return <ul key={key} className="ecx-archives">{rows.slice(0, Math.min(60, Math.max(1, Number(a.limit) || 12))).map((r) => <li key={r.link}><Link href={r.link}>{t("archives.month", { month: r.month, year: r.year })}</Link>{a.showCount !== false && <> ({r.count})</>}</li>)}</ul>;
+    }
     case "postTerms": {
       const terms = post?.terms?.[a.taxonomy ?? "category"];
       return terms?.length ? <p key={key} className="ecx-post-terms"><TermLinks terms={terms} separator={a.separator ?? ", "} /></p> : null;
     }
     case "comments":
-      return post && ctx.data?.post?.id === post.id ? <Comments key={key} post={post} title={a.title ? String(a.title) : undefined} /> : null;
+      return post && ctx.data?.post?.id === post.id ? <Comments key={key} post={post} title={a.title ? String(a.title) : undefined} perPage={typeof a.perPage === "number" ? a.perPage : undefined} order={a.order === "asc" || a.order === "desc" ? a.order : undefined} avatarSize={typeof a.avatarSize === "number" ? a.avatarSize : undefined} showDate={a.showDate === false ? false : undefined} /> : null;
 
     // H1 của trang lưu trữ / tìm kiếm / tác giả (trang chủ dạng danh sách bài: tên trang)
     case "queryTitle": {

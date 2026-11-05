@@ -95,11 +95,16 @@ export function Link({ href, prefetch = false, activeClassName, matchNested = tr
 }
 
 /** Form tìm kiếm (GET) chuyển trang phía client. */
-export function SearchFormClient({ action, defaultValue, placeholder, label, buttonLabel }: { action: string; defaultValue?: string | null; placeholder: string; label: string; buttonLabel: string }) {
+export function SearchFormClient({ action, defaultValue, placeholder, label, buttonLabel, postType, showLabel, buttonPosition = "right" }: { action: string; defaultValue?: string | null; placeholder: string; label: string; buttonLabel: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below" }) {
+  const id = useId();
+  const button = <button type="submit">{buttonLabel}</button>;
   return (
-    <NextForm action={action} role="search" className="search-form">
-      <input type="search" name="s" defaultValue={defaultValue ?? ""} placeholder={placeholder} aria-label={label} required />
-      <button type="submit">{buttonLabel}</button>
+    <NextForm action={action} role="search" style={buttonPosition === "below" ? { display: "flex", flexDirection: "column", gap: 8 } : undefined} className={`search-form${buttonPosition !== "right" ? ` search-button-${buttonPosition}` : ""}`}>
+      {showLabel && <label htmlFor={id} className="search-label">{label}</label>}
+      {buttonPosition === "left" && button}
+      <input id={id} type="search" name="s" defaultValue={defaultValue ?? ""} placeholder={placeholder} aria-label={showLabel ? undefined : label} required />
+      {postType && <input type="hidden" name="type" value={postType} />}
+      {buttonPosition !== "left" && button}
     </NextForm>
   );
 }
@@ -180,20 +185,20 @@ export function CommentForm({ postId, parentId, labels, fields }: { postId: numb
 type DateSite = { dateFormat: string; timezone: string; locale?: string };
 
 /** Danh sách bình luận lồng nhau (render được cả ở server lẫn client). */
-export function CommentList({ comments, site }: { comments: Comment[]; site: DateSite }) {
+export function CommentList({ comments, site, avatarSize = 40, showDate = true }: { comments: Comment[]; site: DateSite; avatarSize?: number; showDate?: boolean }) {
   return (
     <ol className="comment-list">
       {comments.map((c) => (
         <li key={c.id} id={`comment-${c.id}`} className="comment">
           <article>
             <header className="comment-meta">
-              {c.avatarUrl && <img className="comment-avatar avatar" src={c.avatarUrl} alt="" width={40} height={40} loading="lazy" decoding="async" />}
+              {c.avatarUrl && <img className="comment-avatar avatar" src={c.avatarUrl} alt="" width={avatarSize} height={avatarSize} loading="lazy" decoding="async" />}
               <b className="comment-author">{c.authorUrl ? <a href={c.authorUrl} rel="nofollow ugc">{c.authorName}</a> : c.authorName}</b>
-              {" · "}<time dateTime={c.createdAt}>{formatDate(c.createdAt, site)}</time>
+              {showDate && <>{" · "}<time dateTime={c.createdAt}>{formatDate(c.createdAt, site)}</time></>}
             </header>
             <div className="comment-content">{c.content.split("\n").map((l, i) => <p key={i}>{l}</p>)}</div>
           </article>
-          {c.replies.length > 0 && <CommentList comments={c.replies} site={site} />}
+          {c.replies.length > 0 && <CommentList comments={c.replies} site={site} avatarSize={avatarSize} showDate={showDate} />}
         </li>
       ))}
     </ol>
@@ -201,7 +206,7 @@ export function CommentList({ comments, site }: { comments: Comment[]; site: Dat
 }
 
 /** Nút "Xem thêm bình luận": tải các trang tiếp theo qua /api/cms/comments. */
-export function CommentsMore({ postId, totalPages, site, labels }: { postId: number; totalPages: number; site: DateSite; labels: { more: string; loading: string; error: string } }) {
+export function CommentsMore({ postId, totalPages, site, labels, perPage, order, avatarSize, showDate }: { postId: number; totalPages: number; site: DateSite; labels: { more: string; loading: string; error: string }; perPage?: number; order?: "asc" | "desc"; avatarSize?: number; showDate?: boolean }) {
   const [pages, setPages] = useState<Comment[][]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -209,13 +214,13 @@ export function CommentsMore({ postId, totalPages, site, labels }: { postId: num
   async function load() {
     setLoading(true); setError("");
     try {
-      const { data } = await browserApi.get<CommentPage>("/comments", { query: { postId, page: next } });
+      const { data } = await browserApi.get<CommentPage>("/comments", { query: { postId, page: next, ...(perPage ? { perPage } : {}), ...(order ? { order } : {}) } });
       setPages((p) => [...p, data.items]);
     } catch (e) { setError(errorMessage(e, labels.error)); } finally { setLoading(false); }
   }
   return (
     <>
-      {pages.map((items, i) => <CommentList key={i} comments={items} site={site} />)}
+      {pages.map((items, i) => <CommentList key={i} comments={items} site={site} avatarSize={avatarSize} showDate={showDate} />)}
       {next <= totalPages && <p className="comments-more"><button type="button" onClick={load} disabled={loading}>{loading ? labels.loading : labels.more}</button></p>}
       {error && <p className="form-error" role="alert">{error}</p>}
     </>
@@ -289,7 +294,7 @@ export function LanguageSwitcherClient({ languages, current, defaultLocale, labe
   );
 }
 
-export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, LogoutButton, useCurrentUser, extraFields, ProfileForm, ChangePasswordForm, DeleteAccountForm, AUTH_LABELS, AUTH_PATHS, type AuthLabels, type AuthPaths, type SignInProvider } from "./auth-forms";
+export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, LogoutButton, LoginOutLink, useCurrentUser, extraFields, ProfileForm, ChangePasswordForm, DeleteAccountForm, AUTH_LABELS, AUTH_PATHS, type AuthLabels, type AuthPaths, type SignInProvider } from "./auth-forms";
 export { safeRedirect, type CurrentUser } from "./auth-shared";
 
 /** Khối countdown: đếm ngược tới `target` (ms). Dựng lần đầu cùng giá trị trên máy chủ, rồi cập nhật mỗi giây. */

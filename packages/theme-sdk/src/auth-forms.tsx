@@ -87,13 +87,14 @@ export function LoginForm({ redirectTo, labels, links = true, paths, fields }: {
     const fd = new FormData(e.currentTarget);
     setBusy(true); setError("");
     try {
-      type LoginReply = { user?: CurrentUser; twoFactorRequired?: boolean; challenge?: string };
+      type LoginReply = { user?: CurrentUser; twoFactorRequired?: boolean; challenge?: string; redirectTo?: string };
       const { data } = challenge
         ? await authApi.post<LoginReply>("/2fa", { body: { challenge, code: fd.get("code") } })
         : await authApi.post<LoginReply>("/login", { body: { login: fd.get("login"), password: fd.get("password"), extra: extraFields(fd) } });
       if (data.twoFactorRequired && data.challenge) { setChallenge(data.challenge); setBusy(false); return; }
       // Tải lại hẳn trang đích: mọi Server Component đọc được cookie phiên mới
-      window.location.assign(safeRedirect(redirectParam, redirectTo ?? P.home));
+      // redirectTo từ máy chủ (plugin chọn qua filter auth.login_redirect) thắng đích mặc định của form
+      window.location.assign(safeRedirect(data.redirectTo ?? redirectParam, redirectTo ?? P.home));
     } catch (err) {
       setError(errorMessage(err, L.error));
       setBusy(false);
@@ -265,6 +266,15 @@ export function LogoutButton({ redirectTo = "/", className, children }: { redire
       {children ?? AUTH_LABELS.logout}
     </button>
   );
+}
+
+/** Liên kết "Đăng nhập" / nút "Đăng xuất" theo phiên; kiểm ở client nên trang vẫn cache được. Đang tải → chưa hiện gì. */
+export function LoginOutLink({ loginHref, loginText, logoutText, className }: { loginHref: string; loginText: string; logoutText: string; className?: string }) {
+  const user = useCurrentUser();
+  if (user === undefined) return <span className={className} aria-hidden="true" />;
+  return user
+    ? <LogoutButton className={className} redirectTo="/">{logoutText}</LogoutButton>
+    : <a className={className} href={loginHref}>{loginText}</a>;
 }
 
 /**
