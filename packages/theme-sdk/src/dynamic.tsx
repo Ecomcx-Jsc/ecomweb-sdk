@@ -85,14 +85,28 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
         return <p key={key} className="ecx-post-author">
           {a.avatar && post.author.avatarUrl && <img src={post.author.avatarUrl} alt={a.showName === false ? post.author.name : ""} width={size} height={size} style={{ borderRadius: "50%", verticalAlign: "middle", marginRight: name ? 8 : 0 }} />}
           {name}
+          {a.showBio === true && post.author.bio && <span className="ecx-post-author-bio"> {post.author.bio}</span>}
         </p>;
       }
+    case "readMore":
+      return post ? <p key={key} className="ecx-read-more" style={align(a)}><Link href={post.link}>{a.text || (await getT())("post.read_more")}</Link></p> : null;
+    case "commentsCount":
+      return post ? <p key={key} className="ecx-comments-count" style={align(a)}>{post.commentCount}</p> : null;
+    case "avatar": {
+      const size = Math.min(256, Math.max(16, Number(a.size) || 48));
+      const au = post?.author;
+      if (!au?.avatarUrl) return null;
+      const img = <img src={au.avatarUrl} alt={au.name} width={size} height={size} loading="lazy" style={{ borderRadius: "50%" }} />;
+      return <span key={key} className="ecx-avatar">{a.link === false ? img : <Link href={localeHref(site, `/author/${au.slug}`)} rel="author">{img}</Link>}</span>;
+    }
+    case "queryTotal":
+      return ctx.query?.data ? <p key={key} className="ecx-query-total" style={align(a)}>{ctx.query.data.total}</p> : null;
     case "postTerms": {
       const terms = post?.terms?.[a.taxonomy ?? "category"];
       return terms?.length ? <p key={key} className="ecx-post-terms"><TermLinks terms={terms} separator={a.separator ?? ", "} /></p> : null;
     }
     case "comments":
-      return post && ctx.data?.post?.id === post.id ? <Comments key={key} post={post} /> : null;
+      return post && ctx.data?.post?.id === post.id ? <Comments key={key} post={post} title={a.title ? String(a.title) : undefined} /> : null;
 
     // H1 của trang lưu trữ / tìm kiếm / tác giả (trang chủ dạng danh sách bài: tên trang)
     case "queryTitle": {
@@ -173,7 +187,7 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       return <ul key={key} className={cx("ecx-post-template", grid && "is-grid")} style={style}>{items}</ul>;
     }
     case "pagination":
-      return ctx.query?.data ? <Pagination key={key} data={ctx.query.data} pageParam={ctx.query.pageParam} /> : null;
+      return ctx.query?.data ? <Pagination key={key} data={ctx.query.data} pageParam={ctx.query.pageParam} type={["numbers", "prevNext", "both"].includes(a.type) ? a.type : "both"} midSize={Math.min(5, Math.max(0, Number.isFinite(Number(a.midSize)) ? Number(a.midSize) : 2))} /> : null;
     case "queryEmpty":
       return ctx.query && !ctx.query.posts.length ? <div key={key} className="ecx-query-empty">{await children(ctx)}</div> : null;
     case "syncedPattern": {

@@ -3,7 +3,7 @@ import { DYNAMIC_NODES, colorCss, embedInfo, motionClasses, normalizeContent, sa
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
-import { CountdownClient } from "./client";
+import { CountdownClient, LightboxClient, TabsClient } from "./client";
 
 /**
  * Vẽ nội dung (định dạng của CMS — @ecomcx/ecomweb-content) thành React, không phụ thuộc trình soạn.
@@ -267,7 +267,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
         alt={a.alt ?? ""} title={a.title ?? undefined} width={a.width ?? undefined} height={a.height ?? undefined} loading="lazy" decoding="async" />;
       const bare = a.webpSrcset ? <picture><source type="image/webp" srcSet={a.webpSrcset} sizes={sizes} />{img}</picture> : img;
       // next: ảnh có liên kết (href qua safeUrl; mở tab mới thì noopener)
-      const pic = a.href ? <a href={safeUrl(a.href)} target={a.linkTarget === "_blank" ? "_blank" : undefined} rel={a.linkTarget === "_blank" ? "noopener noreferrer" : undefined}>{bare}</a> : bare;
+      const pic = a.lightbox === true && !a.href ? <LightboxClient src={safeUrl(a.src, "")} alt={a.alt ?? ""}>{bare}</LightboxClient> : a.href ? <a href={safeUrl(a.href)} target={a.linkTarget === "_blank" ? "_blank" : undefined} rel={a.linkTarget === "_blank" ? "noopener noreferrer" : undefined}>{bare}</a> : bare;
       const cls = cx("ecx-image cms-image", a.align && `ecx-align-${a.align} align${a.align}`, a.mediaId && `ecx-image-${a.mediaId} cms-image-${a.mediaId}`);
       return a.caption || a.align ? <figure key={key} className={cls}>{pic}{a.caption && <figcaption>{a.caption}</figcaption>}</figure> : <Fragment key={key}>{pic}</Fragment>;
     }
@@ -280,7 +280,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
           {items.map((im, i) => {
             const el = <img src={safeUrl(im.src, "")} srcSet={im.srcset || undefined} sizes={`(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`} alt={im.alt ?? ""} width={im.width} height={im.height} loading="lazy" decoding="async" style={crop ? { width: "100%", height: "100%", objectFit: "cover", aspectRatio: "1" } : { width: "100%", height: "auto" }} />;
             const pic = im.webpSrcset ? <picture><source type="image/webp" srcSet={im.webpSrcset} sizes={`(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`} />{el}</picture> : el;
-            return <figure key={i} className="ecx-gallery-item cms-gallery-item" style={{ margin: 0 }}>{im.full && a.linkTo !== "none" ? <a href={safeUrl(im.full)}>{pic}</a> : pic}{im.caption && <figcaption>{im.caption}</figcaption>}</figure>;
+            return <figure key={i} className="ecx-gallery-item cms-gallery-item" style={{ margin: 0 }}>{a.lightbox === true ? <LightboxClient src={safeUrl(im.full || im.src, "")} alt={im.alt ?? ""}>{pic}</LightboxClient> : im.full && a.linkTo !== "none" ? <a href={safeUrl(im.full)}>{pic}</a> : pic}{im.caption && <figcaption>{im.caption}</figcaption>}</figure>;
           })}
           {a.caption && <figcaption className="ecx-gallery-caption cms-gallery-caption" style={{ gridColumn: "1 / -1" }}>{a.caption}</figcaption>}
         </figure>
@@ -413,6 +413,26 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
           {a.label && <span className="ecx-rating-label"> {String(a.label)}</span>}
         </div>
       );
+    }
+    case "tabs": {
+      const tabs = (node.content ?? []).filter((c) => c.type === "tab");
+      if (!tabs.length) return null;
+      const panels = await Promise.all(tabs.map(async (t, i) => <Fragment key={i}>{await Promise.all((t.content ?? []).map((c, j) => renderNode(c, `${key}-${i}-${j}`, ctx)))}</Fragment>));
+      return <TabsClient key={key} titles={tabs.map((t, i) => String(t.attrs?.title || `Tab ${i + 1}`))} panels={panels} />;
+    }
+    case "tab":
+      return <div key={key} className="ecx-tab">{await children()}</div>;
+    case "carousel": {
+      const per = Math.min(4, Math.max(1, Math.round(Number(a.slidesPerView) || 1)));
+      const kids = await Promise.all((node.content ?? []).map(async (c, i) => <div key={i} className="ecx-carousel-slide" style={{ scrollSnapAlign: "start" }}>{await renderNode(c, `${key}-${i}`, ctx)}</div>));
+      return <div key={key} className="ecx-carousel" role="region" aria-roledescription="carousel" tabIndex={0}
+        style={{ display: "grid", gridAutoFlow: "column", gridAutoColumns: `calc((100% - ${(per - 1) * 16}px) / ${per})`, gap: 16, overflowX: "auto", scrollSnapType: "x mandatory" }}>{kids}</div>;
+    }
+    case "shortcode": {
+      const name = String(a.name ?? "");
+      if (!/^[a-z0-9_-]{1,64}$/i.test(name)) return null;
+      const Comp = await ctx.resolve.shortcode(name);
+      return Comp ? <Comp key={key} attrs={(a.args && typeof a.args === "object" ? a.args : {}) as Record<string, string>} site={ctx.site} post={ctx.post} /> : null;
     }
     case "details":
       return <details key={key} className="ecx-details" name={ctx.accordion} open={a.open === true || undefined}><summary>{a.summary || "…"}</summary>{await children()}</details>;

@@ -142,14 +142,14 @@ function paramLink(data: ResolveResult, param: string, p: number) {
 }
 
 /** `pageParam`: phân trang bằng tham số URL (?qpage=2) thay cho /page/2 — dùng cho khối Query nằm trong trang, không phải trang lưu trữ. */
-export async function Pagination({ data, prevLabel, nextLabel, pageParam }: { data: ResolveResult; prevLabel?: string; nextLabel?: string; pageParam?: string }) {
+export async function Pagination({ data, prevLabel, nextLabel, pageParam, type = "both", midSize = 2 }: { data: ResolveResult; prevLabel?: string; nextLabel?: string; pageParam?: string; type?: "numbers" | "prevNext" | "both"; midSize?: number }) {
   if (data.totalPages <= 1) return null;
   const t = await getT();
   prevLabel ??= t("pagination.prev");
   nextLabel ??= t("pagination.next");
   const pages: Array<number | "…"> = [];
   for (let i = 1; i <= data.totalPages; i++) {
-    if (i === 1 || i === data.totalPages || Math.abs(i - data.page) <= 2) pages.push(i);
+    if (i === 1 || i === data.totalPages || Math.abs(i - data.page) <= midSize) pages.push(i);
     else if (pages[pages.length - 1] !== "…") pages.push("…");
   }
   // Danh sách có bộ lọc (?phong-ban=…, ?muc-luong=…) → giữ nguyên bộ lọc khi chuyển trang
@@ -159,11 +159,11 @@ export async function Pagination({ data, prevLabel, nextLabel, pageParam }: { da
     : pageLink(data.basePath, p, data.kind === "search" ? data.search : null);
   return (
     <nav className="pagination" aria-label={t("pagination.label")}>
-      {data.page > 1 && <Link className="prev" href={link(data.page - 1)}>{prevLabel}</Link>}
-      {pages.map((p, i) => p === "…" ? <span key={`e${i}`} className="dots">…</span>
+      {type !== "numbers" && data.page > 1 && <Link className="prev" href={link(data.page - 1)}>{prevLabel}</Link>}
+      {type !== "prevNext" && pages.map((p, i) => p === "…" ? <span key={`e${i}`} className="dots">…</span>
         : p === data.page ? <span key={p} className="current" aria-current="page">{p}</span>
         : <Link key={p} href={link(p)}>{p}</Link>)}
-      {data.page < data.totalPages && <Link className="next" href={link(data.page + 1)}>{nextLabel}</Link>}
+      {type !== "numbers" && data.page < data.totalPages && <Link className="next" href={link(data.page + 1)}>{nextLabel}</Link>}
     </nav>
   );
 }

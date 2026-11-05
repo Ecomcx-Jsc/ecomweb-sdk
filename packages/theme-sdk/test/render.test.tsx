@@ -276,3 +276,32 @@ test("gallery: linkTo=none bỏ liên kết, imageCrop=false giữ tỉ lệ ả
   assert.match(g2, /<a href="\/a-full\.jpg"/);
   assert.match(g2, /object-fit:cover/);
 });
+
+test("tabs: mọi panel có trong HTML (SEO), tab đầu hiện; carousel snap; shortcode chỉ chạy tên hợp lệ; lightbox bọc ảnh bằng nút", async () => {
+  const para = (t: string) => ({ type: "paragraph", content: [{ type: "text", text: t }] });
+  const tabs = await html({ type: "doc", content: [{ type: "tabs", content: [{ type: "tab", attrs: { title: "Một" }, content: [para("nội dung 1")] }, { type: "tab", attrs: { title: "Hai" }, content: [para("nội dung 2")] }] }] });
+  assert.match(tabs, /role="tablist"/);
+  assert.equal((tabs.match(/role="tab"/g) ?? []).length, 2);
+  assert.match(tabs, /nội dung 1/); assert.match(tabs, /nội dung 2/);
+  assert.equal((tabs.match(/<div[^>]*role="tabpanel"[^>]*hidden/g) ?? []).length, 1);
+  const car = await html({ type: "doc", content: [{ type: "carousel", attrs: { slidesPerView: 2 }, content: [para("a"), para("b"), para("c")] }] });
+  assert.match(car, /scroll-snap-type:x mandatory/);
+  assert.equal((car.match(/ecx-carousel-slide/g) ?? []).length, 3);
+  const sc = await html({ type: "doc", content: [{ type: "shortcode", attrs: { name: "hello", args: { name: "A" } } }] });
+  assert.match(sc, /hello A/);
+  assert.equal(await html({ type: "doc", content: [{ type: "shortcode", attrs: { name: "x<script>" } }] }), "");
+  const lb = await html({ type: "doc", content: [{ type: "image", attrs: { src: "/a.jpg", alt: "a", lightbox: true } }, { type: "gallery", attrs: { images: [{ src: "/b.jpg", full: "/b-full.jpg" }], lightbox: true } }] });
+  assert.equal((lb.match(/ecx-lightbox-trigger/g) ?? []).length, 2);
+  assert.doesNotMatch(lb, /<a href="\/b-full\.jpg"/);
+});
+
+test("readMore / commentsCount / avatar / queryTotal / author bio / pagination type", async () => {
+  const post = { id: 1, link: "/bai-1", commentCount: 7, author: { id: 2, name: "An", slug: "an", avatarUrl: "/an.png", bio: "Biên tập viên" } } as never;
+  const out = await html({ type: "doc", content: [{ type: "readMore", attrs: { text: "Xem tiếp" } }, { type: "commentsCount" }, { type: "avatar", attrs: { size: 64, link: false } }, { type: "postAuthor", attrs: { showBio: true } }] }, ctx({ post, dynamic: renderDynamic }));
+  assert.match(out, /href="\/bai-1"[^>]*>Xem tiếp</);
+  assert.match(out, /class="ecx-comments-count"[^>]*>7</);
+  assert.match(out, /<img src="\/an\.png" alt="An" width="64" height="64"/);
+  assert.match(out, /Biên tập viên/);
+  const qt = await html({ type: "doc", content: [{ type: "queryTotal" }] }, ctx({ query: { posts: [], data: { total: 42, page: 1, totalPages: 1 } as never }, dynamic: renderDynamic }));
+  assert.match(qt, /ecx-query-total[^>]*>42</);
+});

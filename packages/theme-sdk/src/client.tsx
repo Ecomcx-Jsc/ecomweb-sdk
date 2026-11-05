@@ -1,7 +1,7 @@
 "use client";
 
 import { extraFields } from "./auth-forms";
-import { Component, Suspense, useEffect, useState, type FormEvent } from "react";
+import { Component, Suspense, useEffect, useId, useState, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import NextLink, { useLinkStatus } from "next/link";
 import NextForm from "next/form";
@@ -306,5 +306,51 @@ export function CountdownClient({ target, label, expiredText }: { target: number
       {label && <p className="ecx-countdown-label">{label}</p>}
       <div className="ecx-countdown-parts">{parts.map(([u, n]) => <span key={u} className={`ecx-countdown-${u}`}><strong>{p(n)}</strong><small>{u}</small></span>)}</div>
     </div>
+  );
+}
+
+/** Khối tabs: các panel đã vẽ sẵn trên máy chủ (nội dung vẫn có trong HTML cho SEO); chỉ đổi panel đang hiện. */
+export function TabsClient({ titles, panels }: { titles: string[]; panels: ReactNode[] }) {
+  const [active, setActive] = useState(0);
+  const id = useId();
+  const move = (e: React.KeyboardEvent, i: number) => {
+    const n = titles.length;
+    const next = e.key === "ArrowRight" ? (i + 1) % n : e.key === "ArrowLeft" ? (i + n - 1) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+    if (next < 0) return;
+    e.preventDefault(); setActive(next);
+    document.getElementById(`${id}-t${next}`)?.focus();
+  };
+  return (
+    <div className="ecx-tabs">
+      <div role="tablist" className="ecx-tabs-list">
+        {titles.map((t, i) => (
+          <button key={i} type="button" role="tab" id={`${id}-t${i}`} aria-selected={i === active} aria-controls={`${id}-p${i}`} tabIndex={i === active ? 0 : -1}
+            className={cx("ecx-tab-button", i === active && "is-active")} onClick={() => setActive(i)} onKeyDown={(e) => move(e, i)}>{t}</button>
+        ))}
+      </div>
+      {panels.map((p, i) => <div key={i} role="tabpanel" id={`${id}-p${i}`} aria-labelledby={`${id}-t${i}`} hidden={i !== active} className="ecx-tab-panel">{p}</div>)}
+    </div>
+  );
+}
+
+/** Phóng to ảnh: bấm ảnh mở lớp phủ (Esc hoặc bấm nền để đóng). `src` đã qua safeUrl ở máy chủ. */
+export function LightboxClient({ src, alt, children }: { src: string; alt: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+  return (
+    <>
+      <button type="button" className="ecx-lightbox-trigger" aria-haspopup="dialog" onClick={() => setOpen(true)} style={{ all: "unset", display: "block", cursor: "zoom-in" }}>{children}</button>
+      {open && (
+        <div role="dialog" aria-modal="true" aria-label={alt || "Image"} className="ecx-lightbox" onClick={() => setOpen(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,.85)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out" }}>
+          <img src={src} alt={alt} style={{ maxWidth: "95vw", maxHeight: "95vh", objectFit: "contain" }} />
+        </div>
+      )}
+    </>
   );
 }
