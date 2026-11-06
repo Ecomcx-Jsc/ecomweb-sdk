@@ -141,10 +141,25 @@ export interface LayoutProps {
   data?: ResolveResult;
 }
 
+/** Một giá trị preset: chuỗi, hoặc { label, value } để hiện tên trong Thiết kế. */
+export type ThemeStyleValue = string | { label?: string; value: string };
+/** Bộ phối sẵn của theme (CMS ≥ 1.23): bấm một lần là đổi màu / phông ở Thiết kế › Phong cách. */
+export interface ThemeStyleVariation { id: string; title: string; colors?: Record<string, string>; fonts?: Record<string, string> }
+export interface ThemeStyles {
+  colors?: Record<string, ThemeStyleValue>; fontSizes?: Record<string, ThemeStyleValue>; spacing?: Record<string, ThemeStyleValue>; fonts?: Record<string, ThemeStyleValue>;
+  gradients?: Record<string, ThemeStyleValue>; shadows?: Record<string, ThemeStyleValue>;
+  variations?: ThemeStyleVariation[];
+  /** Kiểu mặc định theo loại khối / phần tử (Global Styles). */
+  blocks?: Record<string, unknown>; elements?: Record<string, unknown>;
+  [group: string]: unknown;
+}
+
 export interface ThemeManifest {
   name: string; slug: string; version: string; author?: string; description?: string; parent?: string | null;
   menuLocations?: Record<string, string>; widgetAreas?: Record<string, string>; supports?: string[];
-  settings?: Array<{ key: string; type: string; label: string; default?: JsonValue; options?: string[]; section?: string; help?: string }>;
+  settings?: Array<{ key: string; type: string; label: string; default?: JsonValue; options?: string[]; section?: string; help?: string;
+    /** Ô màu trùng một màu preset (`primary`, `text`, `background`…): chỉnh ở tab Phong cách, ô ẩn khỏi Cài đặt (CMS ≥ 1.23). */
+    preset?: string }>;
   /** Cỡ ảnh riêng của theme: { "card": { "width": 600, "height": 400, "crop": true } }. */
   imageSizes?: Record<string, { width: number; height?: number; crop?: boolean }>;
   pageTemplates?: Record<string, string>;
@@ -152,8 +167,8 @@ export interface ThemeManifest {
   editing?: "code" | "hybrid" | "blocks";
   /** Vùng sửa được của theme hybrid: { header: "Đầu trang" } — vẽ bằng <EditableRegion name="header">, sửa trong Trình dựng. */
   regions?: Record<string, string>;
-  /** Preset kiểu dáng: { colors: { primary: { label, value } | "#hex" }, fontSizes, spacing, fonts }. */
-  styles?: Record<string, Record<string, string | { label?: string; value: string }>>;
+  /** Preset kiểu dáng: { colors: { primary: { label, value } | "#hex" }, fontSizes, spacing, fonts, variations, blocks, elements }. */
+  styles?: ThemeStyles;
   /** Biến thể kiểu theo loại khối: { table: [{ name: "bordered", label: "%…%" }] } → class .ecx-is-<name>. */
   blockStyles?: Record<string, Array<{ name: string; label: string }>>;
   /** Trang theme cần có: kích hoạt theme thì CMS tạo trang còn thiếu. locked = theme vẽ toàn bộ, trình soạn chỉ sửa tiêu đề/đường dẫn/SEO. */

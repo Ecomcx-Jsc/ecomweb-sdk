@@ -1,6 +1,6 @@
-import { Fragment, cloneElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
+import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { ICON_PATHS } from "./icons";
-import { DYNAMIC_NODES, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { DYNAMIC_NODES, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
@@ -121,6 +121,12 @@ function alignStyle(attrs?: Record<string, any>): CSSProperties | undefined {
   return attrs?.textAlign && attrs.textAlign !== "left" ? { textAlign: attrs.textAlign } : undefined;
 }
 
+/** Vẽ khối theo vỏ markup dùng chung với trình soạn (@ecomcx/ecomweb-content › blockShell): thẻ / class / style cùng một nguồn. */
+function shelled(type: string, a: Record<string, any>, key: string, children: ReactNode, extra?: Record<string, unknown>, parent?: { type: string; attrs?: Record<string, any> }): ReactNode {
+  const sh = blockShell(type, a, parent)!;
+  return createElement(sh.tag, { key, className: sh.className, ...extra, style: sh.style, ...sh.attrs }, children);
+}
+
 
 function renderMarks(text: ReactNode, marks: Node["marks"], key: string, ctx?: RenderContext): ReactNode {
   let out = text;
@@ -145,10 +151,7 @@ function renderMarks(text: ReactNode, marks: Node["marks"], key: string, ctx?: R
       case "textStyle": out = m.attrs?.color ? <span key={k} style={{ color: m.attrs.color }}>{out}</span> : out; break;
       case "link": {
         const target = m.attrs?.target;
-        // rel do người viết/plugin đặt (nofollow, sponsored, ugc…) + luôn noopener khi mở tab mới
-        const rel = new Set(String(m.attrs?.rel ?? "").toLowerCase().split(/\s+/).filter((x) => /^[a-z-]+$/.test(x)));
-        if (target === "_blank") { rel.add("noopener"); rel.add("noreferrer"); }
-        out = <a key={k} href={safeUrl(m.attrs?.href)} target={target ?? undefined} rel={rel.size ? [...rel].join(" ") : undefined}>{out}</a>;
+        out = <a key={k} href={safeUrl(m.attrs?.href)} target={target ?? undefined} rel={linkRel(m.attrs?.rel, target)}>{out}</a>;
         break;
       }
     }
@@ -262,20 +265,17 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
         console.warn(`[cms] Shortcode [${sc[1]}] không có plugin nào xử lý — đã ẩn khỏi trang`);
         return null;
       }
-      return <p key={key} style={alignStyle(a)}>{await children()}</p>;
+      return shelled("paragraph", a, key, await children());
     }
     case "heading": {
-      const level = Math.min(6, Math.max(1, Number(a.level) || 2));
-      const Tag = `h${level}` as "h2";
-      const id = headingId(node);
-      return <Tag key={key} id={id || undefined} style={alignStyle(a)}>{await children()}</Tag>;
+      return shelled("heading", a, key, await children(), { id: headingId(node) || undefined });
     }
     case "bulletList": return <ul key={key}>{await children()}</ul>;
     case "orderedList": return <ol key={key} start={a.start && a.start !== 1 ? a.start : undefined} reversed={a.reversed === true || undefined}>{await children()}</ol>;
     case "listItem": return <li key={key}>{await children()}</li>;
     case "taskList": return <ul key={key} className="ecx-task-list task-list">{await children()}</ul>;
     case "taskItem": return <li key={key} className="ecx-task-item task-item"><input type="checkbox" checked={!!a.checked} readOnly /> {await children()}</li>;
-    case "blockquote": return <blockquote key={key}>{await children()}{a.citation && <cite>{a.citation}</cite>}</blockquote>;
+    case "blockquote": return shelled("blockquote", a, key, <>{await children()}{blockCitation(a) && <cite>{blockCitation(a)}</cite>}</>);
     case "codeBlock": return <pre key={key}><code className={a.language ? `language-${a.language}` : undefined}>{plainText(node)}</code></pre>;
     case "hardBreak": return <br key={key} />;
     case "pageBreak": return null;
@@ -305,7 +305,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const bare = a.webpSrcset ? <picture><source type="image/webp" srcSet={a.webpSrcset} sizes={sizes} />{img}</picture> : img;
       // next: ảnh có liên kết (href qua safeUrl; mở tab mới thì noopener)
       const pic = a.lightbox === true && !a.href ? <LightboxClient src={safeUrl(a.src, "")} alt={a.alt ?? ""}>{bare}</LightboxClient> : a.href ? <a href={safeUrl(a.href)} target={a.linkTarget === "_blank" ? "_blank" : undefined} rel={a.linkTarget === "_blank" ? "noopener noreferrer" : undefined}>{bare}</a> : bare;
-      const cls = cx("ecx-image cms-image", a.align && `ecx-align-${a.align} align${a.align}`, a.mediaId && `ecx-image-${a.mediaId} cms-image-${a.mediaId}`);
+      const cls = blockShell("image", a)!.className;
       return a.caption || a.align ? <figure key={key} className={cls}>{pic}{a.caption && <figcaption>{a.caption}</figcaption>}</figure> : <Fragment key={key}>{pic}</Fragment>;
     }
     case "gallery": {
@@ -313,7 +313,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const cols = Math.min(6, Math.max(1, Number(a.columns) || 3));
       const crop = a.imageCrop !== false; // next: imageCrop=false giữ nguyên tỉ lệ ảnh
       return (
-        <figure key={key} className={cx("ecx-gallery cms-gallery", `ecx-gallery-columns-${cols} columns-${cols}`)} style={{ display: "grid", gap: 8, gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+        <figure key={key} className={blockShell("gallery", a)!.className} style={blockShell("gallery", a)!.style as CSSProperties}>
           {items.map((im, i) => {
             const el = <img src={safeUrl(im.src, "")} srcSet={im.srcset || undefined} sizes={`(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`} alt={im.alt ?? ""} width={im.width} height={im.height} loading="lazy" decoding="async" style={crop ? { width: "100%", height: "100%", objectFit: "cover", aspectRatio: "1" } : { width: "100%", height: "auto" }} />;
             const pic = im.webpSrcset ? <picture><source type="image/webp" srcSet={im.webpSrcset} sizes={`(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`} />{el}</picture> : el;
@@ -355,83 +355,44 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     }
     // Bố cục (@ecomcx/ecomweb-content 1.2). Cấu trúc dùng style trực tiếp → mọi theme hiển thị đúng; class `ecx-*` để theme tạo kiểu thêm (`cms-*` giữ tới 2.0).
     case "columns": {
-      // Cột co giãn theo tỉ lệ độ rộng; màn hẹp (mỗi cột < 14rem) tự xuống dòng thành một cột — không cần CSS của theme
-      const stack = a.stack !== false;
-      const align = a.verticalAlign === "center" ? "center" : a.verticalAlign === "bottom" ? "flex-end" : "flex-start";
       const cols = await Promise.all((node.content ?? []).map(async (c, i) => {
-        const w = Number(c.attrs?.width) > 0 ? Number(c.attrs?.width) : 1;
         const inner = await Promise.all((c.content ?? []).map((cc, j) => renderNode(cc, `${key}-${i}-${j}`, ctx)));
-        return <div key={`${key}-${i}`} className="ecx-column cms-column" style={{ flex: `${w} 1 0`, minWidth: stack ? "min(100%, 14rem)" : 0 }}>{inner}</div>;
+        return shelled("column", c.attrs ?? {}, `${key}-${i}`, inner, undefined, { type: "columns", attrs: a });
       }));
-      return <div key={key} className={cx("ecx-columns cms-columns", a.verticalAlign && `ecx-columns-${a.verticalAlign} cms-columns-${a.verticalAlign}`)} style={{ display: "flex", flexWrap: stack ? "wrap" : "nowrap", gap: "1.5rem", alignItems: align }}>{cols}</div>;
+      return shelled("columns", a, key, cols);
     }
-    case "column": return <div key={key} className="ecx-column cms-column">{await children()}</div>;
-    case "group": {
-      const bg = safeColor(a.background), fg = safeColor(a.textColor);
-      const pad = PADDING[a.padding as string] ?? (bg ? PADDING.medium : undefined);
-      return <div key={key} className={cx("ecx-group cms-group", a.padding && `ecx-group-${a.padding} cms-group-${a.padding}`)} style={{ background: bg, color: fg, padding: pad, borderRadius: bg ? 12 : undefined }}>{await children()}</div>;
-    }
-    case "callout": {
-      const tone = TONES[a.tone as string] ? (a.tone as string) : "info";
-      return (
-        <div key={key} role="note" className={cx("ecx-callout cms-callout", `ecx-callout-${tone} cms-callout-${tone}`)}
-          style={{ borderLeft: `4px solid ${TONES[tone]}`, background: `color-mix(in srgb, ${TONES[tone]} 8%, transparent)`, padding: "0.75rem 1rem", borderRadius: 8 }}>
-          {a.title && <p className="ecx-callout-title cms-callout-title" style={{ margin: 0, fontWeight: 600 }}>{a.title}</p>}
-          {await children()}
-        </div>
-      );
-    }
+    case "column": return shelled("column", a, key, await children());
+    case "group": return shelled("group", a, key, await children());
+    case "callout": return shelled("callout", a, key, <>{a.title && <p className="ecx-callout-title cms-callout-title" style={{ margin: 0, fontWeight: 600 }}>{a.title}</p>}{await children()}</>);
     case "button": {
       if (!a.text) return null;
-      const variant = a.variant === "secondary" || a.variant === "outline" ? a.variant : "primary";
       const target = a.target === "_blank" ? "_blank" : undefined;
-      const rel = new Set(String(a.rel ?? "").toLowerCase().split(/\s+/).filter((x) => /^[a-z-]+$/.test(x)));
-      if (target) { rel.add("noopener"); rel.add("noreferrer"); }
-      const look: CSSProperties = variant === "outline"
-        ? { border: "1px solid var(--ecx-button-bg, var(--cms-button-bg, var(--primary, currentColor)))", color: "var(--ecx-button-bg, var(--cms-button-bg, var(--primary, inherit)))" }
-        : variant === "secondary"
-          ? { background: "var(--ecx-button-secondary-bg, var(--cms-button-secondary-bg, rgba(127,127,127,.15)))", color: "inherit" }
-          : { background: "var(--ecx-button-bg, var(--cms-button-bg, var(--primary, #18181b)))", color: "var(--ecx-button-fg, var(--cms-button-fg, #fff))" };
-      const link = (
-        <a key={ctx.inButtons ? key : undefined} className={cx("ecx-button cms-button", `ecx-button-${variant} cms-button-${variant}`)} href={safeUrl(a.href)} target={target} rel={rel.size ? [...rel].join(" ") : undefined}
-          style={{ display: "inline-block", padding: "0.6em 1.2em", borderRadius: 8, textDecoration: "none", fontWeight: 600, lineHeight: 1.2, ...look }}>{a.text}</a>
-      );
+      const link = shelled("button", a, ctx.inButtons ? key : "", a.text, { href: safeUrl(a.href), target, rel: linkRel(a.rel, target) });
       if (ctx.inButtons) return link;
-      return (
-        <p key={key} className={cx("ecx-buttons cms-buttons", a.align && `ecx-buttons-${a.align} cms-buttons-${a.align}`)} style={a.align ? { textAlign: a.align } : undefined}>{link}</p>
-      );
+      return createElement(buttonWrapShell(a).tag, { key, className: buttonWrapShell(a).className, style: buttonWrapShell(a).style }, link);
     }
     // Bộ khối cơ bản (@ecomcx/ecomweb-content 1.9)
     case "spacer":
-      return <div key={key} className="ecx-spacer" style={{ height: spacingValue(a.height ?? "lg") ?? "1.5rem" }} aria-hidden="true" />;
+      return shelled("spacer", a, key, null);
     case "buttons": {
       const items = await Promise.all((node.content ?? []).map((c, i) => renderNode(c, `${key}-${i}`, { ...ctx, inButtons: true })));
-      return <div key={key} className={cx("ecx-buttons-group", a.align && `is-${a.align}`)}>{items}</div>;
+      return shelled("buttons", a, key, items);
     }
     case "cover": {
-      const src = a.src ? safeUrl(a.src, "") : "";
-      const overlay = colorCss(a.overlay) ?? (src ? "#000" : undefined);
-      return (
-        <div key={key} className={cx("ecx-cover", a.contentAlign && a.contentAlign !== "center" && `is-${a.contentAlign}`, a.fixed && src && "is-fixed")}
-          style={{ minHeight: spacingValue(a.minHeight ?? "400px"), backgroundImage: a.fixed && src ? `url("${src.replace(/["\\()]/g, encodeURIComponent)}")` : undefined }}>
-          {src && !a.fixed && <img className="ecx-cover-img" src={src} alt={a.alt ?? ""} loading="lazy" decoding="async" />}
-          {overlay && <span className="ecx-cover-overlay" aria-hidden="true" style={{ background: overlay, opacity: Math.min(100, Math.max(0, Number(a.opacity ?? 50))) / 100 }} />}
-          <div className="ecx-cover-inner">{await children()}</div>
-        </div>
-      );
+      const { src, fixed, overlay, opacity } = coverParts(a);
+      const url = src ? safeUrl(src, "") : "";
+      return shelled("cover", a, key, <>
+        {url && !fixed && <img className="ecx-cover-img" src={url} alt={a.alt ?? ""} loading="lazy" decoding="async" />}
+        {overlay && <span className="ecx-cover-overlay" aria-hidden="true" style={{ background: overlay, opacity }} />}
+        <div className="ecx-cover-inner">{await children()}</div>
+      </>, undefined);
     }
-    case "mediaText": {
-      const width = Math.min(80, Math.max(20, Number(a.width) || 50));
-      return (
-        <div key={key} className={cx("ecx-media-text", a.position === "right" && "is-right", a.verticalAlign && a.verticalAlign !== "center" && `is-${a.verticalAlign}`, a.stack !== false && "is-stack")}
-          style={{ ["--ecx-media-width" as string]: `${width}%` } as CSSProperties}>
-          <figure className="ecx-media-text-media" style={{ margin: 0 }}>{a.src && <img src={safeUrl(a.src, "")} alt={a.alt ?? ""} loading="lazy" decoding="async" />}</figure>
-          <div className="ecx-media-text-content">{await children()}</div>
-        </div>
-      );
-    }
+    case "mediaText": return shelled("mediaText", a, key, <>
+      <figure className="ecx-media-text-media" style={{ margin: 0 }}>{a.src && <img src={safeUrl(a.src, "")} alt={a.alt ?? ""} loading="lazy" decoding="async" />}</figure>
+      <div className="ecx-media-text-content">{await children()}</div>
+    </>);
     case "pullquote":
-      return <figure key={key} className="ecx-pullquote"><blockquote><p>{await children()}</p></blockquote>{a.citation && <figcaption>{a.citation}</figcaption>}</figure>;
+      return shelled("pullquote", a, key, <><blockquote><p>{await children()}</p></blockquote>{blockCitation(a) && <figcaption>{blockCitation(a)}</figcaption>}</>);
     case "accordion": {
       const sub = a.multiple === true ? ctx : { ...ctx, accordion: `ecx-acc-${key}` };
       return <div key={key} className="ecx-accordion">{await Promise.all((node.content ?? []).map((c, i) => renderNode(c, `${key}-${i}`, sub)))}</div>;
@@ -475,7 +436,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       return <details key={key} className="ecx-details" name={ctx.accordion} open={a.open === true || undefined}><summary>{a.summary || "…"}</summary>{await children()}</details>;
     case "customHtml":
       // Máy chủ đã lọc HTML khi người soạn thiếu quyền unfiltered_html (ContentSanitizer)
-      return a.html ? <div key={key} className="ecx-html" dangerouslySetInnerHTML={{ __html: String(a.html) }} /> : null;
+      return a.html ? createElement(blockShell("customHtml", a)!.tag, { key, className: blockShell("customHtml", a)!.className, dangerouslySetInnerHTML: { __html: String(a.html) } }) : null;
     case "socialLinks": {
       const links = (Array.isArray(a.links) ? a.links : []).filter((l: any) => l && typeof l.url === "string" && typeof l.service === "string" && /^[a-z0-9-]{1,30}$/.test(l.service));
       if (!links.length) return null;
@@ -512,15 +473,13 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const info = embedInfo(a.url);
       if (!info) return a.url ? <p key={key} className="ecx-embed-link cms-embed-link"><a href={safeUrl(a.url)} target="_blank" rel="noopener noreferrer">{a.caption || a.url}</a></p> : null;
       const box: CSSProperties = info.aspect ? { position: "relative", aspectRatio: String(info.aspect) } : { position: "relative", height: info.height };
-      return (
-        <figure key={key} className={cx("ecx-embed cms-embed", `ecx-embed-${info.provider} cms-embed-${info.provider}`)} style={{ maxWidth: info.maxWidth, marginLeft: info.maxWidth ? "auto" : undefined, marginRight: info.maxWidth ? "auto" : undefined }}>
-          <div style={box}>
-            <iframe src={info.src} title={a.caption || info.title} loading="lazy" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0, borderRadius: 8 }} />
-          </div>
-          {a.caption && <figcaption>{a.caption}</figcaption>}
-        </figure>
-      );
+      return shelled("embed", a, key, <>
+        <div style={box}>
+          <iframe src={info.src} title={a.caption || info.title} loading="lazy" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0, borderRadius: 8 }} />
+        </div>
+        {a.caption && <figcaption>{a.caption}</figcaption>}
+      </>);
     }
     default: {
       if (DYNAMIC.has(node.type))

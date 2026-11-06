@@ -506,9 +506,8 @@ export interface CmsAdmin {
     /** @deprecated Dùng registerMessages / locales/*.json. */
     registerTranslations(locale: string, dict: Record<string, string>): void;
   };
-  /** Trình soạn nội dung (@ecomcx/ecomweb-editor): thêm khối/lệnh chèn; dùng chung TipTap của admin. */
+  /** Trình soạn nội dung (@ecomcx/ecomweb-editor): thêm khối, panel, mẫu, hiệu ứng. */
   editor: {
-    register(pack: EditorExtensionPack): void;
     /** Khối khai báo bằng defineBlock (CMS ≥ 1.8.0 / admin có @ecomcx/ecomweb-editor ≥ 1.1). */
     registerBlock?(def: import("@ecomcx/ecomweb-content").BlockDefinition, options?: RegisterBlockOptions): void;
     /** Panel trong tab "Khối" của trình soạn (CMS ≥ 1.10.0). */
@@ -520,7 +519,6 @@ export interface CmsAdmin {
     unregisterAnimation?(id: string): void;
     /** Nguồn gắn dữ liệu cho khối (CMS có trình soạn v2 — @ecomcx/ecomweb-editor ≥ 1.19). */
     registerBindingSource?(source: EditorBindingSource): void;
-    tiptap: { Node: any; Mark: any; Extension: any; mergeAttributes: (...attrs: any[]) => Record<string, any> };
   };
 }
 
@@ -569,11 +567,4 @@ export interface BlockPanel {
   /** Thuộc tính thêm vào khối, vd { lazy: { default: true } } — cần khai báo để trình soạn lưu được (bắt buộc có `blocks`). */
   attributes?: Record<string, { default?: unknown }>;
   component: import("react").ComponentType<BlockPanelProps>;
-}
-
-/** Gói mở rộng trình soạn: node/mark TipTap + lệnh chèn trong slash menu "/". */
-export interface EditorExtensionPack {
-  name: string;
-  extensions?: any[];
-  insertItems?: Array<{ key: string; title: string; hint: string; icon: any; keywords: string; run(editor: any, range?: any): void }>;
 }

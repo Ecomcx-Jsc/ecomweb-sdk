@@ -82,11 +82,6 @@ export const registerPattern = (pattern: import("./types").EditorPattern) => hos
  */
 export const registerBindingSource = (source: import("./types").EditorBindingSource) => host().editor.registerBindingSource?.(source);
 export { defineBlock, type BlockDefinition, type BlockDefinitionInput, type BlockAttrSpec } from "@ecomcx/ecomweb-content";
-/** Thêm node/mark TipTap cho trình soạn (cấp thấp — khối thường dùng registerBlock). */
-export const registerEditorExtension = (pack: import("./types").EditorExtensionPack) => host().editor.register(pack);
-/** Lớp TipTap dùng chung với admin (không cần cài @tiptap/core trong plugin). */
-export const tiptap = new Proxy({} as CmsAdminTiptap, { get: (_t, k: string) => (host().editor.tiptap as any)[k] });
-type CmsAdminTiptap = import("./types").CmsAdmin["editor"]["tiptap"];
 export const currentUser = () => host().currentUser();
 /**
  * Công bố hàm cho plugin khác dùng trong admin (gọi ở đầu bundle):  exposeApi({ openCartDrawer, formatPrice })

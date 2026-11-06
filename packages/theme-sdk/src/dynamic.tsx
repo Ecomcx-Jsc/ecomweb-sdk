@@ -225,7 +225,8 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       const posts = ctx.query?.posts ?? [];
       if (!posts.length) return null;
       const grid = a.layout === "grid";
-      const style: CSSProperties | undefined = grid ? { display: "grid", gap: "1.5rem", gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${Math.floor(60 / (a.columns ?? 3))}rem), 1fr))`, listStyle: "none", padding: 0 } : { listStyle: "none", padding: 0 };
+      // Đúng N cột khi đủ chỗ (như canvas), ít cột hơn khi hẹp (mỗi cột tối thiểu 12rem) — trước đây N chỉ là gợi ý nên 3 cột thành 2
+      const style: CSSProperties | undefined = grid ? { display: "grid", gap: "1.5rem", gridTemplateColumns: `repeat(auto-fill, minmax(max(12rem, calc((100% - ${(a.columns ?? 3) - 1} * 1.5rem) / ${a.columns ?? 3})), 1fr))`, listStyle: "none", padding: 0 } : { listStyle: "none", padding: 0 };
       const items = await Promise.all(posts.map(async (p) => <li key={p.id} className="ecx-post">{await children({ ...ctx, post: p })}</li>));
       return <ul key={key} className={cx("ecx-post-template", grid && "is-grid")} style={style}>{items}</ul>;
     }
