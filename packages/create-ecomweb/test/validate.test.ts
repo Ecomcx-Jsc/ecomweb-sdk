@@ -49,3 +49,20 @@ test("theme.json › blocks: tên phải bắt đầu bằng slug của theme, k
   assert.ok(make([{ name: "demo/a", content: "html" }]).some((e) => e.includes("không hợp lệ")));
   assert.ok(make("x").some((e) => e.includes("phải là mảng")));
 });
+
+test("settings[].preset chỉ cho ô color, tên màu hợp lệ", async () => {
+  const { validate } = await import("../lib/validate.mjs");
+  const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const make = (settings: unknown) => {
+    const dir = mkdtempSync(join(tmpdir(), "ps-"));
+    mkdirSync(join(dir, "templates"));
+    writeFileSync(join(dir, "templates", "index.tsx"), "export default () => null;");
+    writeFileSync(join(dir, "theme.json"), JSON.stringify({ name: "T", slug: "demo", version: "1.0.0", requires: { cms: ">=1.0.0" }, settings }));
+    return validate(dir).errors as string[];
+  };
+  assert.ok(!make([{ key: "brand", type: "color", label: "Màu", preset: "primary" }]).some((e) => e.includes("preset")));
+  assert.ok(make([{ key: "brand", type: "text", label: "Màu", preset: "primary" }]).some((e) => e.includes("preset")));
+  assert.ok(make([{ key: "brand", type: "color", label: "Màu", preset: "Primary Colour" }]).some((e) => e.includes("preset")));
+});

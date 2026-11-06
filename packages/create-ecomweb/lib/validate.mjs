@@ -86,6 +86,7 @@ export function validate(dir) {
       if (!f.key) errors.push("settings: thiếu key");
       if (!FIELD_TYPES.includes(f.type)) errors.push(`settings.${f.key}: type "${f.type}" không hợp lệ (${FIELD_TYPES.join(", ")})`);
       if (f.type === "select" && !f.options?.length) errors.push(`settings.${f.key}: select cần options`);
+      if (f.preset != null && (f.type !== "color" || !/^[a-z][a-z0-9-]{0,30}$/.test(f.preset))) errors.push(`settings.${f.key}: preset "${f.preset}" chỉ dùng cho ô type "color" và là tên màu (chữ thường, số, gạch ngang)`);
     }
     const pageSlugs = new Set();
     for (const p of manifest.pages ?? []) {
