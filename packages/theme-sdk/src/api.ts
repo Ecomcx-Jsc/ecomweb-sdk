@@ -330,8 +330,10 @@ async function templateDraft(): Promise<string | null> {
 /** Template / phần dựng bằng khối của theme đang dùng (bản sửa trong Trình dựng thắng bản của theme; đang xem trước → bản nháp). */
 export const getTemplates = async () => {
   const draft = await templateDraft();
+  // Mỗi ngôn ngữ có thể có bản template / phần riêng (chưa có thì API trả bản mặc định)
+  const locale = await getRequestLocale();
   return cmsFetch<{ theme: string; templates: Record<string, PostContentDoc>; parts: Record<string, PostContentDoc> }>("/templates",
-    draft ? { noStore: true, query: { draft } } : { tags: ["templates"] });
+    draft ? { noStore: true, query: clean({ draft, locale }) } : { tags: ["templates"], query: clean({ locale }) });
 };
 
 /** Nội dung mẫu đồng bộ (khối syncedPattern). null = mẫu đã xoá / chưa xuất bản. */
