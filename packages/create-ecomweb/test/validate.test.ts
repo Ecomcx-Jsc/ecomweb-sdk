@@ -30,3 +30,22 @@ test("SEO: template khối không có H1, hoặc nhiều H1 (header có tên web
   assert.ok(w.some((x: string) => x.includes("index.json không có thẻ H1")), "tiêu đề trong vòng lặp bài không tính là H1 của trang");
   assert.ok(!w.some((x: string) => x.includes("page.json")));
 });
+
+test("theme.json › blocks: tên phải bắt đầu bằng slug của theme, không trùng, content hợp lệ", async () => {
+  const { validate } = await import("../lib/validate.mjs");
+  const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const make = (blocks: unknown) => {
+    const dir = mkdtempSync(join(tmpdir(), "tb-"));
+    mkdirSync(join(dir, "templates"));
+    writeFileSync(join(dir, "templates", "index.tsx"), "export default () => null;");
+    writeFileSync(join(dir, "theme.json"), JSON.stringify({ name: "T", slug: "demo", version: "1.0.0", requires: { cms: ">=1.0.0" }, editing: "blocks", blocks }));
+    return validate(dir).errors as string[];
+  };
+  assert.ok(!make([{ name: "demo/mega-menu", title: "Mega", content: "none" }]).some((e) => e.startsWith("blocks")));
+  assert.ok(make([{ name: "other/mega", title: "x" }]).some((e) => e.includes('phải có dạng "demo/ten-khoi"')));
+  assert.ok(make([{ name: "demo/a" }, { name: "demo/a" }]).some((e) => e.includes("trùng tên")));
+  assert.ok(make([{ name: "demo/a", content: "html" }]).some((e) => e.includes("không hợp lệ")));
+  assert.ok(make("x").some((e) => e.includes("phải là mảng")));
+});

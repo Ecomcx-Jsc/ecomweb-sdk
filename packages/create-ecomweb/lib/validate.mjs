@@ -44,6 +44,21 @@ export function validate(dir) {
     if (!manifest.parent && !hasIndex)
       errors.push(manifest.editing === "blocks" ? "Theme cần templates/index.json hoặc index.tsx (template dự phòng cuối cùng)" : "Theme cần templates/index.tsx (template dự phòng cuối cùng)");
     if (manifest.editing != null && !["code", "hybrid", "blocks"].includes(manifest.editing)) errors.push(`editing "${manifest.editing}" không hợp lệ (code, hybrid, blocks)`);
+    // Khối riêng của theme (chỉ dùng trong template / phần / pattern của theme; không đưa vào bài viết — core từ chối khi lưu)
+    if (manifest.blocks != null) {
+      if (!Array.isArray(manifest.blocks)) errors.push('blocks phải là mảng các khai báo khối (defineBlock)');
+      else {
+        const seen = new Set();
+        for (const b of manifest.blocks) {
+          const n = b?.name;
+          if (typeof n !== "string" || !n.startsWith(`${manifest.slug}/`) || !/^[a-z0-9-]+\/[a-z0-9-]+$/.test(n)) errors.push(`blocks: tên khối "${n}" phải có dạng "${manifest.slug}/ten-khoi" (chữ thường, số, gạch ngang)`);
+          else if (seen.has(n)) errors.push(`blocks: trùng tên khối "${n}"`);
+          else seen.add(n);
+          if (b && !["none", "inline", "blocks"].includes(b.content ?? "none")) errors.push(`blocks: "${n}" có content "${b.content}" không hợp lệ (none, inline, blocks)`);
+        }
+        if (manifest.blocks.length && manifest.editing === "code") warnings.push('blocks chỉ hiện trong Trình dựng — theme "editing": "code" không có Trình dựng');
+      }
+    }
     for (const name of Object.keys(manifest.regions ?? {}))
       if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(name)) errors.push(`regions: tên vùng "${name}" không hợp lệ (chữ thường, số, dấu gạch ngang)`);
     if (manifest.regions && manifest.editing !== "hybrid") warnings.push('regions chỉ được dùng khi theme.json có "editing": "hybrid"');
