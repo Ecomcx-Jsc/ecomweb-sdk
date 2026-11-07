@@ -300,7 +300,9 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       // Ảnh chèn từ thư viện mang sẵn srcset (JPEG + WebP) và kích thước → responsive, không nhảy layout
       // Bề rộng hiển thị = cỡ người viết kéo trong trình soạn → trình duyệt chọn file vừa đúng
       const sizes = a.width ? `(max-width: ${a.width}px) 100vw, ${a.width}px` : (a.sizes || "(max-width: 1024px) 100vw, 1024px");
-      const img = <img src={safeUrl(a.src, "")} srcSet={a.srcset || undefined} sizes={a.srcset ? sizes : undefined}
+      const imgSrc = safeUrl(a.src, "");
+      if (!imgSrc) return null; // chưa chọn ảnh: không in <img> không có địa chỉ (hiện icon ảnh hỏng)
+      const img = <img src={imgSrc} srcSet={a.srcset || undefined} sizes={a.srcset ? sizes : undefined}
         alt={a.alt ?? ""} title={a.title ?? undefined} width={a.width ?? undefined} height={a.height ?? undefined} loading="lazy" decoding="async" />;
       const bare = a.webpSrcset ? <picture><source type="image/webp" srcSet={a.webpSrcset} sizes={sizes} />{img}</picture> : img;
       // next: ảnh có liên kết (href qua safeUrl; mở tab mới thì noopener)

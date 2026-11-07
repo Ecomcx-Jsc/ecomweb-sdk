@@ -1,5 +1,6 @@
 import { applyFilters } from "./runtime";
 import type { DocumentMetadata, ResolveResult, Site } from "./types";
+import { pageLink } from "./utils";
 
 /** Metadata mặc định cho trang + cho plugin (vd SEO) sửa qua filter "document.metadata". */
 export async function buildDocumentMetadata(data: ResolveResult, site: Site): Promise<DocumentMetadata> {
@@ -7,7 +8,7 @@ export async function buildDocumentMetadata(data: ResolveResult, site: Site): Pr
   const base: DocumentMetadata = {
     title: isHome ? `${site.title}${site.tagline ? ` – ${site.tagline}` : ""}` : `${data.title} – ${site.title}`,
     description: data.post?.excerpt || (data.term?.description || undefined) || site.tagline,
-    canonical: data.post?.link ? data.post.link + (Number(data.query?.trang) > 1 ? `?trang=${Math.floor(Number(data.query?.trang))}` : "") : (data.basePath || undefined),
+    canonical: data.post?.link ? data.post.link + (Number(data.query?.trang) > 1 ? `?trang=${Math.floor(Number(data.query?.trang))}` : "") : (data.basePath ? pageLink(data.basePath, Number(data.page) || 1) : undefined), // trang phân trang tự canonical về chính nó (không dồn về trang 1: nội dung mỗi trang khác nhau)
     alternates: Object.fromEntries((data.alternates ?? []).map((a) => [a.locale, a.link])),
     openGraph: {
       title: data.post?.title ?? data.title,

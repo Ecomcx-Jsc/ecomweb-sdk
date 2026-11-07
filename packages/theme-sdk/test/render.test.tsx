@@ -414,3 +414,9 @@ test("SearchFormClient: postType thành input ẩn, showLabel hiện nhãn, nút
   assert.ok(out.indexOf("<button") < out.indexOf('type="search"'));
   assert.doesNotMatch(renderToStaticMarkup(<SearchFormClient action="/" placeholder="p" label="L" buttonLabel="B" />), /name="type"/);
 });
+
+test("ảnh chưa có địa chỉ (hoặc địa chỉ không an toàn) không in <img> hỏng", async () => {
+  const out = await html({ type: "doc", content: [{ type: "image", attrs: { alt: "chưa chọn ảnh" } }, { type: "image", attrs: { src: "", alt: "rỗng" } }, { type: "image", attrs: { src: "/ok.jpg", alt: "ok" } }] });
+  assert.doesNotMatch(out, /chưa chọn ảnh|rỗng/);
+  assert.match(out, /<img[^>]+src="\/ok\.jpg"/);
+});
