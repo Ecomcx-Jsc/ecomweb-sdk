@@ -169,10 +169,12 @@ export async function Pagination({ data, prevLabel, nextLabel, pageParam, type =
 }
 
 /** Ảnh đại diện: responsive, WebP, srcset. */
-export function FeaturedImage({ media, size = "large", className, link, sizes, priority }: { media?: Media | null; size?: string; className?: string; link?: string; sizes?: string; priority?: boolean }) {
+/** `label`: tên của link khi ảnh chưa có alt (thường là tiêu đề bài) — không có thì trình đọc màn hình chỉ đọc "liên kết". */
+export function FeaturedImage({ media, size = "large", className, link, label, sizes, priority }: { media?: Media | null; size?: string; className?: string; link?: string; label?: string; sizes?: string; priority?: boolean }) {
   if (!media) return null;
   const img = <Img media={media} size={size} sizes={sizes} priority={priority} />;
-  return <figure className={cx("featured-image", className)}>{link ? <Link href={link}>{img}</Link> : img}</figure>;
+  const name = link && !media.alt?.trim() && label?.trim() ? label : undefined;
+  return <figure className={cx("featured-image", className)}>{link ? <Link href={link} aria-label={name}>{img}</Link> : img}</figure>;
 }
 
 export function PostDate({ post, site }: { post: Post; site?: { dateFormat: string; timezone: string; locale?: string } }) {

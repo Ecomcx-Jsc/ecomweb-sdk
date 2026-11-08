@@ -74,7 +74,7 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       if (!post?.featuredMedia) return null;
       const ratio = ASPECT[a.aspect as string];
       return <div key={key} className="ecx-featured-image" style={ratio ? { aspectRatio: ratio, overflow: "hidden" } : undefined}>
-        <FeaturedImage media={post.featuredMedia} size={a.size ?? "large"} link={a.link ? post.link : undefined} />
+        <FeaturedImage media={post.featuredMedia} size={a.size ?? "large"} link={a.link ? post.link : undefined} label={post.title} />
       </div>;
     }
     case "postDate":

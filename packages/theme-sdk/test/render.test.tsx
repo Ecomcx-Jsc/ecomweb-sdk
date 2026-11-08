@@ -420,3 +420,13 @@ test("ảnh chưa có địa chỉ (hoặc địa chỉ không an toàn) không 
   assert.doesNotMatch(out, /chưa chọn ảnh|rỗng/);
   assert.match(out, /<img[^>]+src="\/ok\.jpg"/);
 });
+
+test("ảnh đại diện có link mà chưa có alt: link lấy tiêu đề bài làm tên (trình đọc màn hình không chỉ đọc 'liên kết')", async () => {
+  const { FeaturedImage } = await import("../src/components");
+  const media = { id: 1, url: "/uploads/a.png", width: 800, height: 600, alt: "", caption: "", sizes: {} } as never;
+  const noAlt = renderToStaticMarkup(<FeaturedImage media={media} link="/bai-viet" label="Tiêu đề bài" />);
+  assert.match(noAlt, /<a [^>]*aria-label="Tiêu đề bài"/);
+  const withAlt = renderToStaticMarkup(<FeaturedImage media={{ ...(media as object), alt: "Ảnh bìa" } as never} link="/bai-viet" label="Tiêu đề bài" />);
+  assert.doesNotMatch(withAlt, /aria-label/);
+  assert.doesNotMatch(renderToStaticMarkup(<FeaturedImage media={media} label="Tiêu đề bài" />), /aria-label/);
+});
