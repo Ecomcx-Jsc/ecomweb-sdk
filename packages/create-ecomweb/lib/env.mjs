@@ -6,6 +6,8 @@
 //   --dev        website chạy `next dev`; theme/plugin trong thư mục hiện tại (và thư mục con) được gắn thẳng vào → sửa là thấy
 //   --build DIR  build image từ mã nguồn CMS ở DIR (khi chưa kéo được image dựng sẵn)
 //   --image IMG  image CMS khác (một image cho api lẫn website — CMS từ 1.25; bản cũ hơn: --api-image + --builder-image)
+//   Không kéo được image: tải gói đã build của bản ổn định mới nhất từ Store (--store / STORE_URL, mặc định store.ecomcx.com;
+//   Store khác cần STORE_PUBLIC_KEY), kiểm chữ ký + SHA-256 rồi dựng image tại máy.
 // Tài khoản được lưu ở .cms-env/credentials.json → `create-ecomweb deploy/dev` tự dùng, không cần --password.
 import { CLI } from "./npm.mjs";
 import crypto from "node:crypto";
@@ -13,6 +15,7 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { cmsFromStore } from "./store-cms.mjs";
 import { c, readJson, run, write } from "./util.mjs";
 
 const cliDir = path.dirname(fileURLToPath(import.meta.url));
@@ -131,8 +134,8 @@ export async function env(action, args) {
     const url = `http://localhost:${port}`;
     // Một image (--image / CMS_IMAGE); --api-image + --builder-image: CMS 1.24 trở về trước (mỗi vai trò một image)
     const one = args.image ?? process.env.CMS_IMAGE;
-    const apiImage = args["api-image"] ?? one ?? process.env.CMS_API_IMAGE ?? saved?.apiImage ?? DEFAULT_IMAGE;
-    const builderImage = args["builder-image"] ?? (one ? apiImage : process.env.CMS_BUILDER_IMAGE ?? saved?.builderImage ?? apiImage);
+    let apiImage = args["api-image"] ?? one ?? process.env.CMS_API_IMAGE ?? saved?.apiImage ?? DEFAULT_IMAGE;
+    let builderImage = args["builder-image"] ?? (one ? apiImage : process.env.CMS_BUILDER_IMAGE ?? saved?.builderImage ?? apiImage);
     const dev = Boolean(args.dev ?? saved?.dev);
     const buildDir = args.build ? path.resolve(args.build) : saved?.buildDir;
     const mounts = dev ? devMounts(args) : [];
@@ -157,8 +160,15 @@ export async function env(action, args) {
       if (missing.length) console.log(c.cyan(`• Kéo image ${apiImage}…`));
       try { if (missing.length) await dc("pull", ...missing); }
       catch (e) {
-        throw new Error(`Không kéo được image CMS (${apiImage}). Image có thể chưa được phát hành công khai.\n`
-          + `  Có mã nguồn CMS: create-ecomweb env up --build <thư-mục-mã-nguồn>\n  Hoặc chỉ định image khác: --image …\n  Chi tiết: ${e.message.split("\n").slice(-2).join(" ")}`);
+        // Không có image (chưa phát hành, bị xoá, đổi tên, registry lỗi): lấy gói đã build từ Store (đã ký) và dựng image tại máy
+        console.log(c.yellow(`  ! Không kéo được image ${apiImage} — lấy CMS từ Store`));
+        try {
+          ({ apiImage, builderImage } = await cmsFromStore(dir, { storeUrl: args.store ?? process.env.STORE_URL, publicKey: process.env.STORE_PUBLIC_KEY, log: (m) => console.log(c.cyan(m)) }));
+        } catch (f) {
+          throw new Error(`Không kéo được image CMS (${apiImage}) và không lấy được CMS từ Store: ${f.message}\n`
+            + `  Có mã nguồn CMS: create-ecomweb env up --build <thư-mục-mã-nguồn>\n  Hoặc chỉ định image khác: --image …\n  Chi tiết image: ${e.message.split("\n").slice(-2).join(" ")}`);
+        }
+        write(path.join(dir, "docker-compose.yml"), compose({ project, port, url, apiImage, builderImage, dev, buildDir, mounts }));
       }
     }
     try { await dc("up", "-d"); }
