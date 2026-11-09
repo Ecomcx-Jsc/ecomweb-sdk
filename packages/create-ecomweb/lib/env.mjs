@@ -69,7 +69,7 @@ services:
     restart: unless-stopped
     healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 3s, retries: 20 }
   api:
-${o.buildDir ? `    build: { context: ${JSON.stringify(o.buildDir)} }\n    image: cms-env:local` : `    image: ${o.apiImage}`}
+${o.buildDir ? `    build: { context: ${JSON.stringify(o.buildDir)}, dockerfile: deploy/Dockerfile }\n    image: cms-env:local` : `    image: ${o.apiImage}`}
     restart: unless-stopped
     depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
     environment:
@@ -87,7 +87,7 @@ ${o.buildDir ? `    build: { context: ${JSON.stringify(o.buildDir)} }\n    image
       Security__FrameAncestors__0: ${o.url}
     volumes: [storage:/data, secrets:/secrets:ro]
   builder:
-${o.buildDir ? `    build: { context: ${JSON.stringify(o.buildDir)} }\n    image: cms-env:local` : `    image: ${o.builderImage}`}
+${o.buildDir ? `    build: { context: ${JSON.stringify(o.buildDir)}, dockerfile: deploy/Dockerfile }\n    image: cms-env:local` : `    image: ${o.builderImage}`}
     restart: unless-stopped
     depends_on: [api]
     environment: { ECOMWEB_ROLE: builder, CMS_SECRETS_DIR: /secrets, CMS_API_URL: http://api:8080, ADMIN_ORIGINS: ${o.url}, WEB_WORKERS: "1", TRUSTED_PROXY_HOSTS: caddy${o.dev ? ", BUILDER_MODE: dev, BUILDER_DEV_SERVER: \"1\"" : ""} }
