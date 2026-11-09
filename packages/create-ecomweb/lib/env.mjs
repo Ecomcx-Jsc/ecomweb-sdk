@@ -5,6 +5,7 @@
 //   create-ecomweb env logs [api|builder|…] [-f]   xem log
 //   --dev        website chạy `next dev`; theme/plugin trong thư mục hiện tại (và thư mục con) được gắn thẳng vào → sửa là thấy
 //   --build DIR  build image từ mã nguồn CMS ở DIR (khi chưa kéo được image dựng sẵn)
+//   --image IMG  image CMS khác (một image cho api lẫn website — CMS từ 1.25; bản cũ hơn: --api-image + --builder-image)
 // Tài khoản được lưu ở .cms-env/credentials.json → `create-ecomweb deploy/dev` tự dùng, không cần --password.
 import { CLI } from "./npm.mjs";
 import crypto from "node:crypto";
@@ -15,8 +16,8 @@ import { fileURLToPath } from "node:url";
 import { c, readJson, run, write } from "./util.mjs";
 
 const cliDir = path.dirname(fileURLToPath(import.meta.url));
-/** Image dựng sẵn của CMS (đổi bằng --api-image/--builder-image hoặc biến CMS_API_IMAGE/CMS_BUILDER_IMAGE). */
-const DEFAULT_IMAGES = { api: "ghcr.io/ecomcx-jsc/ecomweb-api:latest", builder: "ghcr.io/ecomcx-jsc/ecomweb-builder:latest" };
+/** Image dựng sẵn của CMS: một image cho mọi vai trò (ECOMWEB_ROLE) — đổi bằng --image hoặc biến CMS_IMAGE. */
+const DEFAULT_IMAGE = "ghcr.io/ecomcx-jsc/ecomweb:latest";
 
 /** Theme/plugin đang viết ở thư mục hiện tại và thư mục con (+ --mount) → gắn vào Builder khi chạy --dev. */
 export function devMounts(args) {
@@ -68,10 +69,11 @@ services:
     restart: unless-stopped
     healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 3s, retries: 20 }
   api:
-${o.buildDir ? `    build: { context: ${JSON.stringify(o.buildDir)}, dockerfile: backend/Dockerfile }\n    image: cms-env-api:local` : `    image: ${o.apiImage}`}
+${o.buildDir ? `    build: { context: ${JSON.stringify(o.buildDir)} }\n    image: cms-env:local` : `    image: ${o.apiImage}`}
     restart: unless-stopped
     depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
     environment:
+      ECOMWEB_ROLE: api
       CMS_SECRETS_DIR: /secrets
       ConnectionStrings__Redis: redis:6379
       Storage__PublicMediaUrl: ${o.url}/uploads
@@ -85,10 +87,10 @@ ${o.buildDir ? `    build: { context: ${JSON.stringify(o.buildDir)}, dockerfile:
       Security__FrameAncestors__0: ${o.url}
     volumes: [storage:/data, secrets:/secrets:ro]
   builder:
-${o.buildDir ? `    build: { context: ${JSON.stringify(o.buildDir)}, dockerfile: builder/Dockerfile }\n    image: cms-env-builder:local` : `    image: ${o.builderImage}`}
+${o.buildDir ? `    build: { context: ${JSON.stringify(o.buildDir)} }\n    image: cms-env:local` : `    image: ${o.builderImage}`}
     restart: unless-stopped
     depends_on: [api]
-    environment: { CMS_SECRETS_DIR: /secrets, CMS_API_URL: http://api:8080, ADMIN_ORIGINS: ${o.url}, WEB_WORKERS: "1", TRUSTED_PROXY_HOSTS: caddy${o.dev ? ", BUILDER_MODE: dev, BUILDER_DEV_SERVER: \"1\"" : ""} }
+    environment: { ECOMWEB_ROLE: builder, CMS_SECRETS_DIR: /secrets, CMS_API_URL: http://api:8080, ADMIN_ORIGINS: ${o.url}, WEB_WORKERS: "1", TRUSTED_PROXY_HOSTS: caddy${o.dev ? ", BUILDER_MODE: dev, BUILDER_DEV_SERVER: \"1\"" : ""} }
     volumes: [storage:/data, secrets:/secrets:ro${(o.mounts ?? []).map((m) => `, ${JSON.stringify(`${m.dir}:${m.target}:ro`)}`).join("")}]
   caddy:
     image: caddy:2-alpine
@@ -127,8 +129,10 @@ export async function env(action, args) {
   if (action === "up") {
     const port = Number(args.port ?? saved?.port ?? 8080);
     const url = `http://localhost:${port}`;
-    const apiImage = args["api-image"] ?? process.env.CMS_API_IMAGE ?? saved?.apiImage ?? DEFAULT_IMAGES.api;
-    const builderImage = args["builder-image"] ?? process.env.CMS_BUILDER_IMAGE ?? saved?.builderImage ?? DEFAULT_IMAGES.builder;
+    // Một image (--image / CMS_IMAGE); --api-image + --builder-image: CMS 1.24 trở về trước (mỗi vai trò một image)
+    const one = args.image ?? process.env.CMS_IMAGE;
+    const apiImage = args["api-image"] ?? one ?? process.env.CMS_API_IMAGE ?? saved?.apiImage ?? DEFAULT_IMAGE;
+    const builderImage = args["builder-image"] ?? (one ? apiImage : process.env.CMS_BUILDER_IMAGE ?? saved?.builderImage ?? apiImage);
     const dev = Boolean(args.dev ?? saved?.dev);
     const buildDir = args.build ? path.resolve(args.build) : saved?.buildDir;
     const mounts = dev ? devMounts(args) : [];
@@ -148,12 +152,13 @@ export async function env(action, args) {
     } else {
       const local = async (img) => run("docker", ["image", "inspect", img], { quiet: true }).then(() => true, () => false);
       const missing = [];
-      for (const [svc, img] of [["api", apiImage], ["builder", builderImage]]) if (!(await local(img))) missing.push(svc);
+      if (!(await local(apiImage))) missing.push("api");
+      if (builderImage !== apiImage && !(await local(builderImage))) missing.push("builder");
       if (missing.length) console.log(c.cyan(`• Kéo image ${apiImage}…`));
       try { if (missing.length) await dc("pull", ...missing); }
       catch (e) {
         throw new Error(`Không kéo được image CMS (${apiImage}). Image có thể chưa được phát hành công khai.\n`
-          + `  Có mã nguồn CMS: create-ecomweb env up --build <thư-mục-mã-nguồn>\n  Hoặc chỉ định image khác: --api-image … --builder-image …\n  Chi tiết: ${e.message.split("\n").slice(-2).join(" ")}`);
+          + `  Có mã nguồn CMS: create-ecomweb env up --build <thư-mục-mã-nguồn>\n  Hoặc chỉ định image khác: --image …\n  Chi tiết: ${e.message.split("\n").slice(-2).join(" ")}`);
       }
     }
     try { await dc("up", "-d"); }
