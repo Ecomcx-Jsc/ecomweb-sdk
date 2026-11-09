@@ -95,7 +95,7 @@ export const getActiveExtensions = cache(async (site?: Site): Promise<PluginDefi
   const s = site ?? (await getSite());
   const { plugins } = runtime();
   const defs: PluginDefinition[] = [];
-  for (const slug of s.activePlugins) {
+  for (const slug of s.activePlugins ?? []) {
     const loader = plugins[slug];
     if (!loader) continue;
     try { defs.push((await loader()).default); }

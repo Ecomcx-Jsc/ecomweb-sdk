@@ -289,6 +289,11 @@ export interface FilterMap {
    * cho kiểu nội dung của nó và khai báo template đó trong `definePlugin({ templates })`. Theme có template trùng tên vẫn thắng.
    */
   "template.hierarchy": (templates: string[], ctx: { site: Site; data: ResolveResult }) => string[] | Promise<string[]>;
+  /**
+   * Schema BreadcrumbList của khối "breadcrumbs" trong theme. Plugin SEO tự in BreadcrumbList trong @graph của nó thì trả null
+   * (trang chỉ có một BreadcrumbList); vẫn vẽ đường dẫn nhìn thấy.
+   */
+  "breadcrumbs.schema": (schema: Record<string, unknown> | null, ctx: { site: Site; items: Array<{ name: string; href?: string }> }) => Record<string, unknown> | null | Promise<Record<string, unknown> | null>;
   /** Thêm/bớt class của thẻ <body> (vd "logged-in", "has-promo-bar") */
   "body.class": (classes: string[], ctx: { site: Site }) => string[] | Promise<string[]>;
   /** Cho phép các filter tùy biến bất kỳ của plugin/theme */

@@ -242,6 +242,13 @@ test("khối theme 1.15: tiêu đề trang lưu trữ là H1 theo ngữ cảnh, 
   const ld = JSON.parse(out.match(/<script type="application\/ld\+json">(.*?)<\/script>/)![1]);
   assert.equal(ld["@type"], "BreadcrumbList");
   assert.deepEqual(ld.itemListElement.map((i: { name: string; item?: string }) => [i.name, i.item]), [["Trang chủ", "https://example.com/vi"], ["Tin tức", undefined]]);
+  // Plugin SEO tự in BreadcrumbList → filter breadcrumbs.schema trả null: vẫn vẽ đường dẫn, không in schema thứ hai
+  configureRuntime({ themes: {}, plugins: { seo: async () => ({ default: { filters: { "breadcrumbs.schema": () => null } } }) } as never });
+  globalThis.fetch = (async (u: RequestInfo | URL) => new Response(JSON.stringify(/\/site\b/.test(String(u)) ? { title: "Test", language: "vi", locale: "vi", url: "https://example.com", activePlugins: ["seo"], activeTheme: null } : { items: [], total: 0 }), { headers: { "content-type": "application/json" } })) as typeof fetch;
+  const noLd = await html(doc({ type: "breadcrumbs" }), ctx({ data, dynamic: renderDynamic, site: { title: "Test", language: "vi", locale: "vi", url: "https://example.com", activePlugins: ["seo"], activeTheme: null } as never }));
+  assert.match(noLd, /<nav class="ecx-breadcrumbs"/);
+  assert.doesNotMatch(noLd, /application\/ld\+json/);
+  configureRuntime({ themes: {}, plugins: {} });
   // Tìm kiếm
   const search = await html(doc({ type: "queryTitle" }), ctx({ data: { kind: "search", search: "áo thun", title: "", page: 1, totalPages: 1, total: 0, basePath: "/", templates: [], locale: "vi", alternates: [] } as never, dynamic: renderDynamic }));
   assert.match(search, /<h1 class="ecx-query-title">Kết quả tìm kiếm: áo thun<\/h1>/);

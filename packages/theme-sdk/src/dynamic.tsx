@@ -3,6 +3,7 @@ import { getArchives, getPosts, getTerms } from "./api";
 import { Link, LoginOutLink } from "./client";
 import { Comments, FeaturedImage, LanguageSwitcher, Menu, Pagination, PostDate, SearchForm, TermLinks } from "./components";
 import { getT } from "./i18n";
+import { applyFilters } from "./runtime";
 import { localeHref } from "./locale";
 import { renderContent, type RenderContext, type RenderNode } from "./rich";
 import type { Post, ResolveResult, Term } from "./types";
@@ -178,11 +179,12 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       if (items.length < 2) return null;
       const base = (site.url ?? "").replace(/\/$/, "");
       // Schema BreadcrumbList: Google hiện đường dẫn thay cho URL trong kết quả tìm kiếm
-      const jsonLd = { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: items.map((it, i) => ({ "@type": "ListItem", position: i + 1, name: it.name, ...(it.href ? { item: /^https?:/.test(it.href) ? it.href : base + it.href } : {}) })) };
+      // Plugin SEO có schema riêng (BreadcrumbList trong @graph) trả null để trang không có hai BreadcrumbList mâu thuẫn
+      const jsonLd = await applyFilters("breadcrumbs.schema", { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: items.map((it, i) => ({ "@type": "ListItem", position: i + 1, name: it.name, ...(it.href ? { item: /^https?:/.test(it.href) ? it.href : base + it.href } : {}) })) }, { site, items }, site);
       return (
         <nav key={key} className="ecx-breadcrumbs" aria-label={t("breadcrumbs.label")}>
           <ol>{items.map((it, i) => <li key={i}>{i > 0 && <span className="ecx-breadcrumbs-sep" aria-hidden="true">{a.separator ?? "›"}</span>}{it.href ? <Link href={it.href}>{it.name}</Link> : <span aria-current="page">{it.name}</span>}</li>)}</ol>
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+          {jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />}
         </nav>
       );
     }
