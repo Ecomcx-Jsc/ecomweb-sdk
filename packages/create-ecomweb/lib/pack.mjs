@@ -7,13 +7,16 @@ import AdmZip from "adm-zip";
 import { c, run, backendSources, expandSources } from "./util.mjs";
 import { validate } from "./validate.mjs";
 
-const EXCLUDE = new Set(["node_modules", ".git", "dist", ".DS_Store", "bin", "obj", ".next"]);
+// .cms-env: CMS thử của `env up` chạy ngay trong thư mục theme/plugin — chứa mật khẩu admin (credentials.json), không bao giờ vào gói.
+// .env*: biến môi trường / khoá riêng của máy người viết.
+const EXCLUDE = new Set(["node_modules", ".git", "dist", ".DS_Store", "bin", "obj", ".next", ".cms-env"]);
+const excluded = (name) => EXCLUDE.has(name) || name === ".env" || name.startsWith(".env.");
 const cliDir = path.dirname(fileURLToPath(import.meta.url));
 
 function copyFiltered(src, dest, filter = () => true) {
   fs.mkdirSync(dest, { recursive: true });
   for (const e of fs.readdirSync(src, { withFileTypes: true })) {
-    if (EXCLUDE.has(e.name) || !filter(path.join(src, e.name), e)) continue;
+    if (excluded(e.name) || !filter(path.join(src, e.name), e)) continue;
     const s = path.join(src, e.name), d = path.join(dest, e.name);
     if (e.isDirectory()) copyFiltered(s, d, filter);
     else if (e.isFile()) fs.copyFileSync(s, d);
