@@ -1,6 +1,6 @@
 import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { ICON_PATHS } from "./icons";
-import { DYNAMIC_NODES, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { DYNAMIC_NODES, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
@@ -183,12 +183,12 @@ function overridden(style: BlockStyle): string[] {
  * Gắn kiểu dáng (class `ecx-s-…`), biến thể (`ecx-is-…`), class riêng và neo (id) của khối vào phần tử đã vẽ
  * (không có phần tử bọc ngoài → thêm div). Giá trị đã được normalizeContent kiểm.
  */
-function decorate(el: ReactNode, a: Record<string, any>, key: string, ctx: RenderContext): ReactNode {
+function decorate(el: ReactNode, a: Record<string, any>, key: string, ctx: RenderContext, type: string): ReactNode {
   if (el == null || el === false) return el;
   const style = a.style && typeof a.style === "object" ? (a.style as BlockStyle) : null;
   const cls = style ? styleClass(style) : null;
   if (style && cls && ctx.styles && !ctx.styles.has(cls)) ctx.styles.set(cls, styleCss(style, cls));
-  const extra = cx(cls, motionClasses(style), a.blockStyle && `ecx-is-${a.blockStyle}`, a.className);
+  const extra = cx(cls, motionClasses(style), widthClass(type, a), a.blockStyle && `ecx-is-${a.blockStyle}`, a.className);
   if (isValidElement(el) && el.type !== Fragment && typeof el.type === "string") {
     const e = el as ReactElement<{ className?: string; style?: CSSProperties; id?: string }>;
     let inline = e.props.style;
@@ -231,7 +231,7 @@ async function renderNode(node: Node, key: string, ctx: RenderContext): Promise<
   let el = await renderNodeInner(node, key, ctx);
   if (ctx.filterBlock && node.type !== "text" && node.type !== "doc") el = await ctx.filterBlock(node, el);
   const a = node.attrs;
-  const out = a && (a.style || a.blockStyle || a.className || a.anchor) ? decorate(el, a, key, ctx) : el;
+  const out = a && (a.style || a.blockStyle || a.className || a.anchor || widthClass(node.type, a)) ? decorate(el, a, key, ctx, node.type) : el;
   return ctx.markBlocks && ctx.source && ctx.pathRoot != null && key.startsWith(ctx.pathRoot + "-") && !UNMARKED.has(node.type)
     ? markBlock(out, ctx.source, key.slice(ctx.pathRoot.length + 1), key)
     : out;
@@ -394,7 +394,9 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       <div className="ecx-media-text-content">{await children()}</div>
     </>);
     case "pullquote":
-      return shelled("pullquote", a, key, <><blockquote><p>{await children()}</p></blockquote>{blockCitation(a) && <figcaption>{blockCitation(a)}</figcaption>}</>);
+      // Nội dung là các khối (đoạn văn…) → không bọc <p> (<p><p> sai HTML: trình duyệt tách thẻ → React báo lệch khi hydrate);
+      // chữ trần (dữ liệu cũ) mới cần <p>
+      return shelled("pullquote", a, key, <><blockquote>{(node.content ?? []).every((c) => c.type === "text" || c.type === "hardBreak") ? <p>{await children()}</p> : await children()}</blockquote>{blockCitation(a) && <figcaption>{blockCitation(a)}</figcaption>}</>);
     case "accordion": {
       const sub = a.multiple === true ? ctx : { ...ctx, accordion: `ecx-acc-${key}` };
       return <div key={key} className="ecx-accordion">{await Promise.all((node.content ?? []).map((c, i) => renderNode(c, `${key}-${i}`, sub)))}</div>;

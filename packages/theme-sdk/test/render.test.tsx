@@ -437,3 +437,14 @@ test("ảnh đại diện có link mà chưa có alt: link lấy tiêu đề bà
   assert.doesNotMatch(withAlt, /aria-label/);
   assert.doesNotMatch(renderToStaticMarkup(<FeaturedImage media={media} label="Tiêu đề bài" />), /aria-label/);
 });
+
+test("không có <p> lồng trong <p> (HTML sai → trình duyệt tách thẻ, React báo lệch khi hydrate) — mọi khối chứa đoạn văn", async () => {
+  const para = { type: "paragraph", content: [{ type: "text", text: "x" }] };
+  const doc = (n: unknown) => ({ version: 1, blocks: [{ type: "richtext", data: { type: "doc", content: [n] } }] });
+  for (const type of ["pullquote", "blockquote", "callout", "group", "details", "cover"]) {
+    const out = await html(doc({ type, attrs: type === "details" ? { summary: "s" } : {}, content: [para, para] }));
+    assert.doesNotMatch(out, /<p[^>]*>(?:(?!<\/p>).)*<p[\s>]/s, `${type}: ${out}`);
+  }
+  // pullquote dữ liệu cũ (chữ trần) vẫn có <p>
+  assert.match(await html(doc({ type: "pullquote", content: [{ type: "text", text: "cu" }] })), /<blockquote><p>cu<\/p><\/blockquote>/);
+});

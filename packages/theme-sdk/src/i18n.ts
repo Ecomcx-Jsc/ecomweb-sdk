@@ -30,6 +30,7 @@ export const BUILTIN: Record<string, Record<string, string>> = {
     "auth.submitProfile": "Lưu hồ sơ", "auth.submitPassword": "Đổi mật khẩu", "auth.notSignedIn": "Bạn cần đăng nhập để xem trang này.",
     "auth.deleteWarning": "Xoá tài khoản là vĩnh viễn: bạn không đăng nhập được nữa, bài viết của bạn không còn tác giả.",
     "auth.deleteConfirm": "Tôi hiểu, xoá tài khoản của tôi", "auth.submitDelete": "Xoá tài khoản",
+    "styleBook.title": "Mẫu kiểu dáng", "styleBook.h": "Tiêu đề", "styleBook.para": "Đoạn văn mẫu: chữ của bài viết trên website hiển thị như thế này.", "styleBook.bold": "chữ đậm", "styleBook.italic": "chữ nghiêng", "styleBook.link": "liên kết", "styleBook.item": "Mục", "styleBook.quote": "Trích dẫn mẫu: một câu đáng nhớ.", "styleBook.cite": "Tác giả", "styleBook.button": "Nút bấm", "styleBook.callout": "Hộp lưu ý: thông tin cần chú ý.", "styleBook.group": "Nhóm có nền", "styleBook.column": "Cột", "styleBook.details": "Bấm để xem thêm", "styleBook.cover": "Ảnh bìa",
   },
   en: {
     "search.placeholder": "Search…", "search.button": "Search", "search.label": "Keyword", "navigation.menu": "Menu", "toc.title": "Contents", "query.search": "Search results: {q}", "query.category": "Category: {name}", "query.tag": "Tag: {name}", "query.author": "Author: {name}", "breadcrumbs.home": "Home", "breadcrumbs.label": "Breadcrumb", "postNav.previous": "Previous", "postNav.next": "Next", "postNav.label": "More posts",
@@ -55,6 +56,7 @@ export const BUILTIN: Record<string, Record<string, string>> = {
     "auth.submitProfile": "Save profile", "auth.submitPassword": "Change password", "auth.notSignedIn": "Please log in to see this page.",
     "auth.deleteWarning": "Deleting your account is permanent: you can no longer log in and your posts will have no author.",
     "auth.deleteConfirm": "I understand, delete my account", "auth.submitDelete": "Delete account",
+    "styleBook.title": "Style book", "styleBook.h": "Heading", "styleBook.para": "Sample paragraph: post text on the website looks like this.", "styleBook.bold": "bold text", "styleBook.italic": "italic text", "styleBook.link": "a link", "styleBook.item": "Item", "styleBook.quote": "Sample quote: a memorable line.", "styleBook.cite": "Author", "styleBook.button": "Button", "styleBook.callout": "Callout: something worth noticing.", "styleBook.group": "Group with background", "styleBook.column": "Column", "styleBook.details": "Click to see more", "styleBook.cover": "Cover",
   },
 };
 
