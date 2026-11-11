@@ -268,10 +268,16 @@ test("accordion: details con dùng chung name (mở một đóng các mục khá
   const stars = await html({ type: "doc", content: [{ type: "rating", attrs: { value: 3.6, max: 5, label: "ok" } }] });
   assert.equal((stars.match(/is-on/g) ?? []).length, 4);
   assert.match(stars, /aria-label="3\.6\/5"/);
-  const cd = await html({ type: "doc", content: [{ type: "countdown", attrs: { target: "2999-01-01T00:00:00Z", label: "Sale" } }] });
-  assert.match(cd, /ecx-countdown/);
-  assert.match(cd, /Sale/);
-  assert.equal(await html({ type: "doc", content: [{ type: "countdown", attrs: { target: "không phải ngày" } }] }), "");
+  // Đơn vị đếm ngược theo ngôn ngữ website (getT đọc /site): tiếng Việt → ngày/giờ/phút/giây
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = (async (u: RequestInfo | URL) => new Response(JSON.stringify(/\/site\b/.test(String(u)) ? { title: "Test", language: "vi", locale: "vi", url: "https://example.com" } : { items: [], total: 0 }), { headers: { "content-type": "application/json" } })) as typeof fetch;
+  try {
+    const cd = await html({ type: "doc", content: [{ type: "countdown", attrs: { target: "2999-01-01T00:00:00Z", label: "Sale" } }] });
+    assert.match(cd, /ecx-countdown/);
+    assert.match(cd, /Sale/);
+    assert.match(cd, /<small>ngày<\/small>.*<small>giây<\/small>/);
+    assert.equal(await html({ type: "doc", content: [{ type: "countdown", attrs: { target: "không phải ngày" } }] }), "");
+  } finally { globalThis.fetch = origFetch; }
 });
 
 test("gallery: linkTo=none bỏ liên kết, imageCrop=false giữ tỉ lệ ảnh", async () => {

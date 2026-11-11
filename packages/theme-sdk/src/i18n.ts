@@ -9,7 +9,7 @@ export const BUILTIN: Record<string, Record<string, string>> = {
   vi: {
     "search.placeholder": "Tìm kiếm…", "search.button": "Tìm", "search.label": "Từ khoá", "navigation.menu": "Menu", "toc.title": "Mục lục", "query.search": "Kết quả tìm kiếm: {q}", "query.category": "Chuyên mục: {name}", "query.tag": "Thẻ: {name}", "query.author": "Tác giả: {name}", "breadcrumbs.home": "Trang chủ", "breadcrumbs.label": "Đường dẫn", "postNav.previous": "Bài trước", "postNav.next": "Bài sau", "postNav.label": "Bài khác",
     "post.read_more": "Đọc tiếp", "pagination.prev": "« Trước", "pagination.next": "Sau »", "pagination.label": "Phân trang",
-    "comments.title": "Bình luận", "comments.closed": "Bình luận đã đóng.",
+    "comments.title": "Bình luận", "comments.closed": "Bình luận đã đóng.", "countdown.d": "ngày", "countdown.h": "giờ", "countdown.m": "phút", "countdown.s": "giây",
     "comments.form.title": "Để lại bình luận", "comments.form.content": "Bình luận", "comments.form.name": "Tên",
     "comments.form.email": "Email", "comments.form.website": "Website", "comments.form.submit": "Gửi bình luận",
     "comments.form.sending": "Đang gửi…", "comments.form.approved": "Cảm ơn bạn! Bình luận đã được đăng (tải lại trang để xem).",
@@ -35,7 +35,7 @@ export const BUILTIN: Record<string, Record<string, string>> = {
   en: {
     "search.placeholder": "Search…", "search.button": "Search", "search.label": "Keyword", "navigation.menu": "Menu", "toc.title": "Contents", "query.search": "Search results: {q}", "query.category": "Category: {name}", "query.tag": "Tag: {name}", "query.author": "Author: {name}", "breadcrumbs.home": "Home", "breadcrumbs.label": "Breadcrumb", "postNav.previous": "Previous", "postNav.next": "Next", "postNav.label": "More posts",
     "post.read_more": "Read more", "pagination.prev": "« Previous", "pagination.next": "Next »", "pagination.label": "Pagination",
-    "comments.title": "Comments", "comments.closed": "Comments are closed.",
+    "comments.title": "Comments", "comments.closed": "Comments are closed.", "countdown.d": "d", "countdown.h": "h", "countdown.m": "m", "countdown.s": "s",
     "comments.form.title": "Leave a comment", "comments.form.content": "Comment", "comments.form.name": "Name",
     "comments.form.email": "Email", "comments.form.website": "Website", "comments.form.submit": "Post comment",
     "comments.form.sending": "Sending…", "comments.form.approved": "Thanks! Your comment is published (reload to see it).",

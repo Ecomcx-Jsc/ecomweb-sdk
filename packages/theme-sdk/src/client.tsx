@@ -298,7 +298,7 @@ export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, LogoutB
 export { safeRedirect, type CurrentUser } from "./auth-shared";
 
 /** Khối countdown: đếm ngược tới `target` (ms). Dựng lần đầu cùng giá trị trên máy chủ, rồi cập nhật mỗi giây. */
-export function CountdownClient({ target, label, expiredText }: { target: number; label?: string; expiredText?: string }) {
+export function CountdownClient({ target, label, expiredText, units }: { target: number; label?: string; expiredText?: string; units?: Partial<Record<"d" | "h" | "m" | "s", string>> }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
   const left = Math.max(0, target - now);
@@ -309,7 +309,7 @@ export function CountdownClient({ target, label, expiredText }: { target: number
   return (
     <div className="ecx-countdown" role="timer" aria-live="off" suppressHydrationWarning>
       {label && <p className="ecx-countdown-label">{label}</p>}
-      <div className="ecx-countdown-parts">{parts.map(([u, n]) => <span key={u} className={`ecx-countdown-${u}`}><strong>{p(n)}</strong><small>{u}</small></span>)}</div>
+      <div className="ecx-countdown-parts">{parts.map(([u, n]) => <span key={u} className={`ecx-countdown-${u}`}><strong>{p(n)}</strong><small>{units?.[u as "d"] ?? u}</small></span>)}</div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site } from "./ty
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
 import { CountdownClient, LightboxClient, TabsClient } from "./client";
+import { getT } from "./i18n";
 
 /**
  * Vẽ nội dung (định dạng của CMS — @ecomcx/ecomweb-content) thành React, không phụ thuộc trình soạn.
@@ -404,7 +405,9 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     case "countdown": {
       const ms = Date.parse(String(a.target ?? ""));
       if (!Number.isFinite(ms)) return null;
-      return <CountdownClient key={key} target={ms} label={a.label ? String(a.label) : undefined} expiredText={a.expiredText ? String(a.expiredText) : undefined} />;
+      const t = await getT();
+      const units = { d: t("countdown.d"), h: t("countdown.h"), m: t("countdown.m"), s: t("countdown.s") }; // theo ngôn ngữ của trang (vi: ngày/giờ/phút/giây)
+      return <CountdownClient key={key} target={ms} units={units} label={a.label ? String(a.label) : undefined} expiredText={a.expiredText ? String(a.expiredText) : undefined} />;
     }
     case "rating": {
       const max = Math.min(10, Math.max(1, Math.round(Number(a.max) || 5)));
