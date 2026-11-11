@@ -66,3 +66,17 @@ test("settings[].preset chỉ cho ô color, tên màu hợp lệ", async () => {
   assert.ok(make([{ key: "brand", type: "text", label: "Màu", preset: "primary" }]).some((e) => e.includes("preset")));
   assert.ok(make([{ key: "brand", type: "color", label: "Màu", preset: "Primary Colour" }]).some((e) => e.includes("preset")));
 });
+
+test("quyền \"ai\" trong plugin.json hợp lệ; quyền lạ vẫn bị báo", async () => {
+  const { validate } = await import("../lib/validate.mjs");
+  const { mkdtempSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const check = (permissions: string[]) => {
+    const dir = mkdtempSync(join(tmpdir(), "perm-"));
+    writeFileSync(join(dir, "plugin.json"), JSON.stringify({ name: "Demo", slug: "demo", version: "1.0.0", permissions }));
+    return validate(dir).errors.filter((e: string) => e.startsWith("Quyền không hợp lệ"));
+  };
+  assert.deepEqual(check(["ai", "network"]), []);
+  assert.equal(check(["ai", "hack"]).length, 1);
+});

@@ -195,8 +195,8 @@ function checkPermissions(perms, errors, warnings) {
   if (!Array.isArray(perms) || perms.some((p) => typeof p !== "string")) { errors.push('"permissions" phải là mảng chuỗi'); return; }
   const host = /^network:(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
   for (const p of perms) {
-    const known = ["network", "filesystem", "database:core", "admin:sensitive", "capabilities:grant", "content:unfiltered_html", "files"].includes(p) || host.test(p) || /^files:\d{1,6}(mb|gb)$/.test(p);
-    if (!known) errors.push(`Quyền không hợp lệ: "${p}" — dùng network:<domain>, network:*.<domain>, files, files:<N>mb, network, filesystem, database:core, admin:sensitive, capabilities:grant, content:unfiltered_html`);
+    const known = ["network", "filesystem", "database:core", "admin:sensitive", "capabilities:grant", "content:unfiltered_html", "ai", "files"].includes(p) || host.test(p) || /^files:\d{1,6}(mb|gb)$/.test(p);
+    if (!known) errors.push(`Quyền không hợp lệ: "${p}" — dùng network:<domain>, network:*.<domain>, files, files:<N>mb, network, filesystem, database:core, admin:sensitive, capabilities:grant, content:unfiltered_html, ai`);
   }
   if (perms.includes("network")) warnings.push('Quyền "network" toàn phần bị bộ quét cảnh báo — nếu chỉ gọi vài domain, khai báo "network:<domain>" và gọi qua ctx.Http (CMS ≥ 1.8.0)');
   if (perms.includes("filesystem")) warnings.push('Quyền "filesystem" toàn phần bị bộ quét cảnh báo — nếu chỉ cần lưu file của plugin, khai báo "files" (hoặc "files:500mb") và dùng ctx.Files (CMS ≥ 1.8.0)');
