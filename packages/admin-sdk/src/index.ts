@@ -119,6 +119,26 @@ export const api = {
   upload: <T = any>(p: string, f: File, field?: string) => host().api.upload<T>(p, f, field),
 };
 
+/** Việc AI có sẵn của core (Cài đặt › AI): chữ, tiêu đề, slug, thẻ, mô tả SEO, dịch… */
+export type AiTask = "rewrite" | "shorten" | "expand" | "fix" | "summarize" | "excerpt" | "seo_description" | "title" | "titles" | "slug" | "tags" | "write" | "translate" | "custom";
+
+/**
+ * AI của core cho plugin (CMS ≥ 1.26.0): dùng khoá API, giới hạn lượt/tháng và nhà cung cấp mà chủ site đã cài —
+ * plugin không giữ khoá riêng. Mỗi lượt gọi tính vào giới hạn tháng; lỗi (chưa bật, sai khoá, hết lượt) ném Error có thông báo dễ hiểu.
+ * Người dùng cần quyền sửa bài. Hiện nút AI chỉ khi `enabled`.
+ */
+export const ai = {
+  status: () => api.get<{ enabled: boolean; provider?: string; model?: string; used: number; limit: number }>("/admin/ai/status"),
+  run: async (task: AiTask, text: string, opts?: { language?: string; instruction?: string }) => (await api.post<{ text: string }>("/admin/ai/run", { task, text, ...opts })).text,
+  /** Yêu cầu tự do: instruction = việc cần làm, text = nội dung đầu vào. */
+  ask: (instruction: string, text: string) => ai.run("custom", text, { instruction }),
+};
+/** Hook: `{ enabled, run, ask }` — `enabled` false khi AI tắt hoặc thiếu cấu hình (ẩn nút AI). */
+export const useAi = () => {
+  const status = useApi<{ enabled: boolean }>("/admin/ai/status");
+  return { enabled: !!status.data?.enabled, run: ai.run, ask: ai.ask };
+};
+
 export const notify = {
   success: (m: string) => host().notify.success(m),
   error: (m: string) => host().notify.error(m),

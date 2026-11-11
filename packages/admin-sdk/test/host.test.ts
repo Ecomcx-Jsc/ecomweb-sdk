@@ -45,3 +45,18 @@ test("CMS cũ thiếu hàm mới: bỏ qua / trả giá trị mặc định, kh�
     assert.deepEqual(route.params, {});
   });
 });
+
+test("ai / useAi: chuyển tới API AI của core (khoá nằm ở site, plugin không giữ)", async () => {
+  const calls: unknown[] = [];
+  (globalThis as any).__CMS_ADMIN__ = {
+    api: { post: async (p: string, b: unknown) => { calls.push([p, b]); return { text: "kq" }; }, get: async () => ({ enabled: true, used: 1, limit: 500 }) },
+    useApi: () => ({ data: { enabled: true } }),
+  };
+  try {
+    const { ai, useAi } = await import("../src/index");
+    assert.equal(await ai.run("slug", "Tieu de"), "kq");
+    assert.equal(await ai.ask("Viet lai ngan", "abc"), "kq");
+    assert.deepEqual(calls, [["/admin/ai/run", { task: "slug", text: "Tieu de" }], ["/admin/ai/run", { task: "custom", text: "abc", instruction: "Viet lai ngan" }]]);
+    assert.equal(useAi().enabled, true);
+  } finally { delete (globalThis as any).__CMS_ADMIN__; }
+});
