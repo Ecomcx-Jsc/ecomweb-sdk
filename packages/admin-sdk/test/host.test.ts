@@ -56,7 +56,7 @@ test("ai / useAi: chuyển tới API AI của core (khoá nằm ở site, plugin
     const { ai, useAi } = await import("../src/index");
     assert.equal(await ai.run("slug", "Tieu de"), "kq");
     assert.equal(await ai.ask("Viet lai ngan", "abc"), "kq");
-    assert.deepEqual(calls, [["/admin/ai/run", { task: "slug", text: "Tieu de" }], ["/admin/ai/run", { task: "custom", text: "abc", instruction: "Viet lai ngan" }]]);
+    assert.deepEqual(calls, [["/admin/ai/run", { task: "slug", text: "Tieu de", plugin: undefined }], ["/admin/ai/run", { task: "custom", text: "abc", instruction: "Viet lai ngan", plugin: undefined }]]);
     assert.equal(useAi().enabled, true);
   } finally { delete (globalThis as any).__CMS_ADMIN__; }
 });

@@ -124,12 +124,16 @@ export type AiTask = "rewrite" | "shorten" | "expand" | "fix" | "summarize" | "e
 
 /**
  * AI của core cho plugin (CMS ≥ 1.26.0): dùng khoá API, giới hạn lượt/tháng và nhà cung cấp mà chủ site đã cài —
- * plugin không giữ khoá riêng. Mỗi lượt gọi tính vào giới hạn tháng; lỗi (chưa bật, sai khoá, hết lượt) ném Error có thông báo dễ hiểu.
+ * plugin không giữ khoá riêng. Plugin phải khai quyền "ai" trong plugin.json (CMS ≥ 1.26.2; chủ site đồng ý khi cài, tắt / đặt hạn mức riêng
+ * ở Cài đặt › AI). AI chỉ nhận đúng đoạn chữ plugin gửi — không có công cụ, không đọc được dữ liệu của website. Mỗi lượt gọi tính vào giới hạn tháng; lỗi (chưa bật, sai khoá, hết lượt) ném Error có thông báo dễ hiểu.
  * Người dùng cần quyền sửa bài. Hiện nút AI chỉ khi `enabled`.
  */
+/** Plugin nào đang chạy mã này: ghi nhận lúc bundle nạp (host đặt owner). Máy chủ kiểm quyền "ai" + chính sách của plugin đó. */
+const AI_OWNER = (() => { try { const o = host().currentOwner?.(); return o && o !== "core" ? o : undefined; } catch { return undefined; } })();
+
 export const ai = {
   status: () => api.get<{ enabled: boolean; provider?: string; model?: string; used: number; limit: number }>("/admin/ai/status"),
-  run: async (task: AiTask, text: string, opts?: { language?: string; instruction?: string }) => (await api.post<{ text: string }>("/admin/ai/run", { task, text, ...opts })).text,
+  run: async (task: AiTask, text: string, opts?: { language?: string; instruction?: string }) => (await api.post<{ text: string }>("/admin/ai/run", { task, text, ...opts, plugin: AI_OWNER })).text,
   /** Yêu cầu tự do: instruction = việc cần làm, text = nội dung đầu vào. */
   ask: (instruction: string, text: string) => ai.run("custom", text, { instruction }),
 };

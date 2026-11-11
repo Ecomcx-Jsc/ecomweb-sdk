@@ -486,6 +486,8 @@ export interface CmsAdmin {
   /** CMS ≥ 1.20.0 */
   registerFieldType?(def: FieldTypeDefinition): void;
   /** Hook React lấy dữ liệu đơn giản: const { data, loading, error, reload } = useApi("/admin/...") */
+  /** Slug plugin đang nạp bundle (CMS ≥ 1.26.2) — dùng để định danh plugin khi gọi AI. */
+  currentOwner?(): string;
   useApi<T = any>(path: string | null): { data: T | undefined; loading: boolean; error: Error | null; reload(): void };
   currentUser(): { id: number; displayName: string; capabilities: string[] } | null;
   can(capability: string): boolean;
