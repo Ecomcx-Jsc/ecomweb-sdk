@@ -1,6 +1,6 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
 import { getArchives, getPosts, getTerms } from "./api";
-import { Link, LoginOutLink } from "./client";
+import { Link, LoginOutLink, NavToggle } from "./client";
 import { Comments, FeaturedImage, LanguageSwitcher, Menu, Pagination, PostDate, SearchForm, TermLinks } from "./components";
 import { getT } from "./i18n";
 import { applyFilters } from "./runtime";
@@ -45,7 +45,7 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       return (
         <div key={key} className={cx("ecx-navigation", `ecx-navigation-${a.orientation ?? "horizontal"}`, overlay !== "never" && "has-mobile", overlay === "always" && "overlay-always")}>
           {overlay !== "always" && <div className="ecx-navigation-items">{menu}</div>}
-          {overlay !== "never" && <details className="ecx-navigation-toggle"><summary aria-label={t("navigation.menu")}>☰</summary>{menu}</details>}
+          {overlay !== "never" && <NavToggle label={t("navigation.menu")}>{menu}</NavToggle>}
         </div>
       );
     }

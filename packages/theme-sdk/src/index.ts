@@ -7,7 +7,7 @@ export { Img, imageCandidates, type ImgProps } from "./image";
 export { Menu, WidgetArea, Slot, SearchForm, Pagination, FeaturedImage, PostDate, TermLinks, Comments, LanguageSwitcher } from "./components";
 export { getT, getClientMessages, BUILTIN as BUILTIN_STRINGS, type Translator, type ClientMessages } from "./i18n";
 export { getRequestLocale, localeHref, LOCALE_HEADER } from "./locale";
-export { CommentForm, CommentList, CommentsMore, ExtensionBoundary, PostPasswordForm, Link, isInternalHref, type LinkProps } from "./client";
+export { CommentForm, CommentList, CommentsMore, ExtensionBoundary, PostPasswordForm, Link, NavToggle, isInternalHref, type LinkProps } from "./client";
 export { getPreference } from "./preferences";
 export { getCurrentUser, getAccessToken, requireUser, userCan, safeRedirect, ACCESS_COOKIE, REFRESH_COOKIE, type CurrentUser } from "./auth";
 export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, LogoutButton, LoginOutLink, useCurrentUser, ProfileForm, ChangePasswordForm, DeleteAccountForm, AUTH_LABELS, AUTH_PATHS, type AuthLabels, type AuthPaths, type SignInProvider } from "./auth-forms";

@@ -1,7 +1,7 @@
 "use client";
 
 import { extraFields } from "./auth-forms";
-import { Component, Suspense, useEffect, useId, useState, type FormEvent } from "react";
+import { Component, Suspense, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import NextLink, { useLinkStatus } from "next/link";
 import NextForm from "next/form";
@@ -298,8 +298,10 @@ export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, LogoutB
 export { safeRedirect, type CurrentUser } from "./auth-shared";
 
 /** Khối countdown: đếm ngược tới `target` (ms). Dựng lần đầu cùng giá trị trên máy chủ, rồi cập nhật mỗi giây. */
-export function CountdownClient({ target, label, expiredText, units }: { target: number; label?: string; expiredText?: string; units?: Partial<Record<"d" | "h" | "m" | "s", string>> }) {
-  const [now, setNow] = useState(() => Date.now());
+export function CountdownClient({ target, label, expiredText, units, serverNow }: { target: number; label?: string; expiredText?: string; units?: Partial<Record<"d" | "h" | "m" | "s", string>>; serverNow?: number }) {
+  // Lần render đầu của client dùng ĐÚNG thời điểm máy chủ đã dùng (serverNow) để khớp HTML dựng sẵn / cache; sau đó lấy giờ thật ngay (tránh hydration mismatch #418)
+  const [now, setNow] = useState(() => serverNow ?? Date.now());
+  useEffect(() => { setNow(Date.now()); }, []);
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
   const left = Math.max(0, target - now);
   if (left === 0 && expiredText) return <div className="ecx-countdown is-expired">{expiredText}</div>;
@@ -312,6 +314,17 @@ export function CountdownClient({ target, label, expiredText, units }: { target:
       <div className="ecx-countdown-parts">{parts.map(([u, n]) => <span key={u} className={`ecx-countdown-${u}`}><strong>{p(n)}</strong><small>{units?.[u as "d"] ?? u}</small></span>)}</div>
     </div>
   );
+}
+
+/** Nút ☰ của menu trên điện thoại: <details> gốc + Escape đóng menu và trả focus về nút. */
+export function NavToggle({ label, children, className = "ecx-navigation-toggle" }: { label: string; children: ReactNode; className?: string }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { const d = ref.current; if (e.key === "Escape" && d?.open) { d.open = false; d.querySelector("summary")?.focus(); } };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+  return <details ref={ref} className={className}><summary aria-label={label}>☰</summary>{children}</details>;
 }
 
 /** Khối tabs: các panel đã vẽ sẵn trên máy chủ (nội dung vẫn có trong HTML cho SEO); chỉ đổi panel đang hiện. */

@@ -312,7 +312,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       return a.caption || a.align ? <figure key={key} className={cls}>{pic}{a.caption && <figcaption>{a.caption}</figcaption>}</figure> : <Fragment key={key}>{pic}</Fragment>;
     }
     case "gallery": {
-      const items = (a.images ?? []) as Array<{ src: string; srcset?: string; webpSrcset?: string; alt?: string; caption?: string; width?: number; height?: number; full?: string }>;
+      const items = ((a.images ?? []) as Array<{ src: string; srcset?: string; webpSrcset?: string; alt?: string; caption?: string; width?: number; height?: number; full?: string }>).filter((im) => !!im?.src); // ảnh chưa chọn (không src) không vẽ <img> hỏng
       const cols = Math.min(6, Math.max(1, Number(a.columns) || 3));
       const crop = a.imageCrop !== false; // next: imageCrop=false giữ nguyên tỉ lệ ảnh
       return (
@@ -342,6 +342,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     case "table": {
       // Hàng đầu toàn ô tiêu đề → <thead>
       const rows = await children();
+      if (!rows.length) return null; // bảng không có hàng nào → không vẽ <table> rỗng
       const head = node.content?.[0]?.content?.length && node.content[0].content.every((c) => c.type === "tableHeader");
       // Hàng cuối là chân bảng (attrs.footer) → <tfoot>
       const foot = a.footer === true && rows.length > (head ? 2 : 1);
@@ -407,7 +408,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       if (!Number.isFinite(ms)) return null;
       const t = await getT();
       const units = { d: t("countdown.d"), h: t("countdown.h"), m: t("countdown.m"), s: t("countdown.s") }; // theo ngôn ngữ của trang (vi: ngày/giờ/phút/giây)
-      return <CountdownClient key={key} target={ms} units={units} label={a.label ? String(a.label) : undefined} expiredText={a.expiredText ? String(a.expiredText) : undefined} />;
+      return <CountdownClient key={key} target={ms} serverNow={Date.now()} units={units} label={a.label ? String(a.label) : undefined} expiredText={a.expiredText ? String(a.expiredText) : undefined} />;
     }
     case "rating": {
       const max = Math.min(10, Math.max(1, Math.round(Number(a.max) || 5)));
