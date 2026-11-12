@@ -412,6 +412,10 @@ export interface UiKit {
   /** Có `children` thì hiện nhãn bên cạnh; không thì cần `label` (đọc cho trình đọc màn hình). */
   Switch: ComponentType<{ checked: boolean; onChange(v: boolean): void; disabled?: boolean; label?: string; children?: ReactNode; description?: ReactNode }>;
   IconButton: ComponentType<{ label: string; active?: boolean; children: ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>>;
+  /** Icon AI chuẩn của Ecomweb (SVG, cỡ mặc định size-4) — dùng cho mọi nút AI thay vì emoji (CMS ≥ 1.26.11). */
+  AiIcon?: ComponentType<{ className?: string }>;
+  /** Xem trước / áp dụng (một phần) / từ chối / hoàn tác một bộ thay đổi AI đề xuất (CMS có AI › Thay đổi). */
+  ChangesetReview?: ComponentType<{ id: number; onDone?: () => void }>;
   Section: ComponentType<{ title: ReactNode; children: ReactNode; defaultOpen?: boolean; actions?: ReactNode }>;
   Tabs: ComponentType<{ value: string; onChange(v: string): void; items: Array<{ value: string; label: ReactNode; count?: number }> }>;
   MetaBoxes: ComponentType<MetaBoxesProps>;
@@ -569,4 +573,20 @@ export interface BlockPanel {
   /** Thuộc tính thêm vào khối, vd { lazy: { default: true } } — cần khai báo để trình soạn lưu được (bắt buộc có `blocks`). */
   attributes?: Record<string, { default?: unknown }>;
   component: import("react").ComponentType<BlockPanelProps>;
+}
+
+/** Chỗ dùng AI (skill gắn theo slot). Plugin dùng thêm slot riêng dạng "<slug>.<tên>". */
+export type AiSlot = "post.write" | "post.edit" | "post.chat" | "post.meta" | "media.alt" | "seo.meta" | "acf.fill" | "product.description" | "site.build" | "site.audit" | "mcp" | (string & {});
+
+/** Một thay đổi đề xuất: máy chủ tự đọc giá trị hiện tại ("before"), người dùng duyệt rồi mới áp dụng. */
+export type ChangeInput =
+  | { kind: "post.update"; target: string | number; label?: string; after: { title?: string; content?: unknown; excerpt?: string; slug?: string; meta?: Record<string, unknown> } }
+  | { kind: "media.update"; target: string | number; label?: string; after: { alt?: string; title?: string; caption?: string } }
+  | { kind: "term.update"; target: string | number; label?: string; after: { name?: string; description?: string; meta?: Record<string, unknown> } }
+  | { kind: "option.set"; target: string; label?: string; after: unknown };
+
+export interface ChangesetItem { id: string; kind: string; target: string; label: string; before: unknown; after: unknown; status: "pending" | "applied" | "rejected" | "undone" | "failed"; error?: string | null }
+export interface Changeset {
+  id: number; title: string; source: string; status: "pending" | "applied" | "partial" | "rejected" | "undone";
+  createdBy: number | null; createdByName: string | null; createdAt: string; appliedAt: string | null; items: ChangesetItem[];
 }

@@ -89,6 +89,8 @@ export async function pack(dir, { out } = {}) {
       for (const extra of ["README.md", "LICENSE", "screenshot.png"]) if (fs.existsSync(path.join(dir, extra))) fs.copyFileSync(path.join(dir, extra), path.join(root, extra));
       // Bản dịch theo khoá (locales/{mã}.json) — CMS nạp cho cả admin lẫn backend
       if (fs.existsSync(path.join(dir, "locales"))) copyFiltered(path.join(dir, "locales"), path.join(root, "locales"), (p) => p.endsWith(".json"));
+      // Kỹ năng AI (skills/*.md: frontmatter name/description/slots) — core nạp theo slot, chủ site tắt được
+      if (fs.existsSync(path.join(dir, "skills"))) copyFiltered(path.join(dir, "skills"), path.join(root, "skills"), (p) => p.endsWith(".md"));
 
       const sources = backendSources(manifest);
       if (sources) {

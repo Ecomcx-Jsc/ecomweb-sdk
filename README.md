@@ -54,7 +54,7 @@ npm run release       # build dist-release/ + cài thử vào dự án trống
 2. `npm test && npm run release`.
 3. Commit, rồi `gh release create vX.Y.Z --title "SDK vX.Y.Z"` → workflow `publish.yml` build lại, đính kèm tarball và publish
    cả ba gói lên npm bằng Trusted Publishing (OIDC từ GitHub Actions, có provenance, không token).
-4. Core: `node scripts/update-sdk.mjs X.Y.Z` (đổi phiên bản trong admin / frontend + CLI ghim trong `scripts/cms-cli.sh`).
+4. Core: `node scripts/release/update-sdk.mjs X.Y.Z` (đổi phiên bản trong admin / frontend + CLI ghim trong `scripts/dev/cms-cli.sh`).
 
 Gói mới chưa có trên npm thì publish tay lần đầu: `npm login`, `node scripts/release.mjs`, `node scripts/npm-publish.mjs`
 (npm in đường link duyệt bằng passkey), rồi trên npmjs.com mỗi gói: Settings › Trusted Publisher › GitHub Actions,

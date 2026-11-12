@@ -133,14 +133,28 @@ const AI_OWNER = (() => { try { const o = host().currentOwner?.(); return o && o
 
 export const ai = {
   status: () => api.get<{ enabled: boolean; provider?: string; model?: string; used: number; limit: number }>("/admin/ai/status"),
-  run: async (task: AiTask, text: string, opts?: { language?: string; instruction?: string }) => (await api.post<{ text: string }>("/admin/ai/run", { task, text, ...opts, plugin: AI_OWNER })).text,
+  /** `slot`: chỗ dùng AI (skill của slot được ghép vào lời nhắc); bỏ trống = suy ra từ việc. */
+  run: async (task: AiTask, text: string, opts?: { language?: string; instruction?: string; slot?: import("./types").AiSlot }) => (await api.post<{ text: string }>("/admin/ai/run", { task, text, ...opts, plugin: AI_OWNER })).text,
   /** Yêu cầu tự do: instruction = việc cần làm, text = nội dung đầu vào. */
-  ask: (instruction: string, text: string) => ai.run("custom", text, { instruction }),
+  ask: (instruction: string, text: string, opts?: { slot?: import("./types").AiSlot }) => ai.run("custom", text, { instruction, ...opts }),
+  /**
+   * Đề xuất thay đổi (không ghi thẳng): tạo một bộ thay đổi để người dùng duyệt ở `<ChangesetReview id>` hoặc AI › Thay đổi.
+   * Nguồn = "plugin:<slug>" của plugin đang gọi (hoặc "chat" ngoài plugin).
+   */
+  proposeChanges: (title: string, items: import("./types").ChangeInput[]) =>
+    api.post<import("./types").Changeset>("/admin/changesets", { title, source: AI_OWNER ? `plugin:${AI_OWNER}` : "chat", items: items.map((i) => ({ ...i, target: String(i.target) })) }),
 };
-/** Hook: `{ enabled, run, ask }` — `enabled` false khi AI tắt hoặc thiếu cấu hình (ẩn nút AI). */
+/**
+ * Hook: `{ enabled, reason, run, ask }` — `enabled` false khi AI của website tắt / thiếu cấu hình, hoặc (CMS ≥ 1.26.11) chủ site
+ * tắt AI cho plugin này / plugin hết lượt tháng. `reason`: "site" | "plugin" | "limit" (null khi dùng được) — để hiện một dòng
+ * hướng dẫn thay vì ẩn hẳn, vd "Bật AI cho plugin ở Cài đặt › AI".
+ */
 export const useAi = () => {
-  const status = useApi<{ enabled: boolean }>("/admin/ai/status");
-  return { enabled: !!status.data?.enabled, run: ai.run, ask: ai.ask };
+  const status = useApi<{ enabled: boolean; pluginEnabled?: boolean | null; reason?: "site" | "plugin" | "limit" | null }>(
+    AI_OWNER ? `/admin/ai/status?plugin=${encodeURIComponent(AI_OWNER)}` : "/admin/ai/status");
+  const d = status.data;
+  const enabled = !!d?.enabled && d.pluginEnabled !== false;
+  return { enabled, reason: d ? (enabled ? null : d.reason ?? "site") : null, run: ai.run, ask: ai.ask };
 };
 
 export const notify = {
@@ -201,6 +215,10 @@ export const EmptyState = ui("EmptyState");
 export const MediaPicker = ui("MediaPicker");
 export const Switch = ui("Switch");
 export const IconButton = ui("IconButton");
+/** Icon AI chuẩn: `<Button icon={<AiIcon />}>` (CMS < 1.26.11: không vẽ gì). */
+export const AiIcon = ui("AiIcon", () => null);
+/** Xem trước và áp dụng một bộ thay đổi AI: `<ChangesetReview id={cs.id} onDone={...} />` (CMS cũ: không vẽ gì). */
+export const ChangesetReview = ui("ChangesetReview", () => null);
 export const Section = ui("Section");
 export const Tabs = ui("Tabs");
 export const MetaBoxes = ui("MetaBoxes");

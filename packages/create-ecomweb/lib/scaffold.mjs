@@ -273,7 +273,7 @@ export function scaffoldSimplePlugin(name, { dir, tests = false } = {}) {
 
 /**
  * Nguồn gói Ecomweb.Plugin.Sdk / .Testing: nuget.org, cộng feed local khi đặt CMS_NUGET_FEED (thư mục chứa .nupkg) hoặc khi
- * plugin nằm trong repo core (sdk/nuget, tạo bằng scripts/pack-sdk.sh).
+ * plugin nằm trong repo core (sdk/nuget, tạo bằng scripts/release/pack-sdk.sh).
  */
 function nugetFeed(root) {
   if (process.env.CMS_NUGET_FEED) return path.resolve(process.env.CMS_NUGET_FEED);
