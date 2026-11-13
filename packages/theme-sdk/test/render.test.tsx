@@ -454,3 +454,32 @@ test("không có <p> lồng trong <p> (HTML sai → trình duyệt tách thẻ, 
   // pullquote dữ liệu cũ (chữ trần) vẫn có <p>
   assert.match(await html(doc({ type: "pullquote", content: [{ type: "text", text: "cu" }] })), /<blockquote><p>cu<\/p><\/blockquote>/);
 });
+
+test("form cơ bản (1.39): ô vẽ ở máy chủ có nhãn / id / required, ô bẫy ẩn, ô sai tên bị bỏ; không có nguồn thì không vẽ", async () => {
+  const form = { type: "form", attrs: { formId: "f_abc123", submitText: "Gửi liên hệ" }, content: [
+    { type: "heading", attrs: { level: 3 }, content: [{ type: "text", text: "Liên hệ" }] },
+    { type: "formField", attrs: { kind: "text", name: "name", label: "Họ tên", required: true, width: "half" } },
+    { type: "formField", attrs: { kind: "email", name: "email", label: "Email", help: "Không công khai" } },
+    { type: "formField", attrs: { kind: "select", name: "topic", label: "Chủ đề", options: ["Báo giá", "Khác"] } },
+    { type: "formField", attrs: { kind: "consent", name: "consent", label: "Tôi đồng ý", required: true } },
+    { type: "formField", attrs: { kind: "text", name: "Bad Name", label: "Sai" } },
+  ] };
+  const doc = { type: "doc", content: [form] };
+  configureRuntime({ themes: {}, plugins: {} });
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ title: "Test", language: "vi", locale: "vi", url: "https://example.com", activePlugins: [], activeTheme: null }), { headers: { "content-type": "application/json" } })) as typeof fetch;
+  let out = "";
+  try {
+    assert.equal(await html(doc), "");
+    out = await html(doc, ctx({ source: "post:12" }));
+  } finally { globalThis.fetch = origFetch; }
+  assert.match(out, /<form class="ecx-form-blocks" novalidate="" data-form="f_abc123">/i);
+  assert.match(out, /<div class="ecx-field is-text is-half" data-field="name"><label for="f_abc123-name">Họ tên<span class="ecx-field-required" aria-hidden="true"> \*<\/span><\/label>/);
+  assert.match(out, /<input type="text"[^>]*id="f_abc123-name"[^>]*required=""[^>]*name="name"/);
+  assert.match(out, /aria-describedby="f_abc123-email-help f_abc123-email-error"/);
+  assert.match(out, /<option value="Báo giá">Báo giá<\/option>/);
+  assert.match(out, /<input type="checkbox" id="f_abc123-consent" required=""[^>]*name="consent" value="1"/);
+  assert.match(out, /name="_hp"/);
+  assert.match(out, /class="ecx-button cms-button ecx-button-primary[^"]*"[^>]*>Gửi liên hệ<\/button>/);
+  assert.doesNotMatch(out, /Bad Name|>Sai</);
+});

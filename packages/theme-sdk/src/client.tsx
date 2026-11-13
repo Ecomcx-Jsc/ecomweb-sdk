@@ -7,7 +7,7 @@ import NextLink, { useLinkStatus } from "next/link";
 import NextForm from "next/form";
 import { cx, formatDate } from "./utils";
 import type { Comment, CommentPage } from "./types";
-import type { AnchorHTMLAttributes, ReactNode } from "react";
+import type { AnchorHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { createFetchKit, isFetchKitError } from "next-fetch-kit";
 
 export { pluginClient, PluginApiError, emit, on, useEvent, TranslationsProvider, useT, type PluginClient, type PluginRequestOptions } from "./browser";
@@ -372,3 +372,61 @@ export function LightboxClient({ src, alt, children }: { src: string; alt: strin
     </>
   );
 }
+
+/**
+ * Khối form cơ bản của lõi (1.39): các ô đã vẽ sẵn ở máy chủ (children), phần này gửi bài qua /api/cms/forms, báo lỗi đúng ô (422),
+ * hiện lời cảm ơn. Chống spam: ô bẫy ẩn (_hp) + thời gian điền (máy chủ kiểm), máy chủ còn giới hạn theo IP.
+ */
+export function FormBlockClient({ formId, source, successMessage, labels, button, className, children }: {
+  formId: string; source: string; successMessage?: string; labels: { submit: string; sending: string; error: string };
+  /** Vỏ nút gửi = nút "primary" của nội dung (cùng màu / bo góc với nút của theme). */
+  button?: { className?: string; style?: CSSProperties }; className?: string; children?: ReactNode;
+}) {
+  const started = useRef(Date.now());
+  const [state, setState] = useState<{ status: "idle" | "sending" | "done" | "error"; message?: string }>({ status: "idle" });
+
+  function showErrors(form: HTMLFormElement, errors: Record<string, string[]>) {
+    form.querySelectorAll<HTMLElement>("[data-field]").forEach((el) => {
+      const msg = errors[el.dataset.field ?? ""]?.join(" ") ?? "";
+      const out = el.querySelector(".ecx-field-error");
+      if (out) out.textContent = msg;
+      el.querySelectorAll("input, textarea, select").forEach((i) => { if (msg) i.setAttribute("aria-invalid", "true"); else i.removeAttribute("aria-invalid"); });
+    });
+    const first = Object.keys(errors)[0];
+    if (first) form.querySelector<HTMLElement>(`[data-field="${CSS.escape(first)}"] input, [data-field="${CSS.escape(first)}"] textarea, [data-field="${CSS.escape(first)}"] select`)?.focus();
+  }
+
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const fields: Record<string, string | boolean> = {};
+    form.querySelectorAll<HTMLElement>("[data-field]").forEach((el) => {
+      const name = el.dataset.field!;
+      const box = el.querySelector<HTMLInputElement>("input[type=checkbox]");
+      fields[name] = box ? box.checked : String(data.get(name) ?? "");
+    });
+    setState({ status: "sending" }); showErrors(form, {});
+    try {
+      const res = await fetch("/api/cms/forms", { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ formId, source, fields, hp: String(data.get("_hp") ?? ""), ms: Date.now() - started.current, page: location.pathname }) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { showErrors(form, json.errors ?? {}); setState({ status: "error", message: json.title ?? labels.error }); return; }
+      form.reset();
+      setState({ status: "done", message: json.message || successMessage || "" });
+    } catch { setState({ status: "error", message: labels.error }); }
+  }
+
+  if (state.status === "done") return <p className="ecx-form-status is-success" role="status" data-form-done={formId}>{state.message}</p>;
+  return (
+    <form className={cx("ecx-form-blocks", className)} onSubmit={submit} noValidate data-form={formId}>
+      {children}
+      <p className="ecx-form-hp" aria-hidden="true"><label>Website<input type="text" name="_hp" tabIndex={-1} autoComplete="off" /></label></p>
+      {state.status === "error" && <p className="ecx-form-status is-error" role="alert">{state.message}</p>}
+      <div className="ecx-form-actions">
+        <button type="submit" className={button?.className ?? "ecx-button"} style={{ border: 0, cursor: "pointer", font: "inherit", ...button?.style }} disabled={state.status === "sending"}>{state.status === "sending" ? labels.sending : labels.submit}</button>
+      </div>
+    </form>
+  );
+}
+

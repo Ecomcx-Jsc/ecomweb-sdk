@@ -4,7 +4,7 @@ import { DYNAMIC_NODES, widthClass, blockCitation, blockShell, buttonWrapShell, 
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
-import { CountdownClient, LightboxClient, TabsClient } from "./client";
+import { CountdownClient, FormBlockClient, LightboxClient, TabsClient } from "./client";
 import { getT } from "./i18n";
 
 /**
@@ -60,6 +60,8 @@ export interface RenderContext {
   source?: string;
   /** Khoá của khối richtext đang vẽ — đường dẫn khối = phần khoá sau nó (do renderBlock đặt). */
   pathRoot?: string;
+  /** Mã của khối form đang vẽ (ô formField bên trong dùng làm tiền tố id). */
+  form?: string;
 }
 
 // Renderer đọc thuộc tính một cách khoan dung (đã chuẩn hoá ở normalizeContent) → kiểu nới cho gọn
@@ -409,6 +411,51 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const t = await getT();
       const units = { d: t("countdown.d"), h: t("countdown.h"), m: t("countdown.m"), s: t("countdown.s") }; // theo ngôn ngữ của trang (vi: ngày/giờ/phút/giây)
       return <CountdownClient key={key} target={ms} serverNow={Date.now()} units={units} label={a.label ? String(a.label) : undefined} expiredText={a.expiredText ? String(a.expiredText) : undefined} />;
+    }
+    case "form": {
+      // Form cơ bản của lõi: ô vẽ sẵn ở máy chủ, phần gửi chạy trên trình duyệt; máy chủ tìm lại định nghĩa form theo (source, formId)
+      const formId = typeof a.formId === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(a.formId) ? a.formId : "";
+      if (!formId || !ctx.source) return null;
+      const t = await getT();
+      const inner = await Promise.all((node.content ?? []).map((c, i) => renderNode(c, `${key}-${i}`, { ...ctx, form: formId })));
+      return (
+        <FormBlockClient key={key} formId={formId} source={ctx.source} successMessage={a.successMessage ? String(a.successMessage) : undefined}
+          button={{ className: blockShell("button", { variant: "primary" })?.className, style: blockShell("button", { variant: "primary" })?.style as CSSProperties }}
+          labels={{ submit: a.submitText ? String(a.submitText) : t("form.submit"), sending: t("form.sending"), error: t("form.error") }}>
+          {inner}
+        </FormBlockClient>
+      );
+    }
+    case "formField": {
+      const name = typeof a.name === "string" && /^[a-z][a-z0-9_]{0,39}$/.test(a.name) ? a.name : "";
+      if (!name || !ctx.form) return null;
+      const kind = String(a.kind ?? "text");
+      const id = `${ctx.form}-${name}`;
+      const label = String(a.label ?? name);
+      const required = a.required === true;
+      const options = Array.isArray(a.options) ? a.options.filter((o: unknown): o is string => typeof o === "string").slice(0, 30) : [];
+      const describedBy = cx(a.help && `${id}-help`, `${id}-error`);
+      const star = required ? <span className="ecx-field-required" aria-hidden="true"> *</span> : null;
+      const common = { id, name, required, "aria-describedby": describedBy, placeholder: a.placeholder ? String(a.placeholder) : undefined };
+      const check = kind === "checkbox" || kind === "consent";
+      const types: Record<string, string> = { email: "email", tel: "tel", number: "number", date: "date" };
+      return (
+        <div key={key} className={cx("ecx-field", `is-${kind}`, a.width === "half" && "is-half", check && "is-check")} data-field={name}>
+          {check ? <label htmlFor={id}><input type="checkbox" id={id} name={name} value="1" required={required} aria-describedby={describedBy} /> <span>{label}{star}</span></label>
+            : kind === "radio" ? (
+              <fieldset aria-describedby={describedBy}>
+                <legend>{label}{star}</legend>
+                <div className="ecx-field-options">{options.map((o, i) => <label key={i}><input type="radio" name={name} value={o} required={required} /> {o}</label>)}</div>
+              </fieldset>)
+            : <label htmlFor={id}>{label}{star}</label>}
+          {kind === "textarea" ? <textarea rows={5} maxLength={5000} {...common} />
+            : kind === "select" ? <select {...common} defaultValue=""><option value="" disabled={required}>{a.placeholder ? String(a.placeholder) : "—"}</option>{options.map((o, i) => <option key={i} value={o}>{o}</option>)}</select>
+            : check || kind === "radio" ? null
+            : <input type={types[kind] ?? "text"} maxLength={kind === "number" || kind === "date" ? undefined : 500} autoComplete={({ name: "name", email: "email", phone: "tel" } as Record<string, string>)[name] ?? (kind === "email" ? "email" : kind === "tel" ? "tel" : undefined)} {...common} />}
+          {a.help ? <span className="ecx-field-help" id={`${id}-help`}>{String(a.help)}</span> : null}
+          <span className="ecx-field-error" id={`${id}-error`} aria-live="polite" />
+        </div>
+      );
     }
     case "rating": {
       const max = Math.min(10, Math.max(1, Math.round(Number(a.max) || 5)));
