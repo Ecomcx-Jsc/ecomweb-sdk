@@ -439,6 +439,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const common = { id, name, required, "aria-describedby": describedBy, placeholder: a.placeholder ? String(a.placeholder) : undefined };
       const check = kind === "checkbox" || kind === "consent";
       const types: Record<string, string> = { email: "email", tel: "tel", number: "number", date: "date" };
+      const choose = kind === "select" && !a.placeholder ? (await getT())("form.choose") : String(a.placeholder ?? "");
       return (
         <div key={key} className={cx("ecx-field", `is-${kind}`, a.width === "half" && "is-half", check && "is-check")} data-field={name}>
           {check ? <label htmlFor={id}><input type="checkbox" id={id} name={name} value="1" required={required} aria-describedby={describedBy} /> <span>{label}{star}</span></label>
@@ -449,7 +450,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
               </fieldset>)
             : <label htmlFor={id}>{label}{star}</label>}
           {kind === "textarea" ? <textarea rows={5} maxLength={5000} {...common} />
-            : kind === "select" ? <select {...common} defaultValue=""><option value="" disabled={required}>{a.placeholder ? String(a.placeholder) : "—"}</option>{options.map((o, i) => <option key={i} value={o}>{o}</option>)}</select>
+            : kind === "select" ? <select {...common} defaultValue=""><option value="" disabled={required}>{choose}</option>{options.map((o, i) => <option key={i} value={o}>{o}</option>)}</select>
             : check || kind === "radio" ? null
             : <input type={types[kind] ?? "text"} maxLength={kind === "number" || kind === "date" ? undefined : 500} autoComplete={({ name: "name", email: "email", phone: "tel" } as Record<string, string>)[name] ?? (kind === "email" ? "email" : kind === "tel" ? "tel" : undefined)} {...common} />}
           {a.help ? <span className="ecx-field-help" id={`${id}-help`}>{String(a.help)}</span> : null}
