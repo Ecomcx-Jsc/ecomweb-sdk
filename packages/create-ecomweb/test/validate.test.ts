@@ -80,3 +80,20 @@ test("quyền \"ai\" trong plugin.json hợp lệ; quyền lạ vẫn bị báo"
   assert.deepEqual(check(["ai", "network"]), []);
   assert.equal(check(["ai", "hack"]).length, 1);
 });
+
+test('plugin.json › "ai": thiếu → nhắc (Store bắt buộc), sai kiểu → lỗi, đủ → không nhắc', async () => {
+  const { validate } = await import("../lib/validate.mjs");
+  const { mkdtempSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const run = (ai: unknown) => {
+    const dir = mkdtempSync(join(tmpdir(), "ai-"));
+    writeFileSync(join(dir, "plugin.json"), JSON.stringify({ name: "P", slug: "p-ai", version: "1.0.0", requires: { cms: ">=1.7.0 <2.0.0" }, settings: { g: { title: "G", fields: [{ key: "a", type: "text", label: "A" }] } }, ...(ai === undefined ? {} : { ai }) }));
+    return validate(dir);
+  };
+  assert.ok(run(undefined).warnings.some((w: string) => w.includes('Thiếu mục "ai"')));
+  assert.ok(run(5).errors.some((e: string) => e.includes('"ai" phải là object')));
+  assert.ok(run({ summary: "x", keywords: "shop" }).errors.some((e: string) => e.includes("ai.keywords")));
+  const ok = run({ summary: "Cửa hàng: sản phẩm, giỏ hàng, thanh toán", useWhen: ["web bán hàng"], provides: "block productGrid" });
+  assert.ok(!ok.warnings.some((w: string) => w.includes("ai")), ok.warnings.join("\n"));
+});

@@ -133,6 +133,19 @@ export function validate(dir) {
       if (!(c.fields ?? []).length) errors.push(`collections.${name}: cần ít nhất một trường`);
     }
     if (declared && !/>=\s*1\.([7-9]|\d\d)/.test(manifest.requires?.cms ?? "")) warnings.push('khai báo trong plugin.json cần CMS ≥ 1.7.0 — nên ghi "requires": { "cms": ">=1.7.0" }');
+    // Mô tả cho AI: chỉ AI đọc (website không phụ thuộc) — Store bắt buộc khi nộp, ở đây chỉ nhắc
+    const ai = manifest.ai;
+    if (ai == null) warnings.push('Thiếu mục "ai" (Store bắt buộc): { "summary": "plugin làm gì", "useWhen": ["khi nào nên dùng"], "avoidWhen": [...], "provides": "..." } + AI.md cho hướng dẫn dài');
+    else if (typeof ai !== "object" || Array.isArray(ai)) errors.push('"ai" phải là object { summary, useWhen, avoidWhen, provides, notes, keywords }');
+    else {
+      const summary = typeof ai.summary === "string" ? ai.summary.trim() : "";
+      if (summary.length < 20 || summary.length > 300) warnings.push("ai.summary: nên 20–300 ký tự, nói rõ plugin làm gì (Store bắt buộc)");
+      if (!Array.isArray(ai.useWhen) || !ai.useWhen.some((x) => typeof x === "string" && x.trim())) warnings.push("ai.useWhen: cần ít nhất một tình huống nên dùng (Store bắt buộc)");
+      for (const k of ["useWhen", "avoidWhen", "keywords"])
+        if (ai[k] != null && (!Array.isArray(ai[k]) || ai[k].length > 20 || ai[k].some((x) => typeof x !== "string" || x.length > 200))) errors.push(`ai.${k}: mảng tối đa 20 chuỗi, mỗi chuỗi tối đa 200 ký tự`);
+      for (const k of ["provides", "notes"])
+        if (ai[k] != null && (typeof ai[k] !== "string" || ai[k].length > 1000)) errors.push(`ai.${k}: chuỗi tối đa 1000 ký tự`);
+    }
     const sources = backendSources(manifest);
     if (sources) {
       for (const s of sources) if (!/^(?!\/)(?!.*\.\.)[A-Za-z0-9_\-./*]+\.cs$/.test(s)) errors.push(`backend: đường dẫn mã nguồn không hợp lệ: ${s}`);
