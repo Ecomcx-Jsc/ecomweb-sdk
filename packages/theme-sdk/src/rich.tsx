@@ -442,7 +442,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const choose = kind === "select" && !a.placeholder ? (await getT())("form.choose") : String(a.placeholder ?? "");
       return (
         <div key={key} className={cx("ecx-field", `is-${kind}`, a.width === "half" && "is-half", check && "is-check")} data-field={name}>
-          {check ? <label htmlFor={id}><input type="checkbox" id={id} name={name} value="1" required={required} aria-describedby={describedBy} /> <span>{label}{star}</span></label>
+          {check ? <label htmlFor={id}><input type="checkbox" id={id} name={name} value="1" required={required} aria-describedby={describedBy} /> <span>{kind === "consent" ? linkedLabel(label) : label}{star}</span></label>
             : kind === "radio" ? (
               <fieldset aria-describedby={describedBy}>
                 <legend>{label}{star}</legend>
@@ -600,5 +600,22 @@ export async function renderContent(content: ContentDoc | unknown, ctx: RenderCo
   }
   const out = await Promise.all(blocks.map((b, i) => renderBlock(b, b.id ?? `b${i}`, ctx)));
   if (own && ctx.styles!.size) out.unshift(<style key="ecx-styles" data-ecx-styles="">{[...ctx.styles!.values()].join("")}</style>);
+  return out;
+}
+
+/**
+ * Nhãn ô đồng ý có link: "[chữ](đường-dẫn)" → <a> mở tab mới (khách không mất nội dung đang nhập).
+ * Chỉ nhận đường dẫn trong website ("/…") hoặc http(s); còn lại giữ chữ, bỏ link.
+ */
+function linkedLabel(text: string) {
+  const out: ReactNode[] = [];
+  let last = 0, i = 0;
+  for (const m of text.matchAll(/\[([^\]\n]{1,120})\]\(([^)\s]{1,500})\)/g)) {
+    if (m.index! > last) out.push(text.slice(last, m.index));
+    const href = m[2].startsWith("/") && !m[2].startsWith("//") || /^https?:\/\//i.test(m[2]) ? m[2] : null;
+    out.push(href ? <a key={i++} href={href} target="_blank" rel="noopener noreferrer">{m[1]}</a> : m[1]);
+    last = m.index! + m[0].length;
+  }
+  if (last < text.length) out.push(text.slice(last));
   return out;
 }

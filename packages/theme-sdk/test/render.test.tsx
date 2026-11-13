@@ -461,7 +461,7 @@ test("form cơ bản (1.39): ô vẽ ở máy chủ có nhãn / id / required, �
     { type: "formField", attrs: { kind: "text", name: "name", label: "Họ tên", required: true, width: "half" } },
     { type: "formField", attrs: { kind: "email", name: "email", label: "Email", help: "Không công khai" } },
     { type: "formField", attrs: { kind: "select", name: "topic", label: "Chủ đề", options: ["Báo giá", "Khác"] } },
-    { type: "formField", attrs: { kind: "consent", name: "consent", label: "Tôi đồng ý", required: true } },
+    { type: "formField", attrs: { kind: "consent", name: "consent", label: "Tôi đồng ý với [điều khoản](/dieu-khoan) và [x](javascript:alert(1))", required: true } },
     { type: "formField", attrs: { kind: "text", name: "Bad Name", label: "Sai" } },
   ] };
   const doc = { type: "doc", content: [form] };
@@ -479,6 +479,9 @@ test("form cơ bản (1.39): ô vẽ ở máy chủ có nhãn / id / required, �
   assert.match(out, /aria-describedby="f_abc123-email-help f_abc123-email-error"/);
   assert.match(out, /<option value="Báo giá">Báo giá<\/option>/);
   assert.match(out, /<input type="checkbox" id="f_abc123-consent" required=""[^>]*name="consent" value="1"/);
+  // Nhãn ô đồng ý: [chữ](đường-dẫn) → link mở tab mới; đường dẫn không an toàn → chỉ còn chữ
+  assert.match(out, /Tôi đồng ý với <a href="\/dieu-khoan" target="_blank" rel="noopener noreferrer">điều khoản<\/a> và x/);
+  assert.doesNotMatch(out, /javascript:/);
   assert.match(out, /name="_hp"/);
   assert.match(out, /class="ecx-button cms-button ecx-button-primary[^"]*"[^>]*>Gửi liên hệ<\/button>/);
   assert.doesNotMatch(out, /Bad Name|>Sai</);
