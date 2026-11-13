@@ -86,7 +86,8 @@ export async function pack(dir, { out } = {}) {
     } else {
       fs.mkdirSync(root, { recursive: true });
       fs.copyFileSync(path.join(dir, "plugin.json"), path.join(root, "plugin.json"));
-      for (const extra of ["README.md", "LICENSE", "screenshot.png"]) if (fs.existsSync(path.join(dir, extra))) fs.copyFileSync(path.join(dir, extra), path.join(root, extra));
+      // AI.md: hướng dẫn dùng plugin cho AI của website (core đọc khi AI tra plugin) — đi cùng mục "ai" của plugin.json
+      for (const extra of ["README.md", "AI.md", "LICENSE", "screenshot.png"]) if (fs.existsSync(path.join(dir, extra))) fs.copyFileSync(path.join(dir, extra), path.join(root, extra));
       // Bản dịch theo khoá (locales/{mã}.json) — CMS nạp cho cả admin lẫn backend
       if (fs.existsSync(path.join(dir, "locales"))) copyFiltered(path.join(dir, "locales"), path.join(root, "locales"), (p) => p.endsWith(".json"));
       // Kỹ năng AI (skills/*.md: frontmatter name/description/slots) — core nạp theo slot, chủ site tắt được
