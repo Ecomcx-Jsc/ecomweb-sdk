@@ -97,3 +97,32 @@ test('plugin.json › "ai": thiếu → nhắc (Store bắt buộc), sai kiểu 
   const ok = run({ summary: "Cửa hàng: sản phẩm, giỏ hàng, thanh toán", useWhen: ["web bán hàng"], provides: "block productGrid" });
   assert.ok(!ok.warnings.some((w: string) => w.includes("ai")), ok.warnings.join("\n"));
 });
+
+test("token v1: theme thiếu token bắt buộc / CSS có mã màu cố định → cảnh báo (không chặn)", async () => {
+  const { themeTokens, hardcodedColors } = await import("../lib/validate.mjs");
+  const { mkdtempSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = mkdtempSync(join(tmpdir(), "tok-"));
+  writeFileSync(join(dir, "styles.css"), ":root{--x:#fff;--ecx-color-border:#ddd}\na{color:var(--ecx-color-link,#2563eb)}\n.b{color:#123456}");
+  const w = themeTokens(dir, { styles: { colors: { primary: "#000", accent: "#111", text: "#222", background: "#fff", surface: "#eee", muted: "#666" }, fonts: { body: "x" } } });
+  assert.equal(w.length, 1);
+  assert.match(w[0], /fonts\.heading/);
+  assert.doesNotMatch(w[0], /colors\.border/, "biến CSS --ecx-color-border tính là đã điền");
+  const h = hardcodedColors(dir);
+  assert.match(h[0], /styles\.css \(1\)/, "chỉ #123456: :root và fallback var() không tính");
+});
+
+test("token v1: theme con thừa hưởng token của theme cha nằm cạnh; cha là theme lõi (không có ở đây) → không cảnh báo", async () => {
+  const { themeTokens } = await import("../lib/validate.mjs");
+  const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const root = mkdtempSync(join(tmpdir(), "tok-parent-"));
+  mkdirSync(join(root, "base")); mkdirSync(join(root, "child"));
+  writeFileSync(join(root, "base", "theme.json"), JSON.stringify({ slug: "base", styles: { colors: { primary: "#000", accent: "#111", text: "#222", background: "#fff", surface: "#eee", muted: "#666" }, fonts: { body: "x" } } }));
+  writeFileSync(join(root, "base", "styles.css"), ":root{--ecx-color-border:#ddd;--ecx-font-family-heading:serif}");
+  assert.deepEqual(themeTokens(join(root, "child"), { parent: "base", styles: {} }), []);
+  assert.deepEqual(themeTokens(join(root, "child"), { parent: "default" }), [], "cha là theme lõi của CMS");
+  assert.equal(themeTokens(join(root, "child"), { styles: {} }).length, 1, "không có cha → vẫn cảnh báo");
+});

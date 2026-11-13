@@ -9,6 +9,7 @@ export { getT, getClientMessages, BUILTIN as BUILTIN_STRINGS, type Translator, t
 export { getRequestLocale, localeHref, LOCALE_HEADER } from "./locale";
 export { CommentForm, CommentList, CommentsMore, ExtensionBoundary, PostPasswordForm, Link, NavToggle, isInternalHref, type LinkProps } from "./client";
 export { getPreference } from "./preferences";
+export { consentDefault, CONSENT_CATEGORIES, CONSENT_META, type ConsentCategory } from "./consent";
 export { getCurrentUser, getAccessToken, requireUser, userCan, safeRedirect, ACCESS_COOKIE, REFRESH_COOKIE, type CurrentUser } from "./auth";
 export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, LogoutButton, LoginOutLink, useCurrentUser, ProfileForm, ChangePasswordForm, DeleteAccountForm, AUTH_LABELS, AUTH_PATHS, type AuthLabels, type AuthPaths, type SignInProvider } from "./auth-forms";
 export { buildDocumentMetadata } from "./metadata";

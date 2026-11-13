@@ -30,10 +30,11 @@ const BUILTIN_TEMPLATES: Record<string, () => Promise<TemplateModule>> = {
   auth: () => import("./auth-pages"),
   canvas: () => import("./page-canvas"),
   "full-width": () => import("./page-full-width"),
+  landing: () => import("./page-landing"),
 };
 
 /** Tên template trang có sẵn (theme có template cùng tên thì dùng của theme). */
-export const BUILTIN_PAGE_TEMPLATES = ["canvas", "full-width"] as const;
+export const BUILTIN_PAGE_TEMPLATES = ["canvas", "full-width", "landing"] as const;
 
 export interface LoadedTheme {
   slug: string;

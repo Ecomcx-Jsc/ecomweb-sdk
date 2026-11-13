@@ -60,6 +60,12 @@ export const registerBlock = (def: import("@ecomcx/ecomweb-content").BlockDefini
  * CMS cũ (chưa có tab "Khối") → bỏ qua, không lỗi.
  */
 export const registerBlockPanel = (panel: import("./types").BlockPanel) => host().editor.registerBlockPanel?.(panel);
+/** (CMS ≥ 1.29) Mục trong menu ⋮ của thanh công cụ khối: registerBlockAction({ id: "acme/reset", label: "%reset%", run: (c) => c.setAttrs({ acmeRotate: undefined }) }). */
+export const registerBlockAction = (action: import("./types").BlockAction) => host().editor.registerBlockAction?.(action);
+/** (CMS ≥ 1.29) Khối có mặt / đổi thuộc tính trong khung soạn → fn(el, attrs); trả hàm dọn. CMS cũ → không làm gì. */
+export const onBlockReady = (type: string, fn: (el: HTMLElement, attrs: Record<string, unknown>) => void | (() => void)) => host().editor.onBlockReady?.(type, fn) ?? (() => {});
+/** (CMS ≥ 1.29) Script / stylesheet nạp vào khung soạn khi nội dung có khối / class khớp (cùng danh sách definePlugin({ assets }) của website). */
+export const registerBlockAssets = (assets: Parameters<NonNullable<import("./types").CmsAdmin["editor"]["registerBlockAssets"]>>[0]) => host().editor.registerBlockAssets?.(assets);
 /**
  * Thêm hiệu ứng khi cuộn tới vào danh sách chọn của mọi khối (tab Kiểu dáng › Chuyển động). Plugin cần nạp CSS `@keyframes ecx-in-<id>`
  * cho website (slot "head") và đặt cùng chuỗi đó ở `css` để xem thử trong trình soạn:

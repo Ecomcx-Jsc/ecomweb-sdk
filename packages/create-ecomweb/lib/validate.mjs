@@ -82,6 +82,7 @@ export function validate(dir) {
         warnings.push('templates/*.json chỉ được dùng khi theme.json có "editing": "blocks"');
     }
     warnings.push(...seoStructure(dir));
+    warnings.push(...themeTokens(dir, manifest));
     for (const f of manifest.settings ?? []) {
       if (!f.key) errors.push("settings: thiếu key");
       if (!FIELD_TYPES.includes(f.type)) errors.push(`settings.${f.key}: type "${f.type}" không hợp lệ (${FIELD_TYPES.join(", ")})`);
@@ -169,6 +170,7 @@ export function validate(dir) {
     if (manifest.backend && !sources && !(fs.existsSync(path.join(dir, "backend")) && fs.readdirSync(path.join(dir, "backend")).some((f) => f.endsWith(".csproj"))) && !fs.existsSync(path.join(dir, manifest.backend.assembly)))
       errors.push("Không thấy backend/*.csproj hoặc DLL đã build");
   }
+  warnings.push(...hardcodedColors(dir));
   return { kind, manifest, errors, warnings };
 }
 
@@ -369,3 +371,50 @@ export function seoStructure(dir) {
   return out;
 }
 
+
+/** Token v1 (content/docs/tokens.md): màu theo vai trò + phông mà theme nên điền để trang dựng bằng khối không mất màu khi đổi theme. */
+export const REQUIRED_THEME_TOKENS = { colors: ["primary", "accent", "text", "background", "surface", "muted", "border"], fonts: ["body", "heading"] };
+
+const cssFiles = (dir) => {
+  const out = [];
+  const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    if (["node_modules", "dist", ".next"].includes(e.name)) continue;
+    const p = path.join(d, e.name);
+    if (e.isDirectory()) walk(p); else if (e.name.endsWith(".css")) out.push(p);
+  } };
+  walk(dir);
+  return out;
+};
+
+/** Theme thiếu token bắt buộc — có trong theme.json › styles hoặc CSS của theme đặt --ecx-color-<tên> / --ecx-font-family-<tên>. Chỉ cảnh báo. */
+export function themeTokens(dir, manifest) {
+  // Theme con (theme.json "parent") thừa hưởng token của theme cha: gộp styles + CSS của cả chuỗi cha
+  const chain = [{ dir, manifest }];
+  for (let cur = manifest, guard = 0; cur?.parent && guard++ < 5;) {
+    const pdir = path.join(dir, "..", cur.parent);
+    // shortcut: chỉ tìm theme cha nằm cạnh (cùng thư mục themes/); cha là theme lõi của CMS (default, ecomweb-builder…) không có ở đây → coi như đủ token
+    if (!fs.existsSync(path.join(pdir, "theme.json"))) return [];
+    cur = JSON.parse(fs.readFileSync(path.join(pdir, "theme.json"), "utf8"));
+    chain.push({ dir: pdir, manifest: cur });
+  }
+  const css = chain.flatMap((t) => cssFiles(t.dir)).map((f) => fs.readFileSync(f, "utf8")).join("\n");
+  const missing = [];
+  for (const [group, names] of Object.entries(REQUIRED_THEME_TOKENS))
+    for (const n of names) {
+      const v = group === "colors" ? `--ecx-color-${n}:` : `--ecx-font-family-${n}:`;
+      if (chain.every((t) => t.manifest.styles?.[group]?.[n] == null) && !css.includes(v)) missing.push(`${group}.${n}`);
+    }
+  return missing.length ? [`token: theme chưa điền ${missing.join(", ")} (theme.json › styles hoặc biến CSS) — khối dựng bằng tên màu / phông sẽ lấy mặc định của core khi đổi sang theme này`] : [];
+}
+
+/** Mã màu hex cố định trong CSS (ngoài :root và giá trị dự phòng của var()) — nên dùng var(--ecx-…) để theo theme / Thiết kế. Chỉ cảnh báo. */
+export function hardcodedColors(dir) {
+  const hits = [];
+  for (const f of cssFiles(dir)) {
+    let css = fs.readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/:root\s*\{[^}]*\}/g, "");
+    for (let prev = ""; prev !== css;) { prev = css; css = css.replace(/var\([^()]*\)/g, ""); }
+    const n = (css.match(/#[0-9a-fA-F]{3,8}\b/g) ?? []).length;
+    if (n) hits.push(`${path.relative(dir, f)} (${n})`);
+  }
+  return hits.length ? [`màu cố định: ${hits.slice(0, 5).join(", ")}${hits.length > 5 ? ` (+${hits.length - 5} file)` : ""} — nên dùng var(--ecx-color-…) (xem token v1 của core)`] : [];
+}

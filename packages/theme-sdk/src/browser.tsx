@@ -142,3 +142,67 @@ export function useT(): Translator {
     return t;
   }, [ctx]);
 }
+
+// ---------------------------------------------------------------------------
+// Chỗ cắm cho plugin (core ≥ 1.29): nạp script theo nhu cầu, khối sẵn sàng phía trình duyệt
+// ---------------------------------------------------------------------------
+
+/** Nạp một script của plugin đúng một lần cho cả phiên (thẻ <script> do React chèn khi chuyển trang bằng Link không tự chạy). */
+export function AssetScript({ src }: { src: string }) {
+  useEffect(() => {
+    if ([...document.scripts].some((s) => s.dataset.ecxAsset === src)) return;
+    const s = document.createElement("script");
+    s.src = src; s.async = true; s.dataset.ecxAsset = src;
+    document.head.append(s);
+  }, [src]);
+  return null;
+}
+
+export type BlockReadyFn = (el: HTMLElement, attrs: Record<string, unknown>) => void | (() => void);
+const readyFns = new Set<{ type: string; fn: BlockReadyFn }>();
+const applied = new WeakMap<HTMLElement, Map<BlockReadyFn, (() => void) | void>>();
+let readyObserver: MutationObserver | null = null;
+
+const readyEls = (root: ParentNode): HTMLElement[] => [
+  ...((root as HTMLElement).dataset?.ecxReady ? [root as HTMLElement] : []),
+  ...root.querySelectorAll<HTMLElement>("[data-ecx-ready]"),
+];
+function attach(el: HTMLElement) {
+  const type = el.dataset.ecxReady!;
+  let attrs: Record<string, unknown> = {};
+  try { attrs = JSON.parse(el.dataset.ecxAttrs || "{}"); } catch { /* thuộc tính hỏng: gọi với {} */ }
+  const done = applied.get(el) ?? new Map();
+  applied.set(el, done);
+  for (const r of readyFns) {
+    if ((r.type !== "*" && r.type !== type) || done.has(r.fn)) continue;
+    try { done.set(r.fn, r.fn(el, attrs)); } catch (e) { console.warn("[cms] onBlockReady", type, e); done.set(r.fn, undefined); }
+  }
+}
+function detach(el: HTMLElement) {
+  applied.get(el)?.forEach((cleanup) => { try { cleanup?.(); } catch { /* bỏ qua */ } });
+  applied.delete(el);
+}
+
+/**
+ * Gọi `fn(el, attrs)` cho mỗi khối loại `type` ("*" = mọi khối mà website gắn dấu) đang có / sẽ xuất hiện trên trang (kể cả sau
+ * khi chuyển trang bằng Link); hàm dọn trả về được gọi khi khối rời trang. Website chỉ gắn dấu cho loại khối plugin khai ở
+ * `definePlugin({ readyBlocks })` — `attrs` gồm các thuộc tính liệt kê ở đó. Trả hàm huỷ đăng ký.
+ *   onBlockReady("image", (img) => { const z = startZoom(img); return () => z.stop(); });
+ */
+export function onBlockReady(type: string, fn: BlockReadyFn): () => void {
+  const entry = { type, fn };
+  readyFns.add(entry);
+  if (typeof document === "undefined") return () => { readyFns.delete(entry); };
+  readyEls(document).forEach(attach);
+  readyObserver ??= new MutationObserver((ms) => {
+    for (const m of ms) {
+      m.removedNodes.forEach((n) => { if (n.nodeType === 1) readyEls(n as Element).forEach((el) => { if (!el.isConnected) detach(el); }); });
+      m.addedNodes.forEach((n) => { if (n.nodeType === 1) readyEls(n as Element).forEach(attach); });
+    }
+  });
+  readyObserver.observe(document.body, { childList: true, subtree: true });
+  return () => {
+    readyFns.delete(entry);
+    readyEls(document).forEach((el) => { const c = applied.get(el)?.get(fn); try { c?.(); } catch { /* bỏ qua */ } applied.get(el)?.delete(fn); });
+  };
+}

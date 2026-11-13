@@ -9,16 +9,20 @@ import { cx, formatDate } from "./utils";
 import type { Comment, CommentPage } from "./types";
 import type { AnchorHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { createFetchKit, isFetchKitError } from "next-fetch-kit";
+import { emit } from "./browser";
+import { CONSENT_META, CONSENT_PREF, decideConsent, parseConsent, serializeConsent, type ConsentCategory } from "./consent";
 
-export { pluginClient, PluginApiError, emit, on, useEvent, TranslationsProvider, useT, type PluginClient, type PluginRequestOptions } from "./browser";
+export { pluginClient, PluginApiError, emit, on, useEvent, TranslationsProvider, useT, onBlockReady, type BlockReadyFn, type PluginClient, type PluginRequestOptions } from "./browser";
 
 /**
  * Bảng tên sự kiện phía trình duyệt → dữ liệu (emit / on / useEvent, core ≥ 1.20.0). Theme / plugin khai báo kiểu cho sự kiện của mình:
  *   declare module "@ecomcx/ecomweb-theme-sdk/client" { interface BrowserEvents { "shop.cart.changed": { count: number } } }
  * Tên nên có tiền tố slug plugin (như hook backend).
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface BrowserEvents {}
+export interface BrowserEvents {
+  /** Khách vừa đổi lựa chọn cookie (setConsent). */
+  "consent.changed": { categories: ConsentCategory[] };
+}
 
 // ---------------------------------------------------------------------------
 // Cô lập lỗi của plugin/theme: phần nào ném lỗi khi hiển thị thì ẩn phần đó, trang vẫn hiện bình thường
@@ -113,6 +117,31 @@ export function SearchFormClient({ action, defaultValue, placeholder, label, but
 export function setPreference(key: string, value: string | null, maxAgeDays = 365) {
   if (!/^[a-z0-9-]{1,32}$/.test(key) || (value !== null && !/^[A-Za-z0-9_-]{0,64}$/.test(value))) throw new Error("Tuỳ chọn không hợp lệ");
   document.cookie = `cms-pref-${key}=${value ?? ""}; path=/; max-age=${value === null ? 0 : maxAgeDays * 86400}; samesite=lax`;
+}
+
+/** Lựa chọn cookie của khách (xem consent.ts); undefined = chưa trả lời. "functional" luôn có. Chỉ chạy ở trình duyệt. */
+export function getConsent(): ConsentCategory[] | undefined {
+  if (typeof document === "undefined") return undefined;
+  const raw = document.cookie.split("; ").find((c) => c.startsWith(`cms-pref-${CONSENT_PREF}=`))?.split("=")[1];
+  const choice = parseConsent(raw);
+  return choice && ["functional", ...choice];
+}
+
+/**
+ * Khách đã cho phép nhóm cookie này chưa (gọi trong useEffect / handler — không gọi lúc render để HTML giống nhau cho mọi khách).
+ * Chưa chọn: theo <meta name="cms-consent" content="optin"> của plugin banner; không có banner → true.
+ */
+export function hasConsent(category: ConsentCategory): boolean {
+  if (typeof document === "undefined") return false;
+  const optIn = document.querySelector<HTMLMetaElement>(`meta[name="${CONSENT_META}"]`)?.content === "optin";
+  const choice = getConsent();
+  return decideConsent(category, choice, !optIn);
+}
+
+/** Plugin banner ghi lựa chọn của khách rồi phát "consent.changed" (cả tab khác) để bên hỏi nạp / báo lại script ngay. */
+export function setConsent(categories: readonly ConsentCategory[]) {
+  setPreference(CONSENT_PREF, serializeConsent(categories));
+  emit("consent.changed", { categories: getConsent() ?? ["functional"] }, { crossTab: true });
 }
 
 /** Client phía trình duyệt: gọi các route proxy /api/cms/* của frontend. */
@@ -377,8 +406,10 @@ export function LightboxClient({ src, alt, children }: { src: string; alt: strin
  * Khối form cơ bản của lõi (1.39): các ô đã vẽ sẵn ở máy chủ (children), phần này gửi bài qua /api/cms/forms, báo lỗi đúng ô (422),
  * hiện lời cảm ơn. Chống spam: ô bẫy ẩn (_hp) + thời gian điền (máy chủ kiểm), máy chủ còn giới hạn theo IP.
  */
-export function FormBlockClient({ formId, source, successMessage, labels, button, className, children }: {
+export function FormBlockClient({ formId, source, successMessage, labels, button, className, children, fields: extraUi }: {
   formId: string; source: string; successMessage?: string; labels: { submit: string; sending: string; error: string };
+  /** Ô thêm của plugin (captcha…): <Slot name="form.fields" />. Ô name="extra.*" gửi kèm trong "extra" (hook form.submitting). */
+  fields?: ReactNode;
   /** Vỏ nút gửi = nút "primary" của nội dung (cùng màu / bo góc với nút của theme). */
   button?: { className?: string; style?: CSSProperties }; className?: string; children?: ReactNode;
 }) {
@@ -409,7 +440,7 @@ export function FormBlockClient({ formId, source, successMessage, labels, button
     setState({ status: "sending" }); showErrors(form, {});
     try {
       const res = await fetch("/api/cms/forms", { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ formId, source, fields, hp: String(data.get("_hp") ?? ""), ms: Date.now() - started.current, page: location.pathname }) });
+        body: JSON.stringify({ formId, source, fields, hp: String(data.get("_hp") ?? ""), ms: Date.now() - started.current, page: location.pathname, extra: extraFields(data) }) });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) { showErrors(form, json.errors ?? {}); setState({ status: "error", message: json.title ?? labels.error }); return; }
       form.reset();
@@ -421,6 +452,7 @@ export function FormBlockClient({ formId, source, successMessage, labels, button
   return (
     <form className={cx("ecx-form-blocks", className)} onSubmit={submit} noValidate data-form={formId}>
       {children}
+      {extraUi}
       <p className="ecx-form-hp" aria-hidden="true"><label>Website<input type="text" name="_hp" tabIndex={-1} autoComplete="off" /></label></p>
       {state.status === "error" && <p className="ecx-form-status is-error" role="alert">{state.message}</p>}
       <div className="ecx-form-actions">

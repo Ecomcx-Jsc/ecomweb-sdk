@@ -1,11 +1,14 @@
 import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { ICON_PATHS } from "./icons";
-import { DYNAMIC_NODES, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
-import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site } from "./types";
+import { DYNAMIC_NODES, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site, BlockAsset } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
-import { CountdownClient, FormBlockClient, LightboxClient, TabsClient } from "./client";
+import { CountdownClient, FormBlockClient, LightboxClient, Link, TabsClient } from "./client";
+import { AssetScript } from "./browser";
 import { getT } from "./i18n";
+import { Slot } from "./components";
+import { getSlotItems } from "./runtime";
 
 /**
  * Vẽ nội dung (định dạng của CMS — @ecomcx/ecomweb-content) thành React, không phụ thuộc trình soạn.
@@ -42,6 +45,14 @@ export interface RenderContext {
   pattern?(ref: number): Promise<ContentDoc | null>;
   /** Plugin thay vùng (definePlugin → regions): nhận bản template part đã vẽ, trả bản thay thế. Không có = giữ nguyên. */
   region?(name: string, fallback: ReactNode): Promise<ReactNode>;
+  /** Ô điều khiển khai CSS của plugin (definePlugin → blockControls): class `ecx-c-…` + CSS gom chung với kiểu dáng khối. */
+  controls?: readonly BlockControls[];
+  /** Khối plugin nhận ở trình duyệt (definePlugin → readyBlocks, onBlockReady): loại khối / "*" → thuộc tính đưa vào data-ecx-attrs. */
+  ready?: Readonly<Record<string, readonly string[]>>;
+  /** Script / stylesheet nạp theo nhu cầu (definePlugin → assets): chỉ in khi nội dung có khối / class tương ứng. */
+  assets?: readonly BlockAsset[];
+  /** (nội bộ) loại khối + class đã vẽ trong lần renderContent ngoài cùng — chọn asset. */
+  used?: { types: Set<string>; classes: Set<string> };
   /** CSS kiểu dáng khối (attrs.style) gom theo class — renderContent ngoài cùng tạo và xuất thành một thẻ <style>. */
   styles?: Map<string, string>;
   /** Đang vẽ bên trong nhóm nút (`buttons`): nút không bọc thêm đoạn văn. */
@@ -127,7 +138,9 @@ function alignStyle(attrs?: Record<string, any>): CSSProperties | undefined {
 /** Vẽ khối theo vỏ markup dùng chung với trình soạn (@ecomcx/ecomweb-content › blockShell): thẻ / class / style cùng một nguồn. */
 function shelled(type: string, a: Record<string, any>, key: string, children: ReactNode, extra?: Record<string, unknown>, parent?: { type: string; attrs?: Record<string, any> }): ReactNode {
   const sh = blockShell(type, a, parent)!;
-  return createElement(sh.tag, { key, className: sh.className, ...extra, style: sh.style, ...sh.attrs }, children);
+  // Nút / khối có link: Link của SDK (link nội bộ chuyển trang không tải lại; link ngoài, tab mới, file vẫn là <a>)
+  const tag = (sh.tag === "a" && typeof extra?.href === "string" ? Link : sh.tag) as string;
+  return createElement(tag, { key, className: sh.className, ...extra, style: sh.style, ...sh.attrs }, children);
 }
 
 
@@ -154,7 +167,8 @@ function renderMarks(text: ReactNode, marks: Node["marks"], key: string, ctx?: R
       case "textStyle": out = m.attrs?.color ? <span key={k} style={{ color: m.attrs.color }}>{out}</span> : out; break;
       case "link": {
         const target = m.attrs?.target;
-        out = <a key={k} href={safeUrl(m.attrs?.href)} target={target ?? undefined} rel={linkRel(m.attrs?.rel, target)}>{out}</a>;
+        const href = safeUrl(m.attrs?.href);
+        out = href ? <Link key={k} href={href} target={target ?? undefined} rel={linkRel(m.attrs?.rel, target)}>{out}</Link> : <a key={k}>{out}</a>;
         break;
       }
     }
@@ -186,12 +200,13 @@ function overridden(style: BlockStyle): string[] {
  * Gắn kiểu dáng (class `ecx-s-…`), biến thể (`ecx-is-…`), class riêng và neo (id) của khối vào phần tử đã vẽ
  * (không có phần tử bọc ngoài → thêm div). Giá trị đã được normalizeContent kiểm.
  */
-function decorate(el: ReactNode, a: Record<string, any>, key: string, ctx: RenderContext, type: string): ReactNode {
+function decorate(el: ReactNode, a: Record<string, any>, key: string, ctx: RenderContext, type: string, ctrl?: { cls: string; css: string } | null, data?: Record<string, string>): ReactNode {
   if (el == null || el === false) return el;
   const style = a.style && typeof a.style === "object" ? (a.style as BlockStyle) : null;
   const cls = style ? styleClass(style) : null;
   if (style && cls && ctx.styles && !ctx.styles.has(cls)) ctx.styles.set(cls, styleCss(style, cls));
-  const extra = cx(cls, motionClasses(style), widthClass(type, a), a.blockStyle && `ecx-is-${a.blockStyle}`, a.className);
+  if (ctrl && ctx.styles && !ctx.styles.has(ctrl.cls)) ctx.styles.set(ctrl.cls, ctrl.css);
+  const extra = cx(cls, ctrl?.cls, motionClasses(style), widthClass(type, a), a.blockStyle && `ecx-is-${a.blockStyle}`, a.className);
   if (isValidElement(el) && el.type !== Fragment && typeof el.type === "string") {
     const e = el as ReactElement<{ className?: string; style?: CSSProperties; id?: string }>;
     let inline = e.props.style;
@@ -199,9 +214,9 @@ function decorate(el: ReactNode, a: Record<string, any>, key: string, ctx: Rende
       const drop = new Set(overridden(style));
       inline = Object.fromEntries(Object.entries(inline).filter(([k]) => !drop.has(k))) as CSSProperties;
     }
-    return cloneElement(e, { className: cx(e.props.className, extra) || undefined, style: inline, id: a.anchor ?? e.props.id });
+    return cloneElement(e, { className: cx(e.props.className, extra) || undefined, style: inline, id: a.anchor ?? e.props.id, ...data });
   }
-  return <div key={key} className={extra || undefined} id={a.anchor}>{el}</div>;
+  return <div key={key} className={extra || undefined} id={a.anchor} {...data}>{el}</div>;
 }
 
 /** Thuộc tính gắn được của khối lõi (ngoài danh sách bị bỏ qua). */
@@ -234,7 +249,11 @@ async function renderNode(node: Node, key: string, ctx: RenderContext): Promise<
   let el = await renderNodeInner(node, key, ctx);
   if (ctx.filterBlock && node.type !== "text" && node.type !== "doc") el = await ctx.filterBlock(node, el);
   const a = node.attrs;
-  const out = a && (a.style || a.blockStyle || a.className || a.anchor || widthClass(node.type, a)) ? decorate(el, a, key, ctx, node.type) : el;
+  if (ctx.used && node.type !== "text") { ctx.used.types.add(node.type); if (typeof a?.className === "string") for (const c of a.className.split(/\s+/)) ctx.used.classes.add(c); }
+  const ctrl = ctx.controls?.length && node.type !== "text" ? controlsCss(ctx.controls, node.type, a ?? {}) : null;
+  const pick = ctx.ready && node.type !== "text" ? ctx.ready[node.type] ?? ctx.ready["*"] : undefined;
+  const data = pick ? { "data-ecx-ready": node.type, "data-ecx-attrs": JSON.stringify(Object.fromEntries(pick.filter((k) => a?.[k] !== undefined).map((k) => [k, a![k]]))) } : undefined;
+  const out = (a && (a.style || a.blockStyle || a.className || a.anchor || widthClass(node.type, a))) || ctrl || data ? decorate(el, a ?? {}, key, ctx, node.type, ctrl, data) : el;
   return ctx.markBlocks && ctx.source && ctx.pathRoot != null && key.startsWith(ctx.pathRoot + "-") && !UNMARKED.has(node.type)
     ? markBlock(out, ctx.source, key.slice(ctx.pathRoot.length + 1), key)
     : out;
@@ -309,7 +328,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
         alt={a.alt ?? ""} title={a.title ?? undefined} width={a.width ?? undefined} height={a.height ?? undefined} loading="lazy" decoding="async" />;
       const bare = a.webpSrcset ? <picture><source type="image/webp" srcSet={a.webpSrcset} sizes={sizes} />{img}</picture> : img;
       // next: ảnh có liên kết (href qua safeUrl; mở tab mới thì noopener)
-      const pic = a.lightbox === true && !a.href ? <LightboxClient src={safeUrl(a.src, "")} alt={a.alt ?? ""}>{bare}</LightboxClient> : a.href ? <a href={safeUrl(a.href)} target={a.linkTarget === "_blank" ? "_blank" : undefined} rel={a.linkTarget === "_blank" ? "noopener noreferrer" : undefined}>{bare}</a> : bare;
+      const pic = a.lightbox === true && !a.href ? <LightboxClient src={safeUrl(a.src, "")} alt={a.alt ?? ""}>{bare}</LightboxClient> : a.href ? <Link href={safeUrl(a.href)} target={a.linkTarget === "_blank" ? "_blank" : undefined} rel={a.linkTarget === "_blank" ? "noopener noreferrer" : undefined}>{bare}</Link> : bare;
       const cls = blockShell("image", a)!.className;
       return a.caption || a.align ? <figure key={key} className={cls}>{pic}{a.caption && <figcaption>{a.caption}</figcaption>}</figure> : <Fragment key={key}>{pic}</Fragment>;
     }
@@ -420,6 +439,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const inner = await Promise.all((node.content ?? []).map((c, i) => renderNode(c, `${key}-${i}`, { ...ctx, form: formId })));
       return (
         <FormBlockClient key={key} formId={formId} source={ctx.source} successMessage={a.successMessage ? String(a.successMessage) : undefined}
+          fields={(await getSlotItems("form.fields")).length ? <Slot name="form.fields" props={{ form: `core:${ctx.source}/${formId}`, settings: a.ext && typeof a.ext === "object" ? a.ext : {} }} /> : undefined}
           button={{ className: blockShell("button", { variant: "primary" })?.className, style: blockShell("button", { variant: "primary" })?.style as CSSProperties }}
           labels={{ submit: a.submitText ? String(a.submitText) : t("form.submit"), sending: t("form.sending"), error: t("form.error") }}>
           {inner}
@@ -581,6 +601,16 @@ async function renderBlock(block: Block, key: string, ctx: RenderContext): Promi
   }
 }
 
+/** Asset của plugin có điều kiện khớp nội dung vừa vẽ: stylesheet (React gộp + đưa lên <head>) và script (nạp một lần, cả khi chuyển trang bằng Link). */
+function assetsFor(list: readonly BlockAsset[], used: { types: Set<string>; classes: Set<string> }): Array<ReactElement | null> {
+  const hit = (w: BlockAsset["when"]) => !!w.blocks?.some((b) => used.types.has(b)) || (!!w.className && [...used.classes].some((c) => c.startsWith(w.className!)));
+  return list.filter((x) => hit(x.when)).map((x, i) => {
+    const src = safeUrl(x.src, "");
+    if (!src) return null;
+    return x.kind === "style" ? <link key={`ecx-asset-${i}`} rel="stylesheet" href={src} precedence="ecx-asset" /> : <AssetScript key={`ecx-asset-${i}`} src={src} />;
+  });
+}
+
 function wrap(ctx: RenderContext, name: string, key: string, el: ReactNode): ReactNode {
   return ctx.boundary ? ctx.boundary(name, key, el) : <Fragment key={key}>{el}</Fragment>;
 }
@@ -596,10 +626,11 @@ export async function renderContent(content: ContentDoc | unknown, ctx: RenderCo
   const own = !ctx.styles;
   if (own) {
     const notes = collectFootnotes(blocks);
-    ctx = { ...ctx, styles: new Map(), headings: ctx.headings ?? collectHeadings(blocks), footnotes: ctx.footnotes ?? (notes.length ? { notes, prefix: String(ctx.post?.id ?? "x") } : undefined) };
+    ctx = { ...ctx, styles: new Map(), used: ctx.assets?.length ? { types: new Set(), classes: new Set() } : undefined, headings: ctx.headings ?? collectHeadings(blocks), footnotes: ctx.footnotes ?? (notes.length ? { notes, prefix: String(ctx.post?.id ?? "x") } : undefined) };
   }
   const out = await Promise.all(blocks.map((b, i) => renderBlock(b, b.id ?? `b${i}`, ctx)));
   if (own && ctx.styles!.size) out.unshift(<style key="ecx-styles" data-ecx-styles="">{[...ctx.styles!.values()].join("")}</style>);
+  if (own && ctx.used) out.push(...assetsFor(ctx.assets!, ctx.used));
   return out;
 }
 

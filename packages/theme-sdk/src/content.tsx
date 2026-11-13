@@ -92,6 +92,10 @@ export async function contentContext(site: Site, post?: Post | null, data?: Reso
   const hasBlockFilter = extensions.some((d) => (d.filters as Record<string, unknown> | undefined)?.["block.render"]);
   return {
     site, post, data, blocks, markBlocks,
+    controls: extensions.flatMap((d) => d.blockControls ?? []),
+    // Nhiều plugin cùng khai một loại khối → gộp danh sách thuộc tính
+    ready: extensions.some((d) => d.readyBlocks) ? extensions.reduce<Record<string, string[]>>((m, d) => { for (const [k, v] of Object.entries(d.readyBlocks ?? {})) m[k] = [...new Set([...(m[k] ?? []), ...v])]; return m; }, {}) : undefined,
+    assets: extensions.flatMap((d) => d.assets ?? []),
     filterBlock: hasBlockFilter ? (node, el) => applyFilters("block.render", el, { node, site, post }, site) : undefined,
     resolve: { shortcode: (name) => findShortcode(name, site), block: (type) => findBlock(type, site) },
     labels: { download: t("file.download"), toc: t("toc.title") },

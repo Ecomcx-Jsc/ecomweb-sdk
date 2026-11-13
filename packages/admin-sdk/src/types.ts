@@ -187,6 +187,15 @@ export interface TableSettings {
 }
 export interface AskOptions { title?: ReactNode; confirmLabel?: string; cancelLabel?: string; danger?: boolean }
 
+/**
+ * Slot admin của plugin (registerSlot). Hợp đồng chung cho form (CMS ≥ 1.29), plugin không cần biết nhau:
+ * - "form.settings": plugin có form (ecx-contact-form…) đặt `<Slot name="form.settings" props={{ form, value, set }} />` trong trang sửa form;
+ *   `form` = định danh ("ecx-contact-form:5"), `value` = túi cài đặt mở rộng (JsonObject), `set(next)` ghi lại cả túi. Plugin khác
+ *   (captcha, chống spam, CRM) chèn ô vào đây và chỉ ghi khoá riêng theo slug: `set({ ...value, "ecx-captcha": { mode: "on" } })`.
+ *   Website: slot "form.fields" (props { form, settings }); backend: hook "form.submitting" (FormSubmittingEvent).
+ */
+export interface FormSettingsSlotProps { form: string; value: Record<string, unknown>; set(next: Record<string, unknown>): void }
+
 export interface AdminSlotItem {
   id?: string;
   slot: string;
@@ -523,6 +532,12 @@ export interface CmsAdmin {
     /** Hiệu ứng chuyển động thêm vào danh sách chọn ở tab Kiểu dáng › Chuyển động của mọi khối (CMS có mục Chuyển động trong trình soạn, kèm `@ecomcx/ecomweb-content` ≥ 1.16). */
     registerAnimation?(effect: MotionEffect): void;
     unregisterAnimation?(id: string): void;
+    /** (CMS ≥ 1.29) Mục trong menu ⋮ của thanh công cụ khối. */
+    registerBlockAction?(action: BlockAction): void;
+    /** (CMS ≥ 1.29) Gọi khi khối có mặt / đổi thuộc tính trong khung soạn; trả hàm dọn. */
+    onBlockReady?(type: string, fn: (el: HTMLElement, attrs: Record<string, unknown>) => void | (() => void)): () => void;
+    /** (CMS ≥ 1.29) Script / stylesheet nạp vào khung soạn khi nội dung có khối / class khớp. */
+    registerBlockAssets?(assets: Array<{ kind: "script" | "style"; src: string; when: { blocks?: string[]; className?: string } }>): void;
     /** Nguồn gắn dữ liệu cho khối (CMS có trình soạn v2 — @ecomcx/ecomweb-editor ≥ 1.19). */
     registerBindingSource?(source: EditorBindingSource): void;
   };
@@ -532,6 +547,11 @@ export interface CmsAdmin {
 export interface RegisterBlockOptions {
   icon?: any;
   edit?: import("react").ComponentType<{ attrs: Record<string, any>; setAttrs(attrs: Record<string, unknown>): void; selected: boolean; children?: import("react").ReactNode }>;
+  /**
+   * (CMS ≥ 1.29) Nhóm của tab Kiểu dáng khối hiện: "typography" "color" "background" "spacing" "border" "effects" "hover" "motion" "visibility".
+   * Không khai → khối chứa có đủ, khối khác có mọi nhóm trừ ảnh nền. [] = không có tab Kiểu dáng.
+   */
+  styleGroups?: Array<"typography" | "color" | "background" | "spacing" | "border" | "effects" | "hover" | "motion" | "visibility">;
 }
 
 /** Hiệu ứng khi cuộn tới do plugin thêm: lưu vào `style.motion.in`; website dùng `@keyframes ecx-in-<id>` (plugin tự nạp CSS cho website). */
@@ -566,13 +586,31 @@ export interface BlockPanel {
   id: string;
   /** Tiêu đề mục ("%khoá%" dịch theo locales của plugin). */
   title: string;
-  /** Loại khối áp dụng; bỏ trống = mọi khối. */
-  blocks?: string[];
+  /** Loại khối áp dụng; bỏ trống hoặc "*" = mọi khối. */
+  blocks?: string[] | "*";
+  /** (CMS ≥ 1.29) Tab đặt panel: "block" (mặc định) hoặc "style" (Kiểu dáng). */
+  tab?: "block" | "style";
   /** Thứ tự (nhỏ đứng trước, mặc định 10). */
   order?: number;
-  /** Thuộc tính thêm vào khối, vd { lazy: { default: true } } — cần khai báo để trình soạn lưu được (bắt buộc có `blocks`). */
-  attributes?: Record<string, { default?: unknown }>;
-  component: import("react").ComponentType<BlockPanelProps>;
+  /**
+   * Thuộc tính thêm vào khối, vd { lazy: { default: true } } — cần khai báo để trình soạn lưu được.
+   * (CMS ≥ 1.29) Có `type` + `css` = ô điều khiển khai CSS (defineBlockControls của @ecomcx/ecomweb-content): trình soạn tự vẽ ô
+   * và sinh CSS theo class băm của khối, website sinh y hệt khi plugin khai cùng object ở definePlugin({ blockControls }).
+   */
+  attributes?: Record<string, { default?: unknown; label?: string } | (import("@ecomcx/ecomweb-content").ControlSpec & { label?: string })>;
+  /** Giao diện riêng; (CMS ≥ 1.29) bỏ trống = trình soạn tự vẽ ô cho các thuộc tính có `type`. */
+  component?: import("react").ComponentType<BlockPanelProps>;
+}
+
+/** Mục trong menu ⋮ của thanh công cụ khối (CMS ≥ 1.29). */
+export interface BlockAction {
+  id: string;
+  /** Nhãn ("%khoá%" dịch theo locales của plugin). */
+  label: string;
+  icon?: import("react").ComponentType<{ className?: string }>;
+  /** Loại khối áp dụng (mọi khối đang chọn phải thuộc danh sách); bỏ trống / "*" = mọi khối. */
+  blocks?: string[] | "*";
+  run(ctx: { blocks: Array<{ id: string; type: string; attrs: Record<string, any> }>; setAttrs(attrs: Record<string, unknown>): void }): void | Promise<void>;
 }
 
 /** Chỗ dùng AI (skill gắn theo slot). Plugin dùng thêm slot riêng dạng "<slug>.<tên>". */

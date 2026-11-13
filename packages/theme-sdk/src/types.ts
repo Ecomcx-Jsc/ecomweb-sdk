@@ -255,7 +255,9 @@ export type PluginRoute = (req: Request, ctx: { site: Site; path: string }) => R
  * Ô thêm có name="extra.*" được gửi kèm trong "extra" — backend đọc ở action auth.attempt / filter comment.data.
  */
 export type CoreSlotName = "head" | "body.start" | "body.end" | "before.content" | "after.content" | "footer"
-  | "comments.before" | "comments.after" | "comment_form.fields" | "auth.login.fields" | "auth.register.fields" | "auth.forgot_password.fields";
+  | "comments.before" | "comments.after" | "comment_form.fields" | "auth.login.fields" | "auth.register.fields" | "auth.forgot_password.fields"
+  /** Ô thêm trong mọi form (core + plugin theo hợp đồng chung, CMS ≥ 1.29): props { form, settings }; ô name="extra.*" → hook form.submitting. */
+  | "form.fields";
 export type SlotName = CoreSlotName | (string & {});
 
 /**
@@ -296,8 +298,21 @@ export interface FilterMap {
   "breadcrumbs.schema": (schema: Record<string, unknown> | null, ctx: { site: Site; items: Array<{ name: string; href?: string }> }) => Record<string, unknown> | null | Promise<Record<string, unknown> | null>;
   /** Thêm/bớt class của thẻ <body> (vd "logged-in", "has-promo-bar") */
   "body.class": (classes: string[], ctx: { site: Site }) => string[] | Promise<string[]>;
+  /**
+   * Consent API: khách CHƯA chọn thì nhóm cookie này có được phép không (mặc định true). Plugin banner theo luật optin (EU,
+   * Nghị định 13) trả false (và in <meta name="cms-consent" content="optin"> cho trình duyệt). Xem consentDefault.
+   */
+  "consent.default": (allowed: boolean, ctx: { category: import("./consent").ConsentCategory }) => boolean | Promise<boolean>;
   /** Cho phép các filter tùy biến bất kỳ của plugin/theme */
   [customFilter: string]: ((val: any, ctx?: any) => any) | undefined;
+}
+
+/** Asset nạp theo nhu cầu: `src` trong website ("/extensions/…") hoặc https. */
+export interface BlockAsset {
+  kind: "script" | "style";
+  src: string;
+  /** Nạp khi nội dung có một trong các khối, hoặc khối có class bắt đầu bằng tiền tố này (vd "mx-"). */
+  when: { blocks?: string[]; className?: string };
 }
 
 export interface PluginDefinition {
@@ -320,6 +335,18 @@ export interface PluginDefinition {
   blocks?: Record<string, ComponentType<BlockProps>>;
   /** Định nghĩa khối (defineBlock, file dùng chung với phần admin) — website chuẩn hoá thuộc tính + nâng phiên bản trước khi vẽ. */
   blockTypes?: import("@ecomcx/ecomweb-content").BlockDefinition[];
+  /**
+   * Ô điều khiển khai CSS (core ≥ 1.29, @ecomcx/ecomweb-content defineBlockControls — cùng object đăng ký ở admin bằng registerBlockPanel):
+   * website sinh CSS theo class băm của khối, giống hệt khung soạn. Giá trị không hợp lệ bị bỏ.
+   */
+  blockControls?: import("@ecomcx/ecomweb-content").BlockControls[];
+  /**
+   * Khối muốn nhận ở trình duyệt bằng onBlockReady (core ≥ 1.29): { "image": ["acmeZoom"], "*": [] } — website chỉ gắn
+   * data-ecx-ready / data-ecx-attrs (các thuộc tính liệt kê) cho các khối này, không phình HTML khi không plugin nào cần.
+   */
+  readyBlocks?: Record<string, string[]>;
+  /** Script / stylesheet nạp theo nhu cầu (core ≥ 1.29): chỉ in khi nội dung có khối / class tương ứng. */
+  assets?: BlockAsset[];
   /**
    * Nguồn gắn dữ liệu (attrs.bindings của khối, @ecomcx/ecomweb-content 1.15): { "shop/product": async ({ id, field }, { post }) => … }.
    * Khối lõi (đoạn văn, tiêu đề, ảnh, nút) hiện giá trị trả về; trả null/undefined → giữ nội dung gõ tay.
