@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { ExtensionBoundary, Link, PostPasswordForm } from "./client";
-import { applyFilters, findBlock, findRegion, findShortcode, getActiveExtensions } from "./runtime";
+import { applyFilters, findBlock, findRegion, findShortcode, getActiveExtensions, getActiveTheme } from "./runtime";
 import type { Block, Post, PostContentDoc, ResolveResult, Site } from "./types";
 import { getPattern, getSite, getTemplates } from "./api";
 import { CORE_BINDING_SOURCES } from "./bindings";
@@ -110,4 +110,15 @@ export async function contentContext(site: Site, post?: Post | null, data?: Reso
       return fn ? fn(args, { site, post: c.post ?? post, data: c.data ?? data }) : undefined;
     },
   };
+}
+
+/**
+ * Header / footer của theme dựng bằng khối cho template có sẵn của SDK (full-width, landing): theme khối không có header/footer
+ * trong layout mà ở template part trong từng template khối → template có sẵn phải tự vẽ part "header" / "footer". Theme thường: null.
+ */
+export async function blockThemeParts(site: Site, data?: ResolveResult): Promise<[ReactNode, ReactNode]> {
+  if ((await getActiveTheme(site)).chain[0]?.manifest.editing !== "blocks") return [null, null];
+  const ctx = await contentContext(site, data?.post, data);
+  const part = async (slug: string) => <>{await renderContent({ type: "doc", content: [{ type: "templatePart", attrs: { slug, tagName: slug } }] }, ctx)}</>;
+  return [await part("header"), await part("footer")];
 }
