@@ -206,3 +206,12 @@ export function onBlockReady(type: string, fn: BlockReadyFn): () => void {
     readyEls(document).forEach((el) => { const c = applied.get(el)?.get(fn); try { c?.(); } catch { /* bỏ qua */ } applied.get(el)?.delete(fn); });
   };
 }
+
+declare global {
+  interface Window {
+    /** API ổn định cho script thuần nạp bằng `assets` (không qua bundle Next) — theme-sdk 1.41 / CMS ≥ 1.30. */
+    ecx?: { onBlockReady?: typeof onBlockReady };
+  }
+}
+// Có sẵn trước khi script của `assets` chạy (AssetScript chèn script sau khi module này nạp)
+if (typeof window !== "undefined") (window.ecx ??= {}).onBlockReady ??= onBlockReady;

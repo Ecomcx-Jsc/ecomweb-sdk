@@ -92,6 +92,8 @@ export async function pack(dir, { out } = {}) {
       if (fs.existsSync(path.join(dir, "locales"))) copyFiltered(path.join(dir, "locales"), path.join(root, "locales"), (p) => p.endsWith(".json"));
       // Kỹ năng AI (skills/*.md: frontmatter name/description/slots) — core nạp theo slot, chủ site tắt được
       if (fs.existsSync(path.join(dir, "skills"))) copyFiltered(path.join(dir, "skills"), path.join(root, "skills"), (p) => p.endsWith(".md"));
+      // File tĩnh cho website (CMS ≥ 1.30): phục vụ tại /extensions/plugins/<slug>/public/… — chỉ đuôi CMS phục vụ
+      if (fs.existsSync(path.join(dir, "public"))) copyFiltered(path.join(dir, "public"), path.join(root, "public"), (p, e) => e.isDirectory() || /\.(m?js|css|png|jpe?g|svg|webp|json|map)$/i.test(p));
 
       const sources = backendSources(manifest);
       if (sources) {

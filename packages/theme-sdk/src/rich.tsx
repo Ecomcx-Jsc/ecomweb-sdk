@@ -1,10 +1,10 @@
 import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
-import { ICON_PATHS } from "./icons";
-import { DYNAMIC_NODES, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { DYNAMIC_NODES, ICON_PATHS, widgetMarkup, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site, BlockAsset } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
 import { CountdownClient, FormBlockClient, LightboxClient, Link, TabsClient } from "./client";
+import { CounterClient } from "./counter-client";
 import { AssetScript } from "./browser";
 import { getT } from "./i18n";
 import { Slot } from "./components";
@@ -219,6 +219,15 @@ function decorate(el: ReactNode, a: Record<string, any>, key: string, ctx: Rende
   return <div key={key} className={extra || undefined} id={a.anchor} {...data}>{el}</div>;
 }
 
+/** Widget lõi: cây markup chung với khung soạn (@ecomcx/ecomweb-content widgetMarkup) → React; số của Counter đếm lên trên trình duyệt. */
+function widgetEl(el: WidgetEl | string, key: string | number): ReactNode {
+  if (typeof el === "string") return el;
+  const kids = (el.children ?? []).map((c, i) => widgetEl(c, i));
+  if (el.client === "counter") return <CounterClient key={key} className={el.className} data={el.props ?? {}} text={String(el.children?.[0] ?? "")} />;
+  const props = { key, ...el.props, className: el.className, style: el.style as CSSProperties | undefined };
+  return el.tag === "a" ? <Link {...props} href={String(el.props?.href ?? "")}>{kids}</Link> : createElement(el.tag, props, ...kids);
+}
+
 /** Thuộc tính gắn được của khối lõi (ngoài danh sách bị bỏ qua). */
 const BINDABLE: Record<string, readonly string[]> = { paragraph: ["content"], heading: ["content"], image: ["src", "alt", "caption"], button: ["text", "href"] };
 const URL_ATTRS = new Set(["src", "href"]);
@@ -252,12 +261,16 @@ async function renderNode(node: Node, key: string, ctx: RenderContext): Promise<
   if (ctx.used && node.type !== "text") { ctx.used.types.add(node.type); if (typeof a?.className === "string") for (const c of a.className.split(/\s+/)) ctx.used.classes.add(c); }
   const ctrl = ctx.controls?.length && node.type !== "text" ? controlsCss(ctx.controls, node.type, a ?? {}) : null;
   const pick = ctx.ready && node.type !== "text" ? ctx.ready[node.type] ?? ctx.ready["*"] : undefined;
-  const data = pick ? { "data-ecx-ready": node.type, "data-ecx-attrs": JSON.stringify(Object.fromEntries(pick.filter((k) => a?.[k] !== undefined).map((k) => [k, a![k]]))) } : undefined;
+  // Có liệt kê thuộc tính → chỉ gắn khi khối có ít nhất một giá trị (không phình HTML mọi nhóm / bìa); [] = mọi khối loại đó
+  const given = pick?.filter((k) => !emptyAttr(a?.[k]));
+  const data = pick && (!pick.length || given!.length) ? { "data-ecx-ready": node.type, "data-ecx-attrs": JSON.stringify(Object.fromEntries(given!.map((k) => [k, a![k]]))) } : undefined;
   const out = (a && (a.style || a.blockStyle || a.className || a.anchor || widthClass(node.type, a))) || ctrl || data ? decorate(el, a ?? {}, key, ctx, node.type, ctrl, data) : el;
   return ctx.markBlocks && ctx.source && ctx.pathRoot != null && key.startsWith(ctx.pathRoot + "-") && !UNMARKED.has(node.type)
     ? markBlock(out, ctx.source, key.slice(ctx.pathRoot.length + 1), key)
     : out;
 }
+
+const emptyAttr = (v: unknown) => v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length);
 
 /** Nút không chọn riêng được trong khung soạn (hoặc bọc thêm thẻ sẽ sai cấu trúc HTML: li trong ul, ô trong bảng). */
 const UNMARKED = new Set(["text", "hardBreak", "listItem", "taskItem", "tableRow", "tableCell", "tableHeader"]);
@@ -477,6 +490,10 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
           <span className="ecx-field-error" id={`${id}-error`} aria-live="polite" />
         </div>
       );
+    }
+    case "iconBox": case "imageBox": case "iconList": case "counter": case "testimonial": case "progressBar": {
+      const tree = widgetMarkup(node.type, a);
+      return tree ? widgetEl(tree, key) : null;
     }
     case "rating": {
       const max = Math.min(10, Math.max(1, Math.round(Number(a.max) || 5)));

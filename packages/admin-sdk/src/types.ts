@@ -596,6 +596,7 @@ export interface BlockPanel {
    * Thuộc tính thêm vào khối, vd { lazy: { default: true } } — cần khai báo để trình soạn lưu được.
    * (CMS ≥ 1.29) Có `type` + `css` = ô điều khiển khai CSS (defineBlockControls của @ecomcx/ecomweb-content): trình soạn tự vẽ ô
    * và sinh CSS theo class băm của khối, website sinh y hệt khi plugin khai cùng object ở definePlugin({ blockControls }).
+   * (CMS ≥ 1.30) Thêm kiểu chỉ có ô boolean / string / url / textarea / datetime; `label` và `options: [{ value, label }]` nhận "%khoá%".
    */
   attributes?: Record<string, { default?: unknown; label?: string } | (import("@ecomcx/ecomweb-content").ControlSpec & { label?: string })>;
   /** Giao diện riêng; (CMS ≥ 1.29) bỏ trống = trình soạn tự vẽ ô cho các thuộc tính có `type`. */

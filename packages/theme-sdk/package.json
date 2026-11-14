@@ -1,6 +1,6 @@
 {
   "name": "@ecomcx/ecomweb-theme-sdk",
-  "version": "1.40.0",
+  "version": "1.41.0",
   "description": "SDK để viết theme và phần frontend của plugin cho Ecomweb",
   "type": "module",
   "main": "./src/index.ts",
@@ -15,7 +15,7 @@
     "src"
   ],
   "dependencies": {
-    "@ecomcx/ecomweb-content": "^1.22.0",
+    "@ecomcx/ecomweb-content": "^1.23.0",
     "intl-messageformat": "12.1.3"
   },
   "peerDependencies": {

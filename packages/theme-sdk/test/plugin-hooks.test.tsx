@@ -35,6 +35,9 @@ test("readyBlocks: chỉ gắn dấu khi plugin khai, chỉ các thuộc tính l
   const marked = await html(doc({ acmeRotate: 5, alt: "x" }), ctx({ ready: { image: ["acmeRotate"] } }));
   assert.match(marked, /data-ecx-ready="image"/);
   assert.match(marked, /data-ecx-attrs="\{&quot;acmeRotate&quot;:5\}"/);
+  // theme-sdk 1.41: khối không có giá trị nào trong danh sách → không gắn; danh sách rỗng → mọi khối loại đó
+  for (const v of [undefined, null, "", []]) assert.ok(!(await html(doc({ acmeRotate: v }), ctx({ ready: { image: ["acmeRotate"] } }))).includes("data-ecx-ready"), String(v));
+  assert.match(await html(doc({}), ctx({ ready: { image: [] } })), /data-ecx-ready="image" data-ecx-attrs="\{\}"/);
 });
 
 test("assets: chỉ in khi nội dung có khối / class khớp", async () => {
