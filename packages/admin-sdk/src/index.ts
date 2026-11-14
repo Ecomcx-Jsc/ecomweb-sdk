@@ -225,6 +225,12 @@ export const IconButton = ui("IconButton");
 export const AiIcon = ui("AiIcon", () => null);
 /** Xem trước và áp dụng một bộ thay đổi AI: `<ChangesetReview id={cs.id} onDone={...} />` (CMS cũ: không vẽ gì). */
 export const ChangesetReview = ui("ChangesetReview", () => null);
+/** Ô giữ chỗ trong `edit` của khối (CMS ≥ 1.31; CMS cũ: không vẽ gì): thả media, gõ chữ có gợi ý, dán link, chọn từ danh sách, "+ Thêm khối". */
+export const MediaPlaceholder = ui("MediaPlaceholder", () => null);
+export const TextPlaceholder = ui("TextPlaceholder", () => null);
+export const LinkPlaceholder = ui("LinkPlaceholder", () => null);
+export const PickPlaceholder = ui("PickPlaceholder", () => null);
+export const AddBlockButton = ui("AddBlockButton", () => null);
 export const Section = ui("Section");
 export const Tabs = ui("Tabs");
 export const MetaBoxes = ui("MetaBoxes");

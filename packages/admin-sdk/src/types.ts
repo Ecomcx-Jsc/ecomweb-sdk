@@ -425,6 +425,16 @@ export interface UiKit {
   AiIcon?: ComponentType<{ className?: string }>;
   /** Xem trước / áp dụng (một phần) / từ chối / hoàn tác một bộ thay đổi AI đề xuất (CMS có AI › Thay đổi). */
   ChangesetReview?: ComponentType<{ id: number; onDone?: () => void }>;
+  /**
+   * (CMS ≥ 1.31) Ô giữ chỗ trong `edit` của khối plugin — cùng kiểu với khối lõi; chỉ có trong khung soạn, website không vẽ gì khi ô trống.
+   * Khối không có `edit` đã tự có ô giữ chỗ cho thuộc tính media / chữ / url (`placeholder` trong defineBlock để chọn ô, đánh dấu bắt buộc).
+   */
+  MediaPlaceholder?: ComponentType<{ kind: "image" | "gallery" | "video" | "audio" | "file"; onSelect(items: Array<{ id: number | string; url: string; mimeType: string; fileName: string; alt?: string }>): void; onUrl?(url: string): void; title?: ReactNode; accept?: string; extra?: ReactNode; compact?: boolean; className?: string }>;
+  TextPlaceholder?: ComponentType<{ value: string; onChange(v: string): void; placeholder: string; multiline?: boolean; label?: string; required?: boolean; className?: string }>;
+  LinkPlaceholder?: ComponentType<{ onSubmit(url: string): void; title?: ReactNode; hint?: ReactNode; embed?: boolean; validate?(url: string): boolean; buttonText?: string; label?: string; defaultValue?: string; className?: string }>;
+  PickPlaceholder?: ComponentType<{ label: string; options: UiOption[]; value?: string | null; onChange(v: string): void; title?: ReactNode; createLabel?: string; onCreate?(): void; hint?: ReactNode; className?: string }>;
+  /** Nút "+ Thêm khối" giữa khối chứa (mở trình chèn tại chỗ). */
+  AddBlockButton?: ComponentType<{ label?: string; className?: string }>;
   Section: ComponentType<{ title: ReactNode; children: ReactNode; defaultOpen?: boolean; actions?: ReactNode }>;
   Tabs: ComponentType<{ value: string; onChange(v: string): void; items: Array<{ value: string; label: ReactNode; count?: number }> }>;
   MetaBoxes: ComponentType<MetaBoxesProps>;
