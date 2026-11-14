@@ -1,5 +1,5 @@
 import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
-import { DYNAMIC_NODES, ICON_PATHS, widgetMarkup, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { DYNAMIC_NODES, ICON_PATHS, widgetMarkup, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site, BlockAsset } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
@@ -207,7 +207,8 @@ function decorate(el: ReactNode, a: Record<string, any>, key: string, ctx: Rende
   if (style && cls && ctx.styles && !ctx.styles.has(cls)) ctx.styles.set(cls, styleCss(style, cls));
   if (ctrl && ctx.styles && !ctx.styles.has(ctrl.cls)) ctx.styles.set(ctrl.cls, ctrl.css);
   const extra = cx(cls, ctrl?.cls, motionClasses(style), widthClass(type, a), a.blockStyle && `ecx-is-${a.blockStyle}`, a.className);
-  if (isValidElement(el) && el.type !== Fragment && typeof el.type === "string") {
+  // Link của SDK in thẳng <a> (nhận className / style / id) → gắn class lên chính thẻ như khung soạn, không bọc thêm <div> (nút trong nhóm nút)
+  if (isValidElement(el) && el.type !== Fragment && (typeof el.type === "string" || el.type === Link)) {
     const e = el as ReactElement<{ className?: string; style?: CSSProperties; id?: string }>;
     let inline = e.props.style;
     if (inline && style) {
@@ -259,7 +260,8 @@ async function renderNode(node: Node, key: string, ctx: RenderContext): Promise<
   if (ctx.filterBlock && node.type !== "text" && node.type !== "doc") el = await ctx.filterBlock(node, el);
   const a = node.attrs;
   if (ctx.used && node.type !== "text") { ctx.used.types.add(node.type); if (typeof a?.className === "string") for (const c of a.className.split(/\s+/)) ctx.used.classes.add(c); }
-  const ctrl = ctx.controls?.length && node.type !== "text" ? controlsCss(ctx.controls, node.type, a ?? {}) : null;
+  // Ô Kiểu dáng của khối lõi (1.24) + của plugin — cùng controlsCss với khung soạn
+  const ctrl = node.type !== "text" && a ? controlsCss(ctx.controls?.length ? [...CORE_CONTROLS, ...ctx.controls] : CORE_CONTROLS, node.type, a) : null;
   const pick = ctx.ready && node.type !== "text" ? ctx.ready[node.type] ?? ctx.ready["*"] : undefined;
   // Có liệt kê thuộc tính → chỉ gắn khi khối có ít nhất một giá trị (không phình HTML mọi nhóm / bìa); [] = mọi khối loại đó
   const given = pick?.filter((k) => !emptyAttr(a?.[k]));
@@ -417,11 +419,11 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       return shelled("buttons", a, key, items);
     }
     case "cover": {
-      const { src, fixed, overlay, opacity } = coverParts(a);
+      const { src, fixed, overlay, imgStyle, overlayStyle } = coverParts(a);
       const url = src ? safeUrl(src, "") : "";
       return shelled("cover", a, key, <>
-        {url && !fixed && <img className="ecx-cover-img" src={url} alt={a.alt ?? ""} loading="lazy" decoding="async" />}
-        {overlay && <span className="ecx-cover-overlay" aria-hidden="true" style={{ background: overlay, opacity }} />}
+        {url && !fixed && <img className="ecx-cover-img" src={url} alt={a.alt ?? ""} loading="lazy" decoding="async" style={imgStyle as CSSProperties} />}
+        {overlay && <span className="ecx-cover-overlay" aria-hidden="true" style={overlayStyle as CSSProperties} />}
         <div className="ecx-cover-inner">{await children()}</div>
       </>, undefined);
     }
