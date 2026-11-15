@@ -290,6 +290,19 @@ test("gallery: linkTo=none bỏ liên kết, imageCrop=false giữ tỉ lệ ả
   assert.match(g2, /object-fit:cover/);
 });
 
+test("tabs 1.26: dọc, accordion trên điện thoại, icon, phụ đề, neo (neo xấu bị bỏ)", async () => {
+  const para = (t: string) => ({ type: "paragraph", content: [{ type: "text", text: t }] });
+  const out = await html({ type: "doc", content: [{ type: "tabs", attrs: { orientation: "vertical", mobileAccordion: true }, content: [
+    { type: "tab", attrs: { title: "Một", icon: "star", subtitle: "Phụ", anchor: "mot" }, content: [para("a")] },
+    { type: "tab", attrs: { title: "Hai", anchor: "x\" onclick=\"y" }, content: [para("b")] }] }] });
+  assert.match(out, /class="ecx-tabs is-vertical has-mobile-accordion"/);
+  assert.match(out, /aria-orientation="vertical"/);
+  assert.match(out, /<svg class="ecx-tab-icon"/);
+  assert.match(out, /<small class="ecx-tab-subtitle">Phụ<\/small>/);
+  assert.match(out, /role="tabpanel" id="mot"/);
+  assert.doesNotMatch(out, /onclick/);
+});
+
 test("tabs: mọi panel có trong HTML (SEO), tab đầu hiện; carousel snap; shortcode chỉ chạy tên hợp lệ; lightbox bọc ảnh bằng nút", async () => {
   const para = (t: string) => ({ type: "paragraph", content: [{ type: "text", text: t }] });
   const tabs = await html({ type: "doc", content: [{ type: "tabs", content: [{ type: "tab", attrs: { title: "Một" }, content: [para("nội dung 1")] }, { type: "tab", attrs: { title: "Hai" }, content: [para("nội dung 2")] }] }] });

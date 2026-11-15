@@ -356,26 +356,43 @@ export function NavToggle({ label, children, className = "ecx-navigation-toggle"
   return <details ref={ref} className={className}><summary aria-label={label}>☰</summary>{children}</details>;
 }
 
-/** Khối tabs: các panel đã vẽ sẵn trên máy chủ (nội dung vẫn có trong HTML cho SEO); chỉ đổi panel đang hiện. */
-export function TabsClient({ titles, panels, initial = 0 }: { titles: string[]; panels: ReactNode[]; initial?: number }) {
+/**
+ * Khối tabs: các panel đã vẽ sẵn trên máy chủ (nội dung vẫn có trong HTML cho SEO); chỉ đổi panel đang hiện.
+ * Tab dọc (`vertical`), thành accordion trên điện thoại (`mobileAccordion`, chỉ CSS: tiêu đề nằm ngay trên panel của nó);
+ * tab có neo → panel mang id = neo, mở thẳng bằng #neo.
+ */
+export function TabsClient({ titles, panels, initial = 0, icons, subtitles, anchors, vertical, mobileAccordion }: {
+  titles: string[]; panels: ReactNode[]; initial?: number; icons?: Array<string | undefined>; subtitles?: Array<string | undefined>; anchors?: Array<string | undefined>; vertical?: boolean; mobileAccordion?: boolean;
+}) {
   const [active, setActive] = useState(initial < titles.length ? initial : 0);
   const id = useId();
+  useEffect(() => {
+    if (!anchors?.some(Boolean)) return;
+    const open = () => { const i = anchors.indexOf(decodeURIComponent(location.hash.slice(1))); if (i >= 0) setActive(i); };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, [anchors]);
   const move = (e: React.KeyboardEvent, i: number) => {
     const n = titles.length;
-    const next = e.key === "ArrowRight" ? (i + 1) % n : e.key === "ArrowLeft" ? (i + n - 1) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+    const fwd = vertical ? "ArrowDown" : "ArrowRight", back = vertical ? "ArrowUp" : "ArrowLeft";
+    const next = e.key === fwd ? (i + 1) % n : e.key === back ? (i + n - 1) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
     if (next < 0) return;
     e.preventDefault(); setActive(next);
     document.getElementById(`${id}-t${next}`)?.focus();
   };
   return (
-    <div className="ecx-tabs">
-      <div role="tablist" className="ecx-tabs-list">
+    <div className={cx("ecx-tabs", vertical && "is-vertical", mobileAccordion && "has-mobile-accordion")}>
+      <div role="tablist" className="ecx-tabs-list" aria-orientation={vertical ? "vertical" : undefined}>
         {titles.map((t, i) => (
-          <button key={i} type="button" role="tab" id={`${id}-t${i}`} aria-selected={i === active} aria-controls={`${id}-p${i}`} tabIndex={i === active ? 0 : -1}
-            className={cx("ecx-tab-button", i === active && "is-active")} onClick={() => setActive(i)} onKeyDown={(e) => move(e, i)}>{t}</button>
+          <button key={i} type="button" role="tab" id={`${id}-t${i}`} aria-selected={i === active} aria-controls={anchors?.[i] ?? `${id}-p${i}`} tabIndex={i === active ? 0 : -1}
+            className={cx("ecx-tab-button", i === active && "is-active")} style={{ "--i": i } as CSSProperties} onClick={() => setActive(i)} onKeyDown={(e) => move(e, i)}>
+            {icons?.[i] && <svg className="ecx-tab-icon" viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d={icons[i]} /></svg>}
+            <span className="ecx-tab-label">{t}{subtitles?.[i] && <small className="ecx-tab-subtitle">{subtitles[i]}</small>}</span>
+          </button>
         ))}
       </div>
-      {panels.map((p, i) => <div key={i} role="tabpanel" id={`${id}-p${i}`} aria-labelledby={`${id}-t${i}`} hidden={i !== active} className="ecx-tab-panel">{p}</div>)}
+      {panels.map((p, i) => <div key={i} role="tabpanel" id={anchors?.[i] ?? `${id}-p${i}`} aria-labelledby={`${id}-t${i}`} hidden={i !== active} className="ecx-tab-panel" style={{ "--i": i } as CSSProperties}>{p}</div>)}
     </div>
   );
 }
