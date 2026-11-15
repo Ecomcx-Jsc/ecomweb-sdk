@@ -598,8 +598,8 @@ export interface BlockPanel {
   title: string;
   /** Loại khối áp dụng; bỏ trống hoặc "*" = mọi khối. */
   blocks?: string[] | "*";
-  /** (CMS ≥ 1.29) Tab đặt panel: "block" (mặc định) hoặc "style" (Kiểu dáng). */
-  tab?: "block" | "style";
+  /** (CMS ≥ 1.29) Tab đặt panel: "block" (mặc định) hoặc "style" (Kiểu dáng); (CMS ≥ 1.32) "advanced" (Nâng cao). Panel hiện gập sẵn (1.32). */
+  tab?: "block" | "style" | "advanced";
   /** Thứ tự (nhỏ đứng trước, mặc định 10). */
   order?: number;
   /**
