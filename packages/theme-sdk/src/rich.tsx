@@ -469,7 +469,8 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       if (!Number.isFinite(ms)) return null;
       const t = await getT();
       const units = { d: t("countdown.d"), h: t("countdown.h"), m: t("countdown.m"), s: t("countdown.s") }; // theo ngôn ngữ của trang (vi: ngày/giờ/phút/giây)
-      return <CountdownClient key={key} target={ms} serverNow={Date.now()} units={units} label={a.label ? String(a.label) : undefined} expiredText={a.expiredText ? String(a.expiredText) : undefined} />;
+      return <CountdownClient key={key} target={ms} serverNow={Date.now()} units={units} label={a.label ? String(a.label) : undefined} expiredText={a.expiredText ? String(a.expiredText) : undefined}
+        attrs={{ layout: a.layout, divider: a.divider, pad: a.pad, postText: a.postText, showDays: a.showDays, showSeconds: a.showSeconds, daysLabel: a.daysLabel, hoursLabel: a.hoursLabel, minutesLabel: a.minutesLabel, secondsLabel: a.secondsLabel }} />;
     }
     case "form": {
       // Form cơ bản của lõi: ô vẽ sẵn ở máy chủ, phần gửi chạy trên trình duyệt; máy chủ tìm lại định nghĩa form theo (source, formId)

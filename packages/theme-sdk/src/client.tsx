@@ -1,5 +1,6 @@
 "use client";
 
+import { countdownParts, type CountdownUnit } from "@ecomcx/ecomweb-content";
 import { extraFields } from "./auth-forms";
 import { Component, Suspense, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -327,20 +328,19 @@ export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, LogoutB
 export { safeRedirect, type CurrentUser } from "./auth-shared";
 
 /** Khối countdown: đếm ngược tới `target` (ms). Dựng lần đầu cùng giá trị trên máy chủ, rồi cập nhật mỗi giây. */
-export function CountdownClient({ target, label, expiredText, units, serverNow }: { target: number; label?: string; expiredText?: string; units?: Partial<Record<"d" | "h" | "m" | "s", string>>; serverNow?: number }) {
+export function CountdownClient({ target, label, expiredText, units, serverNow, attrs = {} }: { target: number; label?: string; expiredText?: string; units?: Partial<Record<CountdownUnit, string>>; serverNow?: number; attrs?: Record<string, unknown> }) {
   // Lần render đầu của client dùng ĐÚNG thời điểm máy chủ đã dùng (serverNow) để khớp HTML dựng sẵn / cache; sau đó lấy giờ thật ngay (tránh hydration mismatch #418)
   const [now, setNow] = useState(() => serverNow ?? Date.now());
   useEffect(() => { setNow(Date.now()); }, []);
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
   const left = Math.max(0, target - now);
   if (left === 0 && expiredText) return <div className="ecx-countdown is-expired">{expiredText}</div>;
-  const p = (n: number) => String(n).padStart(2, "0");
-  const s = Math.floor(left / 1000);
-  const parts: Array<[string, number]> = [["d", Math.floor(s / 86400)], ["h", Math.floor(s / 3600) % 24], ["m", Math.floor(s / 60) % 60], ["s", s % 60]];
+  const post = typeof attrs.postText === "string" && attrs.postText ? attrs.postText : null;
   return (
-    <div className="ecx-countdown" role="timer" aria-live="off" suppressHydrationWarning>
+    <div className={cx("ecx-countdown", attrs.layout === "inline" && "is-inline", attrs.divider === true && "has-divider")} role="timer" aria-live="off" suppressHydrationWarning>
       {label && <p className="ecx-countdown-label">{label}</p>}
-      <div className="ecx-countdown-parts">{parts.map(([u, n]) => <span key={u} className={`ecx-countdown-${u}`}><strong>{p(n)}</strong><small>{units?.[u as "d"] ?? u}</small></span>)}</div>
+      <div className="ecx-countdown-parts">{countdownParts(attrs, left, units).map((p) => <span key={p.u} className={`ecx-countdown-${p.u}`}><strong>{p.value}</strong><small>{p.label}</small></span>)}</div>
+      {post && <p className="ecx-countdown-post">{post}</p>}
     </div>
   );
 }
