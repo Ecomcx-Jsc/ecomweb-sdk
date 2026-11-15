@@ -357,8 +357,8 @@ export function NavToggle({ label, children, className = "ecx-navigation-toggle"
 }
 
 /** Khối tabs: các panel đã vẽ sẵn trên máy chủ (nội dung vẫn có trong HTML cho SEO); chỉ đổi panel đang hiện. */
-export function TabsClient({ titles, panels }: { titles: string[]; panels: ReactNode[] }) {
-  const [active, setActive] = useState(0);
+export function TabsClient({ titles, panels, initial = 0 }: { titles: string[]; panels: ReactNode[]; initial?: number }) {
+  const [active, setActive] = useState(initial < titles.length ? initial : 0);
   const id = useId();
   const move = (e: React.KeyboardEvent, i: number) => {
     const n = titles.length;

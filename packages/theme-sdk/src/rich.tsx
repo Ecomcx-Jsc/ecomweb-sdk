@@ -520,7 +520,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const tabs = (node.content ?? []).filter((c) => c.type === "tab");
       if (!tabs.length) return null;
       const panels = await Promise.all(tabs.map(async (t, i) => <Fragment key={i}>{await Promise.all((t.content ?? []).map((c, j) => renderNode(c, `${key}-${i}-${j}`, ctx)))}</Fragment>));
-      return <TabsClient key={key} titles={tabs.map((t, i) => String(t.attrs?.title || `Tab ${i + 1}`))} panels={panels} />;
+      return <TabsClient key={key} titles={tabs.map((t, i) => String(t.attrs?.title || `Tab ${i + 1}`))} panels={panels} initial={Math.max(0, (Number(a.initial) || 1) - 1)} />;
     }
     case "tab":
       return <div key={key} className="ecx-tab">{await children()}</div>;
