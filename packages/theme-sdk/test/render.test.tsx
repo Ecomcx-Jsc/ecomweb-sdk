@@ -579,3 +579,10 @@ test("khối icon: độ dày nét, khung tròn có đệm theo cỡ, liên kế
   const bad = await html(icon({ name: "star", href: "javascript:alert(1)" }), ctx());
   assert.ok(!bad.includes("<a") && bad.includes('<span class="ecx-icon-shape"') && bad.includes('stroke-width="2"'), bad);
 });
+
+test("danh sách icon: 3 cột, icon căn giữa có khung tròn, nét mảnh; mục icon \"none\" không vẽ icon", async () => {
+  const out = await html({ type: "doc", content: [{ type: "iconList", attrs: { columns: 3, iconAlign: "center", iconStyle: "circle", stroke: 1.5, items: [{ text: "A", icon: "none" }, { text: "B", href: "/b" }] } }] }, ctx());
+  assert.match(out, /<ul class="ecx-icon-list is-cols-3 is-icon-center has-icon-circle[^"]*"/, out);
+  assert.equal(out.match(/ecx-widget-icon/g)?.length, 1, out);
+  assert.ok(out.includes('stroke-width="1.5"') && out.includes('href="/b"'), out);
+});
