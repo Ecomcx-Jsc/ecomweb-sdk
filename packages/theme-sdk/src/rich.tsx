@@ -1,5 +1,5 @@
 import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
-import { DYNAMIC_NODES, ICON_PATHS, buttonIcon, widgetMarkup, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { DYNAMIC_NODES, ICON_PATHS, nodeText, buttonIcon, widgetMarkup, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site, BlockAsset } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
@@ -36,6 +36,8 @@ export interface RenderContext {
   dynamic?(node: RenderNode, key: string, ctx: RenderContext, children: (ctx: RenderContext, nodes?: RenderNode[]) => Promise<ReactNode[]>): Promise<ReactNode>;
   /** Tên nhóm của khối accordion đang vẽ: các `details` con dùng chung `name` để mở một mục thì mục khác đóng. */
   accordion?: string;
+  /** 1.26: thẻ bọc tiêu đề mục accordion (div | h2–h6). */
+  accTag?: string;
   /** Bài của vòng lặp `query` gần nhất (+ dữ liệu phân trang khi dùng danh sách của trang). */
   query?: { posts: Post[]; data?: ResolveResult; pageParam?: string };
   /** Nội dung template part theo slug (khối templatePart). */
@@ -446,8 +448,20 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       // chữ trần (dữ liệu cũ) mới cần <p>
       return shelled("pullquote", a, key, <><blockquote>{(node.content ?? []).every((c) => c.type === "text" || c.type === "hardBreak") ? <p>{await children()}</p> : await children()}</blockquote>{blockCitation(a) && <figcaption>{blockCitation(a)}</figcaption>}</>);
     case "accordion": {
-      const sub = a.multiple === true ? ctx : { ...ctx, accordion: `ecx-acc-${key}` };
-      return <div key={key} className="ecx-accordion">{await Promise.all((node.content ?? []).map((c, i) => renderNode(c, `${key}-${i}`, sub)))}</div>;
+      const tag = ["h2", "h3", "h4", "h5", "h6"].includes(String(a.titleTag)) ? String(a.titleTag) : undefined;
+      const sub = { ...ctx, accordion: a.multiple === true ? undefined : `ecx-acc-${key}`, accTag: tag };
+      const items = node.content ?? [];
+      // FAQ Schema: câu hỏi = tiêu đề mục, trả lời = chữ trong mục (JSON trong <script>: thoát "<" để không đóng thẻ sớm)
+      const faq = a.faq === true && items.some((c) => c.type === "details" && c.attrs?.summary) ? JSON.stringify({
+        "@context": "https://schema.org", "@type": "FAQPage",
+        mainEntity: items.filter((c) => c.type === "details" && c.attrs?.summary).map((c) => ({ "@type": "Question", name: String(c.attrs!.summary), acceptedAnswer: { "@type": "Answer", text: (c.content ?? []).map(nodeText).join(" ").trim() } })),
+      }).replace(/</g, "\\u003c") : null;
+      return (
+        <div key={key} className={cx("ecx-accordion", Number(a.columns) === 2 && "is-cols-2", `has-icon-${["plus", "none"].includes(String(a.icon)) ? a.icon : "arrow"}`, a.iconSide === "left" && "is-icon-left")}>
+          {await Promise.all(items.map((c, i) => renderNode(c, `${key}-${i}`, sub)))}
+          {faq && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faq }} />}
+        </div>
+      );
     }
     case "countdown": {
       const ms = Date.parse(String(a.target ?? ""));
@@ -541,7 +555,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       return Comp ? <Comp key={key} attrs={(a.args && typeof a.args === "object" ? a.args : {}) as Record<string, string>} site={ctx.site} post={ctx.post} /> : null;
     }
     case "details":
-      return <details key={key} className="ecx-details" name={ctx.accordion} open={a.open === true || undefined}><summary>{a.summary || "…"}</summary>{await children()}</details>;
+      return <details key={key} className="ecx-details" name={ctx.accordion} open={a.open === true || undefined}><summary>{ctx.accTag ? createElement(ctx.accTag, { className: "ecx-details-title" }, a.summary || "…") : a.summary || "…"}</summary>{await children()}</details>;
     case "customHtml":
       // Máy chủ đã lọc HTML khi người soạn thiếu quyền unfiltered_html (ContentSanitizer)
       return a.html ? createElement(blockShell("customHtml", a)!.tag, { key, className: blockShell("customHtml", a)!.className, dangerouslySetInnerHTML: { __html: String(a.html) } }) : null;

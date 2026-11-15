@@ -260,7 +260,7 @@ test("khối theme 1.15: tiêu đề trang lưu trữ là H1 theo ngữ cảnh, 
 test("accordion: details con dùng chung name (mở một đóng các mục khác); multiple=true thì không; rating và countdown vẽ đúng, ngày hỏng bị bỏ", async () => {
   const item = (s: string) => ({ type: "details", attrs: { summary: s }, content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] });
   const one = await html({ type: "doc", content: [{ type: "accordion", attrs: {}, content: [item("A"), item("B")] }] });
-  assert.match(one, /class="ecx-accordion"/);
+  assert.match(one, /class="ecx-accordion has-icon-arrow"/);
   assert.equal((one.match(/name="ecx-acc-[^"]+"/g) ?? []).length, 2);
   assert.equal(new Set(one.match(/name="ecx-acc-[^"]+"/g)).size, 1);
   const many = await html({ type: "doc", content: [{ type: "accordion", attrs: { multiple: true }, content: [item("A")] }] });
@@ -288,6 +288,16 @@ test("gallery: linkTo=none bỏ liên kết, imageCrop=false giữ tỉ lệ ả
   const g2 = await html({ type: "doc", content: [{ type: "gallery", attrs: { images: [img] } }] });
   assert.match(g2, /<a href="\/a-full\.jpg"/);
   assert.match(g2, /object-fit:cover/);
+});
+
+test("accordion 1.26: 2 cột, icon dấu cộng bên trái, tiêu đề mục h3, FAQ Schema thoát </script>", async () => {
+  const out = await html({ type: "doc", content: [{ type: "accordion", attrs: { columns: 2, icon: "plus", iconSide: "left", titleTag: "h3", faq: true }, content: [
+    { type: "details", attrs: { summary: "Giao bao lâu?" }, content: [{ type: "paragraph", content: [{ type: "text", text: "2 giờ </script><b>" }] }] }] }] });
+  assert.match(out, /class="ecx-accordion is-cols-2 has-icon-plus is-icon-left"/);
+  assert.match(out, /<summary><h3 class="ecx-details-title">Giao bao lâu\?<\/h3><\/summary>/);
+  const ld = out.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1] ?? "";
+  assert.doesNotMatch(ld, /</);
+  assert.equal(JSON.parse(ld).mainEntity[0].acceptedAnswer.text, "2 giờ </script><b>");
 });
 
 test("tabs 1.26: dọc, accordion trên điện thoại, icon, phụ đề, neo (neo xấu bị bỏ)", async () => {
