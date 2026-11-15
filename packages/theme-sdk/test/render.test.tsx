@@ -558,3 +558,15 @@ test("cột có liên kết phủ: thêm <a> phủ cả cột (tab mới có rel
   assert.ok(!(await html(col({ href: "javascript:alert(1)" }), ctx())).includes("ecx-overlay-link"));
   assert.ok(!(await html(col({}), ctx())).includes("ecx-overlay-link"));
 });
+
+test("khối chứa đổi thẻ HTML (tagName): nhóm thành <section>, cột thành <article>; thẻ lạ vẫn là <div>", async () => {
+  const p = { type: "paragraph", content: [{ type: "text", text: "A" }] };
+  const out = await html({ type: "doc", content: [
+    { type: "group", attrs: { tagName: "section" }, content: [p] },
+    { type: "columns", attrs: { tagName: "script" }, content: [{ type: "column", attrs: { tagName: "article" }, content: [p] }] },
+  ] }, ctx());
+  assert.match(out, /<section[^>]*class="[^"]*ecx-group/, out);
+  assert.match(out, /<article[^>]*class="[^"]*ecx-column /, out);
+  assert.match(out, /<div[^>]*class="[^"]*ecx-columns /, out);
+  assert.ok(!out.includes("<script"), out);
+});
