@@ -570,3 +570,12 @@ test("khối chứa đổi thẻ HTML (tagName): nhóm thành <section>, cột t
   assert.match(out, /<div[^>]*class="[^"]*ecx-columns /, out);
   assert.ok(!out.includes("<script"), out);
 });
+
+test("khối icon: độ dày nét, khung tròn có đệm theo cỡ, liên kết tab mới; đường dẫn không an toàn thì không có <a>", async () => {
+  const icon = (attrs: Record<string, unknown>) => ({ type: "doc", content: [{ type: "icon", attrs }] });
+  const out = await html(icon({ name: "heart", size: 40, stroke: 1.5, iconStyle: "circle", href: "/lien-he", linkTarget: "_blank" }), ctx());
+  assert.match(out, /<a[^>]*class="ecx-icon-shape is-circle"[^>]*>/, out);
+  assert.ok(out.includes('href="/lien-he"') && out.includes('rel="noopener noreferrer"') && out.includes("padding:16px") && out.includes('stroke-width="1.5"'), out);
+  const bad = await html(icon({ name: "star", href: "javascript:alert(1)" }), ctx());
+  assert.ok(!bad.includes("<a") && bad.includes('<span class="ecx-icon-shape"') && bad.includes('stroke-width="2"'), bad);
+});

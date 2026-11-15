@@ -339,7 +339,14 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const path = ICON_PATHS[String(a.name)];
       if (!path) return null;
       const size = Math.min(128, Math.max(12, Number(a.size) || 24));
-      return <div key={key} className="ecx-icon-block" style={alignStyle(a)}><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" role={a.label ? "img" : undefined} aria-label={a.label || undefined} aria-hidden={a.label ? undefined : true}><path d={path} /></svg></div>;
+      const stroke = Math.min(4, Math.max(0.5, Number(a.stroke) || 2));
+      const shape = a.iconStyle === "circle" || a.iconStyle === "square" ? a.iconStyle : undefined;
+      const svg = <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" role={a.label ? "img" : undefined} aria-label={a.label || undefined} aria-hidden={a.label ? undefined : true}><path d={path} /></svg>;
+      const href = safeUrl(a.href, "");
+      const cls = `ecx-icon-shape${shape ? ` is-${shape}` : ""}`, pad = shape ? { padding: Math.round(size * 0.4) } : undefined;
+      return <div key={key} className="ecx-icon-block" style={alignStyle(a)}>{href
+        ? <Link href={href} className={cls} style={pad} {...(a.linkTarget === "_blank" ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{svg}</Link>
+        : <span className={cls} style={pad}>{svg}</span>}</div>;
     }
     case "horizontalRule": return <hr key={key} />;
     case "image": {
