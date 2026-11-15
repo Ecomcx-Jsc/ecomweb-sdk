@@ -1,5 +1,5 @@
 import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
-import { DYNAMIC_NODES, ICON_PATHS, widgetMarkup, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { DYNAMIC_NODES, ICON_PATHS, buttonIcon, widgetMarkup, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site, BlockAsset } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
@@ -407,7 +407,10 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     case "button": {
       if (!a.text) return null;
       const target = a.target === "_blank" ? "_blank" : undefined;
-      const link = shelled("button", a, ctx.inButtons ? key : "", a.text, { href: safeUrl(a.href), target, rel: linkRel(a.rel, target) });
+      // 1.26: icon trái / phải của chữ (svg trang trí)
+      const ic = buttonIcon(a);
+      const label = ic ? (a.iconPosition === "right" ? [a.text, widgetEl(ic, "i")] : [widgetEl(ic, "i"), a.text]) : a.text;
+      const link = shelled("button", a, ctx.inButtons ? key : "", label, { href: safeUrl(a.href), target, rel: linkRel(a.rel, target) });
       if (ctx.inButtons) return link;
       return createElement(buttonWrapShell(a).tag, { key, className: buttonWrapShell(a).className, style: buttonWrapShell(a).style }, link);
     }
