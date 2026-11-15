@@ -484,6 +484,8 @@ export function FormBlockClient({ formId, source, successMessage, labels, button
       const json = await res.json().catch(() => ({}));
       if (!res.ok) { showErrors(form, json.errors ?? {}); setState({ status: "error", message: json.title ?? labels.error }); return; }
       form.reset();
+      // 1.26: chuyển trang sau khi gửi (máy chủ chỉ trả đường dẫn trong site hoặc http(s))
+      if (typeof json.redirect === "string" && /^(\/(?![\/\\])|https?:\/\/)/.test(json.redirect)) { window.location.assign(json.redirect); return; }
       setState({ status: "done", message: json.message || successMessage || "" });
     } catch { setState({ status: "error", message: labels.error }); }
   }

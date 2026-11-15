@@ -519,6 +519,8 @@ test("form cơ bản (1.39): ô vẽ ở máy chủ có nhãn / id / required, �
     { type: "formField", attrs: { kind: "select", name: "topic", label: "Chủ đề", options: ["Báo giá", "Khác"] } },
     { type: "formField", attrs: { kind: "consent", name: "consent", label: "Tôi đồng ý với [điều khoản](/dieu-khoan) và [x](javascript:alert(1))", required: true } },
     { type: "formField", attrs: { kind: "text", name: "Bad Name", label: "Sai" } },
+    { type: "formField", attrs: { kind: "text", name: "ten", label: "Tên", width: "third", autocomplete: "given-name" } },
+    { type: "formField", attrs: { kind: "text", name: "ghi_chu", label: "Ghi chú", autocomplete: "x\" onfocus=\"y" } },
   ] };
   const doc = { type: "doc", content: [form] };
   configureRuntime({ themes: {}, plugins: {} });
@@ -538,6 +540,10 @@ test("form cơ bản (1.39): ô vẽ ở máy chủ có nhãn / id / required, �
   // Nhãn ô đồng ý: [chữ](đường-dẫn) → link mở tab mới; đường dẫn không an toàn → chỉ còn chữ
   assert.match(out, /Tôi đồng ý với <a href="\/dieu-khoan" target="_blank" rel="noopener noreferrer">điều khoản<\/a> và x/);
   assert.doesNotMatch(out, /javascript:/);
+  // 1.26: ô 1/3 hàng, autocomplete theo ô; giá trị lạ bị bỏ
+  assert.match(out, /<div class="ecx-field is-text is-third" data-field="ten">/);
+  assert.match(out, /autoComplete="given-name"/i);
+  assert.doesNotMatch(out, /onfocus/);
   assert.match(out, /name="_hp"/);
   assert.match(out, /class="ecx-button cms-button ecx-button-primary[^"]*"[^>]*>Gửi liên hệ<\/button>/);
   assert.doesNotMatch(out, /Bad Name|>Sai</);
