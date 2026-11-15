@@ -3,7 +3,7 @@ import { DYNAMIC_NODES, ICON_PATHS, nodeText, buttonIcon, widgetMarkup, type Wid
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site, BlockAsset } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
-import { CountdownClient, FormBlockClient, LightboxClient, Link, TabsClient } from "./client";
+import { CountdownClient, FormBlockClient, LightboxClient, Link, TabsClient, TocSpy } from "./client";
 import { CounterClient } from "./counter-client";
 import { AssetScript } from "./browser";
 import { getT } from "./i18n";
@@ -579,14 +579,24 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       );
     }
     case "tableOfContents": {
-      const max = Math.min(4, Math.max(2, Number(a.maxLevel) || 3));
-      const items = (ctx.headings ?? []).filter((h) => h.level >= 2 && h.level <= max && h.id);
+      const min = Math.min(6, Math.max(2, Number(a.minLevel) || 2));
+      const max = Math.min(6, Math.max(min, Number(a.maxLevel) || 3));
+      const items = (ctx.headings ?? []).filter((h) => h.level >= min && h.level <= max && h.id);
       if (!items.length) return null;
       const title = a.title || ctx.labels?.toc || "Contents";
+      const cols = Math.min(3, Math.max(1, Number(a.columns) || 1));
+      const List = a.listStyle === "bullets" || a.listStyle === "none" ? "ul" : "ol";
+      const list = (
+        <List className={cx("ecx-toc-list", a.listStyle === "none" && "is-plain", cols > 1 && `has-cols-${cols}`)}>
+          {items.map((h, i) => <li key={i} className={`ecx-toc-l${h.level}`} style={h.level > min ? { marginLeft: `${h.level - min}em` } : undefined}><a href={`#${h.id}`}>{h.text}</a></li>)}
+        </List>
+      );
       return (
-        <nav key={key} className="ecx-toc" aria-label={title}>
-          <p className="ecx-toc-title">{title}</p>
-          <ol>{items.map((h, i) => <li key={i} className={`ecx-toc-l${h.level}`} style={h.level > 2 ? { marginLeft: `${h.level - 2}em` } : undefined}><a href={`#${h.id}`}>{h.text}</a></li>)}</ol>
+        <nav key={key} className={cx("ecx-toc", a.smoothScroll === true && "is-smooth")} aria-label={title}>
+          {a.collapsible === true
+            ? <details className="ecx-toc-details" open={a.startCollapsed !== true || undefined}><summary className="ecx-toc-title">{title}</summary>{list}</details>
+            : <><p className="ecx-toc-title">{title}</p>{list}</>}
+          {a.highlight === true && <TocSpy />}
         </nav>
       );
     }

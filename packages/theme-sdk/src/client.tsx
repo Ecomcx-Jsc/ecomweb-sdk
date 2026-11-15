@@ -345,6 +345,29 @@ export function CountdownClient({ target, label, expiredText, units, serverNow, 
   );
 }
 
+/** Mục lục: tô đậm mục của tiêu đề đang đọc (tiêu đề cuối cùng đã cuộn qua mép trên 120px) — aria-current="location". */
+export function TocSpy() {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const nav = ref.current?.closest("nav");
+    if (!nav) return;
+    const links = [...nav.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')];
+    const targets = links.map((l) => document.getElementById(decodeURIComponent(l.hash.slice(1))));
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      let cur = -1;
+      targets.forEach((t, i) => { if (t && t.getBoundingClientRect().top < 120) cur = i; });
+      links.forEach((l, i) => (i === cur ? l.setAttribute("aria-current", "location") : l.removeAttribute("aria-current")));
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); cancelAnimationFrame(raf); };
+  }, []);
+  return <span ref={ref} hidden />;
+}
+
 /** Nút ☰ của menu trên điện thoại: <details> gốc + Escape đóng menu và trả focus về nút. */
 export function NavToggle({ label, children, className = "ecx-navigation-toggle" }: { label: string; children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDetailsElement>(null);

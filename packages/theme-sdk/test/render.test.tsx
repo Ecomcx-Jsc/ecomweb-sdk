@@ -290,6 +290,17 @@ test("gallery: linkTo=none bỏ liên kết, imageCrop=false giữ tỉ lệ ả
   assert.match(g2, /object-fit:cover/);
 });
 
+test("mục lục 1.26: khoảng cấp, thu gọn (details), danh sách không dấu 2 cột, tô mục đang đọc", async () => {
+  const h = (level: number, t: string) => ({ type: "heading", attrs: { level }, content: [{ type: "text", text: t }] });
+  const out = await html({ type: "doc", content: [{ type: "tableOfContents", attrs: { minLevel: 3, maxLevel: 4, collapsible: true, startCollapsed: true, listStyle: "none", columns: 2, highlight: true, smoothScroll: true } }, h(2, "Hai"), h(3, "Ba"), h(4, "Bốn"), h(5, "Năm")] });
+  assert.match(out, /<nav class="ecx-toc is-smooth"/);
+  assert.match(out, /<details class="ecx-toc-details"><summary class="ecx-toc-title">/);
+  assert.match(out, /<ul class="ecx-toc-list is-plain has-cols-2">/);
+  assert.doesNotMatch(out, />Hai<\/a>/); assert.doesNotMatch(out, />Năm<\/a>/);
+  assert.match(out, />Ba<\/a>/); assert.match(out, /margin-left:1em[^>]*><a[^>]*>Bốn/);
+  assert.match(out, /<span hidden="">|<span hidden>/);
+});
+
 test("hộp icon 1.26: cả hộp là link (tiêu đề không lồng <a>), nút Xem thêm, media số", async () => {
   const box = await html({ type: "doc", content: [{ type: "iconBox", attrs: { title: "Giao nhanh", href: "/giao", linkMode: "box", hover: "grow", iconStyle: "circle" } }] });
   assert.match(box, /^<a class="ecx-icon-box is-top has-hover-grow is-link" href="\/giao"/);
