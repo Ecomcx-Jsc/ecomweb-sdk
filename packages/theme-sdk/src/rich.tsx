@@ -206,7 +206,7 @@ function overridden(style: BlockStyle): string[] {
  * Gắn kiểu dáng (class `ecx-s-…`), biến thể (`ecx-is-…`), class riêng và neo (id) của khối vào phần tử đã vẽ
  * (không có phần tử bọc ngoài → thêm div). Giá trị đã được normalizeContent kiểm.
  */
-function decorate(el: ReactNode, a: Record<string, any>, key: string, ctx: RenderContext, type: string, ctrl?: { cls: string; css: string } | null, data?: Record<string, string>): ReactNode {
+function decorate(el: ReactNode, a: Record<string, any>, key: string, ctx: RenderContext, type: string, ctrl?: { cls: string; css: string; self?: BlockStyle } | null, data?: Record<string, string>): ReactNode {
   if (el == null || el === false) return el;
   const style = a.style && typeof a.style === "object" ? (a.style as BlockStyle) : null;
   const cls = style ? styleClass(style) : null;
@@ -217,8 +217,9 @@ function decorate(el: ReactNode, a: Record<string, any>, key: string, ctx: Rende
   if (isValidElement(el) && el.type !== Fragment && (typeof el.type === "string" || el.type === Link)) {
     const e = el as ReactElement<{ className?: string; style?: CSSProperties; id?: string }>;
     let inline = e.props.style;
-    if (inline && style) {
-      const drop = new Set(overridden(style));
+    if (inline && (style || ctrl?.self)) {
+      // Phần nhắm chính thẻ khối (vd phần "Nút" = chính <a>) cũng thay inline như attrs.style
+      const drop = new Set([...(style ? overridden(style) : []), ...(ctrl?.self ? overridden(ctrl.self) : [])]);
       inline = Object.fromEntries(Object.entries(inline).filter(([k]) => !drop.has(k))) as CSSProperties;
     }
     return cloneElement(e, { className: cx(e.props.className, extra) || undefined, style: inline, id: a.anchor ?? e.props.id, ...data });

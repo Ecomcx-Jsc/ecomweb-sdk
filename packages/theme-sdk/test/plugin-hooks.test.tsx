@@ -47,3 +47,12 @@ test("assets: chỉ in khi nội dung có khối / class khớp", async () => {
   const none = await html({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "a" }] }] }, ctx({ assets }));
   assert.ok(!none.includes(".css"), none);
 });
+
+test("phần nhắm chính thẻ khối (phần Nút = <a>): bo góc của phần thay bo góc inline của nút", async () => {
+  const content = { type: "doc", content: [{ type: "buttons", content: [{ type: "button", attrs: { text: "Mua", href: "/mua", parts: { button: { style: { radius: { topLeft: "12px" } } } } } }] }] };
+  const out = await html(content, ctx());
+  assert.ok(out.includes("ecx-c-"), out);
+  assert.ok(!/<a[^>]*style="[^"]*border-radius/.test(out), out);
+  const plain = await html({ type: "doc", content: [{ type: "buttons", content: [{ type: "button", attrs: { text: "Mua", href: "/mua" } }] }] }, ctx());
+  assert.ok(/<a[^>]*style="[^"]*border-radius/.test(plain), plain);
+});
