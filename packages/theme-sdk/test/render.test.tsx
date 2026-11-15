@@ -290,6 +290,17 @@ test("gallery: linkTo=none bỏ liên kết, imageCrop=false giữ tỉ lệ ả
   assert.match(g2, /object-fit:cover/);
 });
 
+test("hộp icon 1.26: cả hộp là link (tiêu đề không lồng <a>), nút Xem thêm, media số", async () => {
+  const box = await html({ type: "doc", content: [{ type: "iconBox", attrs: { title: "Giao nhanh", href: "/giao", linkMode: "box", hover: "grow", iconStyle: "circle" } }] });
+  assert.match(box, /^<a class="ecx-icon-box is-top has-hover-grow is-link" href="\/giao"/);
+  assert.equal((box.match(/<a /g) ?? []).length, 1);
+  assert.match(box, /ecx-icon-box-icon is-circle/);
+  const more = await html({ type: "doc", content: [{ type: "iconBox", attrs: { title: "Bước", media: "number", number: "01", href: "/b", linkMode: "button", buttonText: "Xem thêm" } }] });
+  assert.match(more, /<span class="ecx-icon-box-icon is-number"><span>01<\/span><\/span>/);
+  assert.match(more, /<h3 class="ecx-icon-box-title"><span>Bước<\/span><\/h3>/);
+  assert.match(more, /class="ecx-icon-box-more"><a href="\/b"><span>Xem thêm<\/span><\/a>/);
+});
+
 test("nút 1.26: chỉ icon (chữ thành aria-label, không hiện chữ), icon hiện khi rê, nhóm nút dọc", async () => {
   const out = await html({ type: "doc", content: [{ type: "buttons", attrs: { orientation: "vertical" }, content: [
     { type: "button", attrs: { text: "Giỏ hàng", href: "/gio", icon: "star", iconOnly: true } },
