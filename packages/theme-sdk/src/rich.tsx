@@ -196,7 +196,7 @@ function overridden(style: BlockStyle): string[] {
   if (style.fontWeight) keys.push("fontWeight");
   if (style.textAlign) keys.push("textAlign");
   if (style.color?.text) keys.push("color");
-  if (style.color?.background) keys.push("background", "backgroundColor");
+  if (style.color?.background || style.gradient || style.textGradient) keys.push("background", "backgroundColor");
   if (style.border) keys.push(...SIDES.map((x) => `border${x}`));
   if (style.radius) keys.push("borderRadius");
   return keys;
