@@ -418,7 +418,8 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const target = a.target === "_blank" ? "_blank" : undefined;
       // 1.26: icon trái / phải của chữ (svg trang trí)
       const ic = buttonIcon(a);
-      const label = ic ? (a.iconPosition === "right" ? [a.text, widgetEl(ic, "i")] : [widgetEl(ic, "i"), a.text]) : a.text;
+      // Chỉ icon: chữ đã thành aria-label của nút (blockShell)
+      const label = ic ? (a.iconOnly === true ? widgetEl(ic, "i") : a.iconPosition === "right" ? [a.text, widgetEl(ic, "i")] : [widgetEl(ic, "i"), a.text]) : a.text;
       const link = shelled("button", a, ctx.inButtons ? key : "", label, { href: safeUrl(a.href), target, rel: linkRel(a.rel, target) });
       if (ctx.inButtons) return link;
       return createElement(buttonWrapShell(a).tag, { key, className: buttonWrapShell(a).className, style: buttonWrapShell(a).style }, link);

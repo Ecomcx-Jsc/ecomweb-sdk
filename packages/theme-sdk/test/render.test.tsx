@@ -290,6 +290,17 @@ test("gallery: linkTo=none bỏ liên kết, imageCrop=false giữ tỉ lệ ả
   assert.match(g2, /object-fit:cover/);
 });
 
+test("nút 1.26: chỉ icon (chữ thành aria-label, không hiện chữ), icon hiện khi rê, nhóm nút dọc", async () => {
+  const out = await html({ type: "doc", content: [{ type: "buttons", attrs: { orientation: "vertical" }, content: [
+    { type: "button", attrs: { text: "Giỏ hàng", href: "/gio", icon: "star", iconOnly: true } },
+    { type: "button", attrs: { text: "Xem", href: "/xem", icon: "arrowRight", iconPosition: "right", iconReveal: true } }] }] });
+  assert.match(out, /class="ecx-buttons-group is-vertical"/);
+  assert.match(out, /class="[^"]*is-icon-only[^"]*"[^>]*aria-label="Giỏ hàng"|aria-label="Giỏ hàng"[^>]*class="[^"]*is-icon-only/);
+  assert.doesNotMatch(out, />Giỏ hàng</);
+  assert.match(out, /is-icon-reveal/);
+  assert.match(out, /Xem<svg/);
+});
+
 test("accordion 1.26: 2 cột, icon dấu cộng bên trái, tiêu đề mục h3, FAQ Schema thoát </script>", async () => {
   const out = await html({ type: "doc", content: [{ type: "accordion", attrs: { columns: 2, icon: "plus", iconSide: "left", titleTag: "h3", faq: true }, content: [
     { type: "details", attrs: { summary: "Giao bao lâu?" }, content: [{ type: "paragraph", content: [{ type: "text", text: "2 giờ </script><b>" }] }] }] }] });
