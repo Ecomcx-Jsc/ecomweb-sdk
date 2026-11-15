@@ -486,3 +486,13 @@ test("form cơ bản (1.39): ô vẽ ở máy chủ có nhãn / id / required, �
   assert.match(out, /class="ecx-button cms-button ecx-button-primary[^"]*"[^>]*>Gửi liên hệ<\/button>/);
   assert.doesNotMatch(out, /Bad Name|>Sai</);
 });
+
+test("cột có liên kết phủ: thêm <a> phủ cả cột (tab mới có rel), cột position:relative; đường dẫn không an toàn thì bỏ", async () => {
+  const p = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
+  const col = (attrs: Record<string, unknown>) => ({ type: "doc", content: [{ type: "columns", content: [{ type: "column", attrs, content: [p("A")] }] }] });
+  const out = await html(col({ href: "/gioi-thieu", linkTarget: "_blank", linkLabel: "Giới thiệu" }), ctx());
+  assert.match(out, /<a[^>]*class="ecx-overlay-link"[^>]*>/, out);
+  assert.ok(out.includes('href="/gioi-thieu"') && out.includes('aria-label="Giới thiệu"') && out.includes('rel="noopener noreferrer"') && out.includes("position:relative"), out);
+  assert.ok(!(await html(col({ href: "javascript:alert(1)" }), ctx())).includes("ecx-overlay-link"));
+  assert.ok(!(await html(col({}), ctx())).includes("ecx-overlay-link"));
+});

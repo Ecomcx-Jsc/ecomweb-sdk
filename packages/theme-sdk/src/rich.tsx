@@ -136,6 +136,12 @@ function alignStyle(attrs?: Record<string, any>): CSSProperties | undefined {
 }
 
 /** Vẽ khối theo vỏ markup dùng chung với trình soạn (@ecomcx/ecomweb-content › blockShell): thẻ / class / style cùng một nguồn. */
+/** Liên kết phủ cả cột (1.26): nằm trên nội dung — khi có thì thứ khác trong cột không bấm được (như bộ khối lớn). */
+function overlayLink(a: Record<string, any>): ReactNode {
+  const href = safeUrl(a.href, "");
+  return href ? <Link href={href} className="ecx-overlay-link" aria-label={a.linkLabel || undefined} style={{ position: "absolute", inset: 0, zIndex: 1 }} {...(a.linkTarget === "_blank" ? { target: "_blank", rel: "noopener noreferrer" } : {})} /> : null;
+}
+
 function shelled(type: string, a: Record<string, any>, key: string, children: ReactNode, extra?: Record<string, unknown>, parent?: { type: string; attrs?: Record<string, any> }): ReactNode {
   const sh = blockShell(type, a, parent)!;
   // Nút / khối có link: Link của SDK (link nội bộ chuyển trang không tải lại; link ngoài, tab mới, file vẫn là <a>)
@@ -397,11 +403,11 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     case "columns": {
       const cols = await Promise.all((node.content ?? []).map(async (c, i) => {
         const inner = await Promise.all((c.content ?? []).map((cc, j) => renderNode(cc, `${key}-${i}-${j}`, ctx)));
-        return shelled("column", c.attrs ?? {}, `${key}-${i}`, inner, undefined, { type: "columns", attrs: a });
+        return shelled("column", c.attrs ?? {}, `${key}-${i}`, <>{inner}{overlayLink(c.attrs ?? {})}</>, undefined, { type: "columns", attrs: a });
       }));
       return shelled("columns", a, key, cols);
     }
-    case "column": return shelled("column", a, key, await children());
+    case "column": return shelled("column", a, key, <>{await children()}{overlayLink(a)}</>);
     case "group": return shelled("group", a, key, await children());
     case "callout": return shelled("callout", a, key, <>{a.title && <p className="ecx-callout-title cms-callout-title" style={{ margin: 0, fontWeight: 600 }}>{a.title}</p>}{await children()}</>);
     case "button": {
