@@ -131,7 +131,7 @@ const COLOR = /^(#[0-9a-f]{3,8}|(?:rgb|hsl)a?\([\d\s.,%deg/]+\)|[a-z]{3,20}|var\
 const safeColor = (v: unknown) => (typeof v === "string" && COLOR.test(v.trim()) ? v.trim() : undefined);
 
 const PADDING: Record<string, string> = { none: "0", small: "0.75rem", medium: "1.5rem", large: "3rem" };
-const TONES: Record<string, string> = { info: "#2563eb", success: "#16a34a", warning: "#d97706", danger: "#dc2626" };
+const TONES: Record<string, string> = { info: "#1a597b", success: "#16a34a", warning: "#d97706", danger: "#dc2626" };
 
 function alignStyle(attrs?: Record<string, any>): CSSProperties | undefined {
   return attrs?.textAlign && attrs.textAlign !== "left" ? { textAlign: attrs.textAlign } : undefined;
