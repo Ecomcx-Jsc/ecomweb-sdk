@@ -694,3 +694,13 @@ test("bản đồ: khung Google Maps lazy, có title; địa chỉ rỗng thì k
   assert.ok(out.includes('<div class="ecx-map"><iframe') && out.includes("https://www.google.com/maps?q=1%20Ph") && out.includes('title="Văn phòng"') && out.includes('loading="lazy"') && out.includes("height:420px"), out);
   assert.equal(await html(doc({ address: "" }), ctx()), "");
 });
+
+test("nhóm: độ rộng nội dung tự nhập thành biến --ecx-group-width + class constrained; preset hoặc số trần thì bỏ", async () => {
+  const g = (attrs: Record<string, unknown>) => ({ type: "doc", content: [{ type: "group", attrs, content: [{ type: "paragraph", content: [{ type: "text", text: "a" }] }] }] });
+  const out = await html(g({ contentWidth: "900px", align: "full" }), ctx());
+  assert.ok(out.includes("--ecx-group-width:900px") && out.includes("ecx-is-constrained"), out);
+  const bad = await html(g({ contentWidth: "900" }), ctx());
+  assert.ok(!bad.includes("--ecx-group-width") && !bad.includes("ecx-is-constrained"), bad);
+  const site = await html(g({ constrained: true }), ctx());
+  assert.ok(site.includes("ecx-is-constrained") && !site.includes("--ecx-group-width"), site);
+});
