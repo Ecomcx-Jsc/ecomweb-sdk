@@ -608,3 +608,14 @@ test("lời chứng thực: kiểu bong bóng, 4/5 sao có nhãn đọc màn hì
   const plain = await html(t({}), ctx());
   assert.ok(!plain.includes("ecx-testimonial-rating") && !plain.includes("ecx-testimonial-mark") && /class="ecx-testimonial[ "]/.test(plain) && !plain.includes("is-bubble"), plain);
 });
+
+test("bộ đếm: số chữ thập phân tự đặt, tiêu đề là h3; thanh tiến độ: giá trị lẻ 1 chữ thập phân, kiểu chạy đều, tắt hiệu ứng, nhãn đọc màn hình riêng", async () => {
+  const out = await html({ type: "doc", content: [
+    { type: "counter", attrs: { end: 12.5, decimals: 2, titleTag: "h3", title: "Năm" } },
+    { type: "progressBar", attrs: { label: "A", value: 72.25, decimals: 1, easing: "linear", animate: false, ariaLabel: "Tiến độ A" } },
+    { type: "progressBar", attrs: { label: "B", value: 40 } }] }, ctx());
+  assert.ok(out.includes('data-decimals="2"') && out.includes(">12.50<") && /<h3 class="ecx-counter-title">/.test(out), out);
+  assert.ok(out.includes(">72.3%<") && out.includes('aria-label="Tiến độ A"') && out.includes('aria-valuenow="72.3"') && out.includes("--ecx-progress-ease:linear"), out);
+  assert.match(out, /class="ecx-progress"[^>]*>.*class="ecx-progress ecx-in"/s, out);
+  assert.ok(out.includes(">40%<") && out.includes('aria-label="B"'), out);
+});
