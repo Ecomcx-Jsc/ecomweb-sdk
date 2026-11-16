@@ -586,3 +586,13 @@ test("danh sách icon: 3 cột, icon căn giữa có khung tròn, nét mảnh; m
   assert.equal(out.match(/ecx-widget-icon/g)?.length, 1, out);
   assert.ok(out.includes('stroke-width="1.5"') && out.includes('href="/b"'), out);
 });
+
+test("hộp icon: media là ảnh nằm trái, căn giữa theo chiều dọc, cao bằng ô chứa; ảnh có đường dẫn nguy hiểm thì không vẽ", async () => {
+  const box = (attrs: Record<string, unknown>) => ({ type: "doc", content: [{ type: "iconBox", attrs: { title: "A", media: "image", ...attrs } }] });
+  const out = await html(box({ src: "/uploads/a.jpg", alt: "Ảnh A", width: 640, height: 480, position: "left", verticalAlign: "center", fullHeight: true, iconStyle: "circle" }), ctx());
+  assert.match(out, /class="ecx-icon-box is-left is-v-center is-full-height[^"]*"/, out);
+  assert.match(out, /<span class="ecx-icon-box-icon is-image"><img[^>]*src="\/uploads\/a\.jpg"[^>]*alt="Ảnh A"[^>]*width="640"[^>]*height="480"/, out);
+  assert.ok(!out.includes("ecx-widget-icon"), out);
+  const bad = await html(box({ src: "javascript:alert(1)", verticalAlign: "center" }), ctx());
+  assert.ok(!bad.includes("<img") && !bad.includes("ecx-icon-box-icon") && !bad.includes("is-v-center") && !bad.includes("javascript:"), bad);
+});
