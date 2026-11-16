@@ -1,0 +1,22 @@
+name: Test SDK
+
+# Mỗi push / pull request: test mọi gói, kiểm kiểu theme-sdk, tài liệu API khớp mã nguồn, đóng gói thử như lúc phát hành.
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - name: Test (content fixtures, render, stress, CLI)
+        run: node scripts/test.mjs
+      - name: Tài liệu API (packages/theme-sdk/API.md) khớp mã nguồn
+        run: node scripts/api-docs.mjs --check
+      - name: Đóng gói + cài thử
+        run: node scripts/release.mjs --check

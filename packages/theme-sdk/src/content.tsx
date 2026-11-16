@@ -103,7 +103,8 @@ export async function contentContext(site: Site, post?: Post | null, data?: Reso
     dynamic: renderDynamic,
     parts: async (slug) => (await getTemplates().catch(() => null))?.parts[slug] ?? null,
     region: (name, fallback) => regionOverride(name, fallback, site, data),
-    pattern: (ref) => getPattern(ref),
+    // Khối mẫu đồng bộ lỗi (CMS lỗi) → ẩn khối đó, không làm sập cả bài
+    pattern: (ref) => getPattern(ref).catch((e) => { console.error(`[ecomweb] pattern #${ref}:`, e); return null; }),
     binding: async (source, args, c) => {
       const fn = CORE_BINDING_SOURCES[source] ?? (await getActiveExtensions(site)).map((d) => d.bindingSources?.[source]).find(Boolean);
       // Bài của vòng lặp (query) / bài đang xem / bài của nội dung

@@ -8,12 +8,14 @@ Hướng dẫn đầy đủ nằm trong repo core: `docs/theme-guide.md` (theme,
 
 | Import | Chạy ở | Dùng cho |
 |---|---|---|
-| `@ecomcx/ecomweb-theme-sdk` | server | dữ liệu (`getPosts`, `getSite`…), component server (`PostContent`, `Menu`…), `definePlugin`, conditional tags |
+| `@ecomcx/ecomweb-theme-sdk` | chỉ server (`server-only`) | dữ liệu (`getPosts`, `getSite`…), component server (`PostContent`, `Menu`…), `definePlugin`, conditional tags |
 | `@ecomcx/ecomweb-theme-sdk/client` | trình duyệt (`"use client"`) | `Link`, form đăng nhập / bình luận, `pluginClient`, `emit` / `on`, `useT`, `setPreference` |
-| `@ecomcx/ecomweb-theme-sdk/runtime` | server (core) | nạp theme / plugin: dành cho core |
+| `@ecomcx/ecomweb-theme-sdk/runtime` | chỉ server (core) | nạp theme / plugin, dựng trang theo URL, xem trước: dành cho core, không có cam kết |
 | `@ecomcx/ecomweb-theme-sdk/auth-shared` | cả hai (core) | hằng và kiểu dùng chung cho proxy đăng nhập |
 
-File `"use client"` chỉ import giá trị từ `/client`. `import type` từ entry chính thì dùng được ở mọi nơi.
+File `"use client"` chỉ import giá trị từ `/client`; import nhầm entry chính thì Next báo lỗi lúc build. `import type` từ entry chính dùng được ở mọi nơi.
+
+Tham chiếu đầy đủ từng tên (chữ ký, mô tả, ví dụ): [API.md](API.md), sinh từ mã nguồn.
 
 ## Quy tắc đặt tên
 
@@ -27,6 +29,18 @@ File `"use client"` chỉ import giá trị từ `/client`. `import type` từ e
 | `use*` | React hook (client) | `useCurrentUser`, `useT` |
 | `PascalCase` | component | `PostDate`, `Menu` |
 | `CONSTANT_CASE` | hằng | `CONSENT_CATEGORIES` |
+
+## Cách báo lỗi
+
+| Loại | Không tìm thấy | CMS lỗi (mạng, 5xx) |
+|---|---|---|
+| Hàm lấy một mục: `getPost`, `getPostById`, `getPattern`, `getMenu`, `getMenuById`, `getPlugin` | `null` | ném `CmsApiError` (`status` = mã HTTP, 0 = lỗi mạng) |
+| Hàm lấy danh sách: `getPosts`, `getTerms`, `queryTerms`, `getComments`, `getWidgets`… | danh sách rỗng | ném `CmsApiError` |
+| `getCurrentUser` | `null` (khách) | `null` |
+| Component phần phụ: `<Menu>`, `<WidgetArea>`, `<Comments>`, `<Slot>` | vẽ `fallback` / không vẽ | ghi `console.error`, bỏ phần đó, trang vẫn hiện |
+| Plugin, filter, action lỗi | — | ghi log, bỏ qua plugin đó |
+
+Template gặp lỗi không bắt thì Next hiện trang lỗi (`error.tsx`), không hiện 404 sai. Lỗi mạng ngắn (502 / 503 / 504) được thử lại một lần trước khi ném.
 
 ## Độ ổn định
 

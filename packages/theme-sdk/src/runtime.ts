@@ -1,3 +1,4 @@
+import "server-only";
 import { cache } from "react";
 import type { ComponentType } from "react";
 import { getSite, getTemplates } from "./api";
@@ -252,3 +253,8 @@ export async function doAction(name: string, arg?: any, site?: Site): Promise<vo
 export function definePlugin(def: PluginDefinition): PluginDefinition {
   return def;
 }
+
+// Tên nội bộ của core (dựng trang theo URL, xem trước, cookie phiên): chỉ export ở entry "/runtime" — theme và plugin không dùng,
+// có thể đổi ở bản phụ.
+export { cmsApi, varyHeader, resolvePath, getPreview, getTemplates, TEMPLATE_DRAFT_COOKIE, UNLOCK_COOKIE, UNLOCK_HEADER } from "./api";
+export { getAccessToken } from "./auth";

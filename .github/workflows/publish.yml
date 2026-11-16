@@ -39,6 +39,12 @@ jobs:
       - name: Tag phải trùng phiên bản của các gói
         run: test "v$(node -p "require('./packages/theme-sdk/package.json').version")" = "$TAG"
 
+      - name: Test
+        run: node scripts/test.mjs
+
+      - name: Tài liệu API khớp mã nguồn
+        run: node scripts/api-docs.mjs --check
+
       - name: Build + kiểm tra cài thử
         run: node scripts/release.mjs --check
 

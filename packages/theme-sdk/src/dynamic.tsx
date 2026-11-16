@@ -111,7 +111,7 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
     case "termList": {
       const taxonomy = String(a.taxonomy ?? "category");
       if (!/^[a-z0-9_-]{1,64}$/i.test(taxonomy)) return null;
-      const terms = await getTerms(taxonomy, a.hideEmpty !== false).catch(() => [] as Term[]);
+      const terms = await getTerms({ taxonomy, hideEmpty: a.hideEmpty !== false }).catch(() => [] as Term[]);
       if (!terms.length) return null;
       const label = (t: Term) => <><Link href={t.link} rel="tag">{t.name}</Link>{a.showCount === true && <> ({t.count})</>}</>;
       if (a.display === "cloud") {

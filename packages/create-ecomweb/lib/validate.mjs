@@ -171,13 +171,14 @@ export function validate(dir) {
       errors.push("Không thấy backend/*.csproj hoặc DLL đã build");
   }
   warnings.push(...hardcodedColors(dir));
-  warnings.push(...clientImportsServerEntry(dir));
+  // SDK 2.0: entry chính có server-only → Next báo lỗi build, nên chặn ngay khi đóng gói
+  errors.push(...clientImportsServerEntry(dir));
   return { kind, manifest, errors, warnings };
 }
 
 /**
  * File "use client" import giá trị (không phải `import type`) từ entry chính của theme SDK → kéo phần chạy trên server
- * (next/headers, gọi API) vào bundle trình duyệt. SDK 2.0 sẽ chặn hẳn (server-only); nên đổi sang ".../client".
+ * (next/headers, gọi API) vào bundle trình duyệt. Từ SDK 2.0 entry chính có server-only nên Next báo lỗi build; đổi sang ".../client".
  */
 export function clientImportsServerEntry(dir) {
   const out = [];
@@ -187,7 +188,7 @@ export function clientImportsServerEntry(dir) {
     for (const m of code.matchAll(/import\s+(type\s+)?\{([^}]*)\}\s*from\s*["']@ecomcx\/ecomweb-theme-sdk["']/g)) {
       if (m[1]) continue;
       const values = m[2].split(",").map((x) => x.trim()).filter((x) => x && !x.startsWith("type "));
-      if (values.length) out.push(`${path.relative(dir, file)}:${code.slice(0, m.index).split("\n").length}: component client import ${values.join(", ")} từ "@ecomcx/ecomweb-theme-sdk" — đổi sang "@ecomcx/ecomweb-theme-sdk/client" (entry chính chỉ dùng ở server; SDK 2.0 sẽ báo lỗi)`);
+      if (values.length) out.push(`${path.relative(dir, file)}:${code.slice(0, m.index).split("\n").length}: component client import ${values.join(", ")} từ "@ecomcx/ecomweb-theme-sdk" — đổi sang "@ecomcx/ecomweb-theme-sdk/client" (entry chính chỉ chạy ở server, từ SDK 2.0 Next báo lỗi build)`);
     }
   }
   return out;

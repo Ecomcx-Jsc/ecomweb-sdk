@@ -35,10 +35,15 @@ function MenuItems({ items, currentPath, depth }: { items: MenuItem[]; currentPa
  * Menu theo vị trí (`location`, khai trong `theme.json › menuLocations`) hoặc theo id (`menuId`) — tương đương `wp_nav_menu`.
  * Link khớp URL hiện tại có class `current-menu-link` + `aria-current="page"`. Chưa gắn menu → `fallback` (mặc định không vẽ gì).
  */
+/** Phần phụ của trang (menu, widget, bình luận): CMS lỗi thì ghi log và bỏ phần đó, trang vẫn hiện. */
+async function soft<T>(what: string, p: Promise<T>): Promise<T | null> {
+  try { return await p; } catch (e) { console.error(`[ecomweb] ${what}:`, e); return null; }
+}
+
 export async function Menu({ location, menuId, currentPath, className, fallback }: {
   location?: string; menuId?: number; currentPath?: string; className?: string; fallback?: ReactNode;
 }) {
-  const menu = menuId ? await getMenuById(menuId) : location ? await getMenu(location) : null;
+  const menu = menuId ? await soft(`menu #${menuId}`, getMenuById(menuId)) : location ? await soft(`menu "${location}"`, getMenu(location)) : null;
   if (!menu || menu.items.length === 0) return <>{fallback ?? null}</>;
   return <nav className={className} aria-label={menu.name}><MenuItems items={menu.items} currentPath={currentPath} depth={0} /></nav>;
 }
@@ -58,7 +63,7 @@ async function CoreWidget({ widget }: { widget: WidgetInstance }) {
       return <ul>{items.map((p) => <li key={p.id}><Link href={p.link}>{p.title}</Link></li>)}</ul>;
     }
     case "categories": {
-      const terms = await getTerms("category", true);
+      const terms = await getTerms({ taxonomy: "category" });
       // Phân cấp: chuyên mục con lồng trong chuyên mục cha
       const ids = new Set(terms.map((t) => t.id));
       const tree = (parent: number | null): ReactNode => {
@@ -68,7 +73,7 @@ async function CoreWidget({ widget }: { widget: WidgetInstance }) {
       return tree(null);
     }
     case "tag-cloud": {
-      const terms = await getTerms("post_tag", true);
+      const terms = await getTerms({ taxonomy: "post_tag" });
       const max = Math.max(1, ...terms.map((t) => t.count));
       return <div className="tagcloud">{terms.map((t) => <Link key={t.id} href={t.link} style={{ fontSize: `${0.8 + (t.count / max) * 0.8}em` }}>{t.name}</Link>)}</div>;
     }
@@ -83,11 +88,11 @@ async function CoreWidget({ widget }: { widget: WidgetInstance }) {
 
 /** Vẽ các widget của một khu vực (`theme.json › widgetAreas`) — tương đương `dynamic_sidebar`. Khu vực trống → không vẽ gì. */
 export async function WidgetArea({ id, className }: { id: string; className?: string }) {
-  const [site, widgets] = await Promise.all([getSite(), getWidgets(id)]);
-  if (widgets.length === 0) return null;
+  const [site, widgets] = await Promise.all([getSite(), soft(`widget area "${id}"`, getWidgets(id))]);
+  if (!widgets?.length) return null;
   const rendered = await Promise.all(widgets.map(async (w) => {
     const Plugin = await findWidget(w.type, site);
-    const body = Plugin ? <ExtensionBoundary name={`Widget ${w.type}`}><Plugin widget={w} settings={w.settings ?? {}} site={site} /></ExtensionBoundary> : await CoreWidget({ widget: w });
+    const body = Plugin ? <ExtensionBoundary name={`Widget ${w.type}`}><Plugin widget={w} settings={w.settings ?? {}} site={site} /></ExtensionBoundary> : await soft(`widget ${w.type}`, CoreWidget({ widget: w }));
     if (!body) return null;
     return (
       <section key={w.id} className={cx("widget", `widget-${w.type}`)}>
@@ -188,10 +193,11 @@ export function FeaturedImage({ media, size = "large", className, link, label, s
 
 /**
  * Ngày đăng của bài trong thẻ `<time datetime>`, định dạng theo Cài đặt › Chung (xem {@link formatDate}) — tương đương `the_date`.
- * Luôn truyền `site` (có trong `TemplateProps`), thiếu thì không theo cấu hình admin.
+ * Không truyền `site` thì tự đọc cấu hình của website (`getSite()`, có cache).
  */
-export function PostDate({ post, site }: { post: Post; site?: { dateFormat: string; timezone: string; locale?: string } }) {
-  return <time dateTime={post.publishedAt ?? post.createdAt}>{formatDate(post.publishedAt ?? post.createdAt, site)}</time>;
+export async function PostDate({ post, site }: { post: Post; site?: { dateFormat: string; timezone: string; locale?: string } }) {
+  const s = site ?? (await getSite());
+  return <time dateTime={post.publishedAt ?? post.createdAt}>{formatDate(post.publishedAt ?? post.createdAt, s)}</time>;
 }
 
 /** Danh sách link term (chuyên mục, thẻ), phân tách bằng `separator` — tương đương `the_category` / `the_tags`. @example <TermLinks terms={post.terms.category} /> */
@@ -212,7 +218,7 @@ export async function Comments({ post, title, perPage, order, avatarSize, showDa
   if (post.commentStatus !== "open" && post.commentCount === 0) return null;
   if (post.passwordProtected && !post.content) return null; // bài có mật khẩu: ẩn bình luận tới khi mở khoá
   const unlock = post.passwordProtected ? await requestUnlock() : undefined;
-  const [site, page, t] = await Promise.all([getSite(), getComments(post.id, 1, unlock, { perPage, order }), getT()]);
+  const [site, page, t] = await Promise.all([getSite(), soft(`comments #${post.id}`, getComments(post.id, { unlock, perPage, order })), getT()]);
   const comments = page?.items ?? [];
   const dateSite = { dateFormat: site.dateFormat, timezone: site.timezone, locale: site.locale };
   title ??= t("comments.title");
@@ -222,7 +228,7 @@ export async function Comments({ post, title, perPage, order, avatarSize, showDa
       <Slot name="comments.before" props={{ post }} />
       <h2 className="comments-title">{title} ({post.commentCount})</h2>
       {comments.length > 0 && <CommentList comments={comments} site={dateSite} avatarSize={avatarSize} showDate={showDate} />}
-      {(page?.totalPages ?? 1) > 1 && <CommentsMore postId={post.id} totalPages={page.totalPages} site={dateSite} perPage={perPage} order={order} avatarSize={avatarSize} showDate={showDate} labels={{ more: t("comments.more"), loading: t("comments.loading"), error: t("comments.form.error") }} />}
+      {page && page.totalPages > 1 && <CommentsMore postId={post.id} totalPages={page.totalPages} site={dateSite} perPage={perPage} order={order} avatarSize={avatarSize} showDate={showDate} labels={{ more: t("comments.more"), loading: t("comments.loading"), error: t("comments.form.error") }} />}
       {post.commentStatus === "open"
         ? <CommentForm postId={post.id} labels={labels} fields={<Slot name="comment_form.fields" props={{ post }} />} />
         : <p className="no-comments">{t("comments.closed")}</p>}

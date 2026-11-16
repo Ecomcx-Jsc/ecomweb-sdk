@@ -1,5 +1,13 @@
 import type { Site } from "./types";
 
+const warned = new Set<string>();
+/** @internal Cảnh báo một lần mỗi tiến trình khi gọi API đã cũ (chỉ ở môi trường dev). */
+export function deprecated(old: string, use: string) {
+  if (process.env.NODE_ENV === "production" || warned.has(old)) return;
+  warned.add(old);
+  console.warn(`[ecomweb-theme-sdk] ${old} đã cũ, dùng ${use}. Xem CHANGELOG của @ecomcx/ecomweb-theme-sdk.`);
+}
+
 /**
  * Định dạng một ngày theo cấu hình ngày của website (Cài đặt › Chung: `site.dateFormat`, `site.timezone`) — tương đương `date_i18n`.
  * Token: `yyyy`, `MMMM` (tên tháng theo `site.locale`), `MM`, `dd`, `d`. Luôn truyền `site` (có trong `TemplateProps`): thiếu thì dùng

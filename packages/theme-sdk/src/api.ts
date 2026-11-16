@@ -1,6 +1,7 @@
 import { createFetchKit, isFetchKitError } from "next-fetch-kit";
 import type { Author, PostContentDoc, CommentPage, Media, Menu, Post, ResolveResult, Site, Term, WidgetInstance } from "./types";
 import { getRequestLocale } from "./locale";
+import { deprecated } from "./utils";
 
 /**
  * Client gọi Public API của CMS (dùng next-fetch-kit: chạy được cả SSR lẫn CSR,
@@ -98,7 +99,9 @@ function waitForApi(): Promise<boolean> {
 /** Lỗi mạng hoặc 502/503/504 (proxy/API đang khởi động) — không tính lỗi 500 thật của API. */
 const isUnavailable = (e: unknown) => isFetchKitError(e) && (!e.status || e.status === 502 || e.status === 503 || e.status === 504);
 
-/** @internal Gọi Public API của CMS (theme dùng các hàm get* thay vì gọi thẳng). Kết quả được cache và gắn tag "cms" để revalidate khi nội dung thay đổi. */
+/**
+ * Gọi thẳng một endpoint của Public API (`/api/public/...`) khi SDK chưa có hàm riêng — lối thoát có cam kết cho theme / plugin.
+ * Ưu tiên các hàm `get*`. Lỗi → ném `CmsApiError` (`status` = mã HTTP). Kết quả được cache và gắn tag "cms" để revalidate khi nội dung thay đổi. */
 export async function cmsFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   if ((breaker.__cmsApiDownUntil ?? 0) > Date.now()) throw new CmsApiError(503, `CMS API tạm thời không phản hồi: ${path}`);
   const headers = { ...opts.headers, ...varyHeader(opts.vary) };
@@ -369,10 +372,15 @@ export const getPostById = async (id: number) =>
 /**
  * Mọi term của một phân loại (không phân trang), ngôn ngữ của request (tương đương `get_terms`).
  * `hideEmpty` mặc định `true` = bỏ term chưa có bài. Cần lọc / phân trang / sắp xếp → {@link queryTerms}.
- * @example const cats = await getTerms("category");
+ * @example const cats = await getTerms({ taxonomy: "category" });
  */
-export const getTerms = async (taxonomy: string, hideEmpty = true, locale?: string) =>
-  cmsFetch<Term[]>(`/terms/${taxonomy}`, { tags: ["terms"], query: clean({ hideEmpty, locale: await loc(locale) }) });
+export function getTerms(query: { taxonomy: string; hideEmpty?: boolean; locale?: string }): Promise<Term[]>;
+/** @deprecated Từ 2.0: dùng `getTerms({ taxonomy, hideEmpty, locale })`. Dạng tham số vị trí bị bỏ ở 3.0. */
+export function getTerms(taxonomy: string, hideEmpty?: boolean, locale?: string): Promise<Term[]>;
+export async function getTerms(q: string | { taxonomy: string; hideEmpty?: boolean; locale?: string }, hideEmpty = true, locale?: string): Promise<Term[]> {
+  if (typeof q === "string") { deprecated("getTerms(taxonomy, hideEmpty, locale)", "getTerms({ taxonomy, hideEmpty, locale })"); q = { taxonomy: q, hideEmpty, locale }; }
+  return cmsFetch<Term[]>(`/terms/${encodeURIComponent(q.taxonomy)}`, { tags: ["terms"], query: clean({ hideEmpty: q.hideEmpty ?? true, locale: await loc(q.locale) }) });
+}
 /** @internal Cookie giữ token bản nháp của Trình dựng (website đang ở chế độ xem trước). */
 export const TEMPLATE_DRAFT_COOKIE = "cms-template-draft";
 
@@ -393,29 +401,42 @@ export const getTemplates = async () => {
     draft ? { noStore: true, query: clean({ draft, locale }) } : { tags: ["templates"], query: clean({ locale }) });
 };
 
-/** Nội dung mẫu đồng bộ (khối syncedPattern). null = mẫu đã xoá / chưa xuất bản. */
+/** Nội dung mẫu đồng bộ (khối syncedPattern). Mẫu đã xoá / chưa xuất bản → `null`; CMS lỗi → ném `CmsApiError`. */
 export const getPattern = (id: number) =>
-  cmsFetch<PostContentDoc | null>(`/patterns/${id}`, { tags: ["patterns", "posts"] }).catch(() => null);
+  cmsFetch<PostContentDoc | null>(`/patterns/${id}`, { tags: ["patterns", "posts"] }).catch(nullIf404);
 
 /**
  * Menu gắn ở một vị trí của theme (`theme.json › menuLocations`), ngôn ngữ của request (tương đương `wp_get_nav_menu_items` theo location).
  * Chưa gắn menu → `null`. Vẽ sẵn: `<Menu location="primary" />`.
  */
 export const getMenu = async (location: string, locale?: string) =>
-  cmsFetch<Menu | null>(`/menus/${location}`, { tags: ["menus"], query: clean({ locale: await loc(locale) }) });
+  cmsFetch<Menu | null>(`/menus/${location}`, { tags: ["menus"], query: clean({ locale: await loc(locale) }) }).catch(nullIf404);
 /** Menu theo id (khối Điều hướng chọn menu cụ thể). Không có → `null`. */
-export const getMenuById = (id: number) => cmsFetch<Menu | null>(`/menus/id/${id}`, { tags: ["menus"] });
+export const getMenuById = (id: number) => cmsFetch<Menu | null>(`/menus/id/${id}`, { tags: ["menus"] }).catch(nullIf404);
 /** Widget trong một khu vực (`theme.json › widgetAreas`), theo thứ tự. Vẽ sẵn: `<WidgetArea id="sidebar" />`. */
 export const getWidgets = async (area: string, locale?: string) =>
   cmsFetch<WidgetInstance[]>(`/widgets/${area}`, { tags: ["widgets"], query: clean({ locale: await loc(locale) }) });
+/** Tham số của {@link getComments}. Bỏ trống = theo Cài đặt › Thảo luận. */
+export interface CommentQuery {
+  page?: number; perPage?: number; order?: "asc" | "desc";
+  /** Bài có mật khẩu: token mở khoá (giá trị cookie, xem {@link requestUnlock}). Có thì không cache. */
+  unlock?: string;
+}
 /**
- * Bình luận đã duyệt theo trang (số mỗi trang, thứ tự: Cài đặt › Thảo luận).
- * Bài có mật khẩu (core >= 1.15): CMS chỉ trả bình luận khi có token mở khoá — unlock = giá trị cookie cms-unlock (không cache).
+ * Bình luận đã duyệt của một bài, theo trang → `{ items, total, count, page, totalPages }` (tương đương `get_comments`).
+ * Bài có mật khẩu: CMS chỉ trả bình luận khi có `unlock`.
+ * @example const { items } = await getComments(post.id, { page: 2 });
  */
-export const getComments = (postId: number, page = 1, unlock?: string, opts: { perPage?: number; order?: "asc" | "desc" } = {}) =>
-  cmsFetch<CommentPage>(`/comments/${postId}`, {
-    tags: [`comments:${postId}`], noStore: !!unlock, query: clean({ page: page > 1 ? page : undefined, perPage: opts.perPage, order: opts.order }), headers: unlock ? { [UNLOCK_HEADER]: unlock } : undefined,
+export function getComments(postId: number, query?: CommentQuery): Promise<CommentPage>;
+/** @deprecated Từ 2.0: dùng `getComments(postId, { page, unlock, perPage, order })`. Dạng tham số vị trí bị bỏ ở 3.0. */
+export function getComments(postId: number, page: number, unlock?: string, opts?: { perPage?: number; order?: "asc" | "desc" }): Promise<CommentPage>;
+export function getComments(postId: number, q: number | CommentQuery = {}, unlock?: string, opts: { perPage?: number; order?: "asc" | "desc" } = {}): Promise<CommentPage> {
+  if (typeof q === "number") { deprecated("getComments(postId, page, unlock, opts)", "getComments(postId, { page, unlock, perPage, order })"); q = { page: q, unlock, ...opts }; }
+  const page = q.page ?? 1;
+  return cmsFetch<CommentPage>(`/comments/${postId}`, {
+    tags: [`comments:${postId}`], noStore: !!q.unlock, query: clean({ page: page > 1 ? page : undefined, perPage: q.perPage, order: q.order }), headers: q.unlock ? { [UNLOCK_HEADER]: q.unlock } : undefined,
   });
+}
 
 /** Cookie mở khoá bài có mật khẩu của request hiện tại (server component); ngoài request → undefined. */
 export async function requestUnlock(): Promise<string | undefined> {

@@ -37,14 +37,3 @@ export function decideConsent(category: ConsentCategory, choice: ConsentCategory
   if (category === "functional") return true;
   return choice ? choice.includes(category) : fallback;
 }
-
-/**
- * (Server) Mặc định của site khi khách CHƯA chọn — filter "consent.default", không có plugin banner → true.
- * Không đọc cookie nên không làm mất cache trang; dùng cho phần không có JS (vd <noscript> của GTM).
- */
-export async function consentDefault(category: ConsentCategory): Promise<boolean> {
-  if (category === "functional") return true;
-  // import động: client.tsx dùng chung file này mà không kéo runtime (server) vào bundle trình duyệt
-  const { applyFilters } = await import("./runtime");
-  return (await applyFilters("consent.default", true, { category })) !== false;
-}

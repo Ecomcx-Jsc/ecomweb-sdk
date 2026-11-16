@@ -75,7 +75,11 @@ function releaseManifest(pkg, dir) {
   exportsMap["./package.json"] = "./package.json";
   const { scripts, devDependencies, ...rest } = pkg;
   const files = ["dist", "README.md", ...(pkg.files ?? []).filter((f) => f !== "src" && f !== "README.md")];
-  return { ...rest, ...publishMeta(pkg, dir), main: toDist(pkg.main), types: toDist(pkg.main).replace(/\.js$/, ".d.ts"), exports: exportsMap, files, sideEffects: false };
+  // sideEffects: false cho phép bundler bỏ qua cả `import "server-only"` (side effect) → file nào có marker đó phải khai là có side effect,
+  // nếu không component client import nhầm entry chính vẫn build qua (chặn bị vô hiệu).
+  const guarded = Object.values(exportsMap).filter((v) => typeof v === "object").map((v) => v.import)
+    .filter((f) => /^\s*import\s+["']server-only["']/m.test(readFileSync(path.join(root, dir, f.replace(/^\.\/dist\//, "src/").replace(/\.js$/, existsSync(path.join(root, dir, f.replace(/^\.\/dist\//, "src/").replace(/\.js$/, ".ts"))) ? ".ts" : ".tsx")), "utf8")));
+  return { ...rest, ...publishMeta(pkg, dir), main: toDist(pkg.main), types: toDist(pkg.main).replace(/\.js$/, ".d.ts"), exports: exportsMap, files, sideEffects: guarded.length ? guarded : false };
 }
 
 rmSync(out, { recursive: true, force: true });
