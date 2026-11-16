@@ -143,9 +143,9 @@ export async function Slot<P = any>({
 // ---------------------------------------------------------------------------
 
 /** Ô tìm kiếm — gửi về trang chủ của ngôn ngữ hiện tại (/?s= hoặc /en?s=). */
-export async function SearchForm({ defaultValue, placeholder, buttonLabel, postType, showLabel, buttonPosition, buttonIcon }: { buttonIcon?: boolean; defaultValue?: string | null; placeholder?: string; buttonLabel?: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below" }) {
+export async function SearchForm({ defaultValue, placeholder, buttonLabel, postType, showLabel, buttonPosition, buttonIcon, scopes, scopeType }: { scopes?: Array<{ value: string; label: string }>; scopeType?: string; buttonIcon?: boolean; defaultValue?: string | null; placeholder?: string; buttonLabel?: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below" }) {
   const [t, site] = await Promise.all([getT(), getSite()]);
-  return <SearchFormClient action={localeHref(site, "/")} defaultValue={defaultValue} placeholder={placeholder ?? t("search.placeholder")} label={t("search.label")} buttonLabel={buttonLabel ?? t("search.button")} postType={postType} showLabel={showLabel} buttonIcon={buttonIcon} buttonPosition={buttonPosition} />;
+  return <SearchFormClient action={localeHref(site, "/")} defaultValue={defaultValue} placeholder={placeholder ?? t("search.placeholder")} label={t("search.label")} buttonLabel={buttonLabel ?? t("search.button")} postType={postType} showLabel={showLabel} buttonIcon={buttonIcon} buttonPosition={buttonPosition} scopes={scopes} scopeAllLabel={t("search.all")} scopeLabel={t("search.scope")} scopeValue={scopeType} />;
 }
 
 function paramLink(data: ResolveResult, param: string, p: number) {

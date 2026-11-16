@@ -209,7 +209,7 @@ ResetPasswordForm({ labels, paths }: { labels?: Partial<AuthLabels>; paths?: Par
 Ô tìm kiếm — gửi về trang chủ của ngôn ngữ hiện tại (/?s= hoặc /en?s=).
 
 ```ts
-SearchForm({ defaultValue, placeholder, buttonLabel, postType, showLabel, buttonPosition, buttonIcon }: { buttonIcon?: boolean; defaultValue?: string | null; placeholder?: string; buttonLabel?: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below"; }): Promise<JSX.Element>
+SearchForm({ defaultValue, placeholder, buttonLabel, postType, showLabel, buttonPosition, buttonIcon, scopes, scopeType }: { scopes?: Array<{ value: string; label: string; }>; scopeType?: string; buttonIcon?: boolean; defaultValue?: string | null; placeholder?: string; buttonLabel?: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below"; }): Promise<JSX.Element>
 ```
 
 #### `Slot`
@@ -1375,12 +1375,28 @@ Phóng to ảnh: bấm ảnh mở lớp phủ (Esc hoặc bấm nền để đó
 LightboxClient({ src, alt, children }: { src: string; alt: string; children: ReactNode; }): JSX.Element
 ```
 
+#### `NavDrawer`
+
+Menu di động của khối Menu: nút burger mở ngăn trượt từ trái (nền mờ, nút đóng, khoá cuộn trang, Esc / bấm nền / bấm liên kết để đóng, trả focus về nút). Menu con hiện thụt vào ngay dưới mục cha. Khác NavToggle (giữ nguyên cho theme cũ dùng <details>).
+
+```ts
+NavDrawer({ label, closeLabel, children }: { label: string; closeLabel: string; children: ReactNode; }): JSX.Element
+```
+
+#### `ScrollRow`
+
+Hàng cuộn ngang có nút trước / sau (Query dạng carousel): cuộn đúng một "trang" mỗi lần bấm, ẩn nút ở hai đầu. Không có JS vẫn vuốt / cuộn được.
+
+```ts
+ScrollRow({ children, arrows }: { children: ReactNode; arrows?: boolean; }): JSX.Element
+```
+
 #### `SearchFormClient`
 
 Form tìm kiếm (GET) chuyển trang phía client.
 
 ```ts
-SearchFormClient({ action, defaultValue, placeholder, label, buttonLabel, postType, showLabel, buttonPosition, buttonIcon }: { buttonIcon?: boolean; action: string; defaultValue?: string | null; placeholder: string; label: string; buttonLabel: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below"; }): JSX.Element
+SearchFormClient({ action, defaultValue, placeholder, label, buttonLabel, postType, showLabel, buttonPosition, buttonIcon, scopes, scopeAllLabel, scopeLabel, scopeValue }: { scopes?: Array<{ value: string; label: string; }>; scopeAllLabel?: string; scopeLabel?: string; scopeValue?: string; buttonIcon?: boolean; action: string; defaultValue?: string | null; placeholder: string; label: string; buttonLabel: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below"; }): JSX.Element
 ```
 
 #### `TabsClient`

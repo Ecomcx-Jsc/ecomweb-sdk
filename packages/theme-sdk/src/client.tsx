@@ -2,7 +2,8 @@
 
 import { countdownParts, SEARCH_ICON_PATH, type CountdownUnit } from "@ecomcx/ecomweb-content";
 import { extraFields } from "./auth-forms";
-import { Component, Suspense, useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { Component, Suspense, useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import NextLink, { useLinkStatus } from "next/link";
 import NextForm from "next/form";
@@ -105,7 +106,7 @@ export function Link({ href, prefetch = false, activeClassName, matchNested = tr
 }
 
 /** Form tìm kiếm (GET) chuyển trang phía client. */
-export function SearchFormClient({ action, defaultValue, placeholder, label, buttonLabel, postType, showLabel, buttonPosition = "right", buttonIcon }: { buttonIcon?: boolean; action: string; defaultValue?: string | null; placeholder: string; label: string; buttonLabel: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below" }) {
+export function SearchFormClient({ action, defaultValue, placeholder, label, buttonLabel, postType, showLabel, buttonPosition = "right", buttonIcon, scopes, scopeAllLabel, scopeLabel, scopeValue }: { scopes?: Array<{ value: string; label: string }>; scopeAllLabel?: string; scopeLabel?: string; scopeValue?: string; buttonIcon?: boolean; action: string; defaultValue?: string | null; placeholder: string; label: string; buttonLabel: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below" }) {
   const id = useId();
   const button = buttonIcon
     ? <button type="submit" aria-label={buttonLabel} title={buttonLabel}><svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d={SEARCH_ICON_PATH} /></svg></button>
@@ -115,7 +116,9 @@ export function SearchFormClient({ action, defaultValue, placeholder, label, but
       {showLabel && <label htmlFor={id} className="search-label">{label}</label>}
       {buttonPosition === "left" && button}
       <input id={id} type="search" name="s" defaultValue={defaultValue ?? ""} placeholder={placeholder} aria-label={showLabel ? undefined : label} required />
-      {postType && <input type="hidden" name="type" value={postType} />}
+      {scopes && scopes.length > 0
+        ? <select name="type" className="search-scope" aria-label={scopeLabel} defaultValue={scopeValue ?? "any"}><option value="any">{scopeAllLabel}</option>{scopes.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select>
+        : postType && <input type="hidden" name="type" value={postType} />}
       {buttonPosition !== "left" && button}
     </NextForm>
   );
@@ -511,3 +514,67 @@ export function FormBlockClient({ formId, source, successMessage, labels, button
   );
 }
 
+
+/** Hàng cuộn ngang có nút trước / sau (Query dạng carousel): cuộn đúng một "trang" mỗi lần bấm, ẩn nút ở hai đầu. Không có JS vẫn vuốt / cuộn được. */
+export function ScrollRow({ children, arrows = true }: { children: ReactNode; arrows?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ start: true, end: false });
+  const update = useCallback(() => {
+    const el = ref.current;
+    if (el) setEdge({ start: el.scrollLeft <= 2, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2 });
+  }, []);
+  useEffect(() => {
+    update();
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [update]);
+  const go = (dir: 1 | -1) => ref.current?.scrollBy({ left: dir * ref.current.clientWidth, behavior: "smooth" });
+  return (
+    <div className="ecx-scroller">
+      <div className="ecx-scroller-track" ref={ref} onScroll={update} tabIndex={0}>{children}</div>
+      {arrows && !edge.start && <button type="button" className="ecx-scroller-arrow is-prev" aria-label="←" onClick={() => go(-1)}><svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></button>}
+      {arrows && !edge.end && <button type="button" className="ecx-scroller-arrow is-next" aria-label="→" onClick={() => go(1)}><svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></button>}
+    </div>
+  );
+}
+
+const BURGER = <svg viewBox="0 0 24 24" width={24} height={24} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16" /></svg>;
+const CLOSE = <svg viewBox="0 0 24 24" width={22} height={22} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12" /></svg>;
+
+/**
+ * Menu di động của khối Menu: nút burger mở ngăn trượt từ trái (nền mờ, nút đóng, khoá cuộn trang, Esc / bấm nền / bấm liên kết để đóng,
+ * trả focus về nút). Menu con hiện thụt vào ngay dưới mục cha. Khác NavToggle (giữ nguyên cho theme cũ dùng <details>).
+ */
+export function NavDrawer({ label, closeLabel, children }: { label: string; closeLabel: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const id = useId();
+  const button = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => { setOpen(false); button.current?.focus(); }, []);
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = prev; document.removeEventListener("keydown", onKey); };
+  }, [open, close]);
+  return (
+    <div className={cx("ecx-nav-drawer", open && "is-open")}>
+      <button ref={button} type="button" className="ecx-nav-burger" aria-label={label} aria-expanded={open} aria-controls={id} onClick={() => setOpen(true)}>{BURGER}</button>
+      {/* Ngăn trượt gắn vào <body>: khối chứa (group có container-type, sticky, transform…) sẽ nhốt phần tử fixed lại trong khung của nó */}
+      {mounted && createPortal(
+        <div className={cx("ecx-nav-drawer", "is-portal", open && "is-open")}>
+          <div className="ecx-nav-backdrop" onClick={close} aria-hidden="true" />
+          <div id={id} className="ecx-nav-panel" role="dialog" aria-modal="true" aria-label={label} aria-hidden={!open} {...(!open ? { inert: true } : {})}>
+            <button type="button" className="ecx-nav-close" aria-label={closeLabel} onClick={close}>{CLOSE}</button>
+            <div className="ecx-nav-panel-body" onClick={(e) => { if ((e.target as Element).closest("a")) setOpen(false); }}>{children}</div>
+          </div>
+        </div>, document.body)}
+    </div>
+  );
+}

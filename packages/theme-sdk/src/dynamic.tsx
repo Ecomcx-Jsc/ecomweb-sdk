@@ -1,6 +1,6 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
 import { getAdjacentPost, getArchives, getPosts, getTerms } from "./api";
-import { Link, LoginOutLink, NavToggle } from "./client";
+import { Link, LoginOutLink, NavDrawer, NavToggle, ScrollRow } from "./client";
 import { Comments, FeaturedImage, LanguageSwitcher, Menu, Pagination, PostDate, SearchForm, TermLinks } from "./components";
 import { getT } from "./i18n";
 import { applyFilters } from "./runtime";
@@ -8,6 +8,7 @@ import { localeHref } from "./locale";
 import { renderContent, type RenderContext, type RenderNode } from "./rich";
 import type { Post, ResolveResult, Term } from "./types";
 import { cx } from "./utils";
+import { spacingValue } from "@ecomcx/ecomweb-content";
 
 type Children = (ctx: RenderContext, nodes?: RenderNode[]) => Promise<ReactNode[]>;
 
@@ -40,19 +41,20 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       const location = String(a.location ?? "primary");
       const menu = <Menu location={location} className="ecx-navigation-menu" />;
       const t = await getT();
-      // next: overlayMenu never|mobile|always; thiếu thì theo `mobile` cũ
-      const overlay = ["never", "mobile", "always"].includes(a.overlayMenu) ? a.overlayMenu : a.mobile === false ? "never" : "mobile";
+      // overlayMenu never | mobile (≤640px) | tablet (≤1024px) | always; thiếu thì theo `mobile` cũ
+      const overlay = ["never", "mobile", "tablet", "always"].includes(a.overlayMenu) ? a.overlayMenu : a.mobile === false ? "never" : "mobile";
       return (
-        <div key={key} className={cx("ecx-navigation", `ecx-navigation-${a.orientation ?? "horizontal"}`, overlay !== "never" && "has-mobile", overlay === "always" && "overlay-always")}>
+        <div key={key} className={cx("ecx-navigation", `ecx-navigation-${a.orientation ?? "horizontal"}`, overlay !== "never" && "has-mobile", overlay === "tablet" && "bp-tablet", overlay === "always" && "overlay-always")}>
           {overlay !== "always" && <div className="ecx-navigation-items">{menu}</div>}
-          {overlay !== "never" && <NavToggle label={t("navigation.menu")}>{menu}</NavToggle>}
+          {overlay !== "never" && <NavDrawer label={t("navigation.menu")} closeLabel={t("navigation.close")}>{menu}</NavDrawer>}
         </div>
       );
     }
     case "search":
       return <div key={key} className="ecx-search"><SearchForm defaultValue={ctx.data?.search} placeholder={a.placeholder} buttonLabel={a.buttonText}
         postType={typeof a.postType === "string" && /^[a-z0-9_-]{1,64}$/i.test(a.postType) ? a.postType : undefined} showLabel={a.showLabel === true}
-        buttonPosition={a.buttonPosition === "left" || a.buttonPosition === "below" ? a.buttonPosition : "right"} buttonIcon={a.buttonStyle === "icon"} /></div>;
+        buttonPosition={a.buttonPosition === "left" || a.buttonPosition === "below" ? a.buttonPosition : "right"} buttonIcon={a.buttonStyle === "icon"}
+        scopes={a.scopeSelect === true ? parseScopes(a.scopes) : undefined} scopeType={ctx.data?.query?.type} /></div>;
     case "languageSwitcher":
       return <LanguageSwitcher key={key} className="ecx-language-switcher" variant={a.display === "dropdown" ? "select" : "list"} />;
     case "copyright":
@@ -74,7 +76,7 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
     case "featuredImage": {
       if (!post?.featuredMedia) return null;
       const ratio = ASPECT[a.aspect as string];
-      return <div key={key} className="ecx-featured-image" style={ratio ? { aspectRatio: ratio, overflow: "hidden" } : undefined}>
+      return <div key={key} className="ecx-featured-image" style={ratio ? ({ "--ecx-ar": ratio, overflow: "hidden" } as CSSProperties) : undefined}>
         <FeaturedImage media={post.featuredMedia} size={a.size ?? "large"} link={a.link ? post.link : undefined} label={post.title} />
       </div>;
     }
@@ -209,12 +211,14 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       let posts: Post[]; let data: ResolveResult | undefined; let pageParam: string | undefined;
       if (a.inherit !== false && ctx.data?.posts) { posts = ctx.data.posts; data = ctx.data; }
       else {
-        const taxonomy = a.category ? "category" : a.tag ? "post_tag" : undefined;
+        // taxonomy + term (1.27) lọc theo phân loại bất kỳ (vd product_cat); category / tag giữ cho bài viết
+        const custom = /^[a-z0-9_-]{1,64}$/i.test(String(a.taxonomy ?? "")) && a.term ? { taxonomy: String(a.taxonomy), term: String(a.term) } : undefined;
+        const taxonomy = custom?.taxonomy ?? (a.category ? "category" : a.tag ? "post_tag" : undefined);
         const exclude = String(a.exclude ?? "").split(",").map((x) => Number(x.trim())).filter((x) => Number.isInteger(x) && x > 0);
         // paginate: khối nằm trong một trang → phân trang bằng ?qpage=N (không đụng /page/N của chính trang)
         const paginate = a.paginate === true && !!ctx.data;
         const page = paginate ? Math.max(1, Math.floor(Number(ctx.data?.query?.qpage)) || 1) : 1;
-        const res = await getPosts({ page, type: a.postType ?? "post", perPage: a.perPage ?? 10, taxonomy, term: a.category || a.tag || undefined,
+        const res = await getPosts({ page, type: a.postType ?? "post", perPage: a.perPage ?? 10, taxonomy, term: custom?.term ?? (a.category || a.tag || undefined),
           orderBy: a.orderBy ?? "date", order: a.order ?? "desc",
           authorId: typeof a.authorId === "number" ? a.authorId : undefined, search: a.search || undefined, exclude: exclude.length ? exclude : undefined,
           sticky: a.sticky === "only" ? true : a.sticky === "exclude" ? false : undefined, orderByMeta: a.orderByMeta || undefined }).catch(() => null);
@@ -227,10 +231,20 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       const posts = ctx.query?.posts ?? [];
       if (!posts.length) return null;
       const grid = a.layout === "grid";
+      const carousel = a.layout === "carousel";
+      const per = Math.min(6, Math.max(1, Math.round(Number(a.columns)) || 3));
+      const gap = spacingValue(a.gap) ?? "1.5rem";
       // Đúng N cột khi đủ chỗ (như canvas), ít cột hơn khi hẹp (mỗi cột tối thiểu 12rem) — trước đây N chỉ là gợi ý nên 3 cột thành 2
-      const style: CSSProperties | undefined = grid ? { display: "grid", gap: "1.5rem", gridTemplateColumns: `repeat(auto-fill, minmax(max(12rem, calc((100% - ${(a.columns ?? 3) - 1} * 1.5rem) / ${a.columns ?? 3})), 1fr))`, listStyle: "none", padding: 0 } : { listStyle: "none", padding: 0 };
+      // Đặt số cột riêng cho tablet / điện thoại → lưới theo biến CSS (is-responsive); không thì như cũ: tự giảm cột khi hẹp (mỗi cột tối thiểu 12rem)
+      const tablet = Math.round(Number(a.columnsTablet)) || 0, mobile = Math.round(Number(a.columnsMobile)) || 0;
+      const responsive = grid && (tablet > 0 || mobile > 0);
+      const style: CSSProperties | undefined = responsive ? { "--per": per, "--per-tablet": tablet || Math.min(per, 3), "--per-mobile": mobile || Math.min(per, 2), "--gap": gap } as CSSProperties
+        : grid ? { display: "grid", gap, gridTemplateColumns: `repeat(auto-fill, minmax(max(12rem, calc((100% - ${per - 1} * ${gap}) / ${per})), 1fr))`, listStyle: "none", padding: 0 }
+        : carousel ? { "--per": per, "--per-tablet": Math.min(per, 3), "--per-mobile": Math.min(per, 2), "--gap": gap } as CSSProperties
+        : { listStyle: "none", padding: 0 };
       const items = await Promise.all(posts.map(async (p) => <li key={p.id} className="ecx-post">{await children({ ...ctx, post: p })}</li>));
-      return <ul key={key} className={cx("ecx-post-template", grid && "is-grid")} style={style}>{items}</ul>;
+      const list = <ul key={key} className={cx("ecx-post-template", grid && "is-grid", responsive && "is-responsive", carousel && "is-carousel")} style={style}>{items}</ul>;
+      return carousel ? <ScrollRow key={key} arrows={a.arrows !== false}>{list}</ScrollRow> : list;
     }
     case "pagination":
       return ctx.query?.data ? <Pagination key={key} data={ctx.query.data} pageParam={ctx.query.pageParam} type={["numbers", "prevNext", "both"].includes(a.type) ? a.type : "both"} midSize={Math.min(5, Math.max(0, Number.isFinite(Number(a.midSize)) ? Number(a.midSize) : 2))} /> : null;
@@ -252,4 +266,13 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
     }
   }
   return null;
+}
+
+/** "product:Sản phẩm, post:Tin tức" → tuỳ chọn của ô chọn phạm vi tìm kiếm (loại không hợp lệ bị bỏ; không ghi nhãn thì lấy chính tên loại). */
+function parseScopes(v: unknown): Array<{ value: string; label: string }> {
+  if (typeof v !== "string") return [];
+  return v.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 10).flatMap((x) => {
+    const [value, ...rest] = x.split(":");
+    return /^[a-z0-9_-]{1,64}$/i.test(value.trim()) ? [{ value: value.trim(), label: rest.join(":").trim() || value.trim() }] : [];
+  });
 }

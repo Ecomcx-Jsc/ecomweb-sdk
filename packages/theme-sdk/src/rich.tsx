@@ -245,7 +245,7 @@ const URL_ATTRS = new Set(["src", "href"]);
  * Áp gắn dữ liệu: thay chữ / thuộc tính bằng giá trị của nguồn lúc hiển thị. Giá trị là chữ thường (không HTML), đường dẫn qua safeUrl;
  * nguồn không có / trả về rỗng → giữ nội dung gõ tay. Lỗi của nguồn (plugin) chỉ bỏ qua thuộc tính đó.
  */
-async function applyBindings(node: Node, ctx: RenderContext): Promise<Node> {
+async function applyBindings(node: Node, ctx: RenderContext): Promise<Node | null> {
   const bindings = node.attrs?.bindings as Record<string, { source: string; args?: Record<string, string | number | boolean> }> | undefined;
   const allowed = BINDABLE[node.type];
   if (!bindings || !allowed || !ctx.binding) return node;
@@ -254,7 +254,10 @@ async function applyBindings(node: Node, ctx: RenderContext): Promise<Node> {
     if (!allowed.includes(attr) || typeof b?.source !== "string") continue;
     let v: unknown;
     try { v = await ctx.binding(b.source, b.args ?? {}, ctx); } catch (e) { console.warn(`[cms] binding ${b.source} lỗi:`, (e as Error).message); continue; }
-    if (v === null || v === undefined || v === "") continue;
+    if (v === null || v === undefined || v === "") {
+      if (b.args?.hideIfEmpty === true) return null; // "Ẩn khi rỗng": khối không có giá trị thì không vẽ (vd % giảm khi không giảm giá)
+      continue;
+    }
     const text = String(v);
     if (attr === "content") out = { ...out, content: [{ type: "text", text }] };
     else if (URL_ATTRS.has(attr)) { const u = safeUrl(text, ""); if (u) out = { ...out, attrs: { ...out.attrs, [attr]: u } }; }
@@ -264,7 +267,7 @@ async function applyBindings(node: Node, ctx: RenderContext): Promise<Node> {
 }
 
 async function renderNode(node: Node, key: string, ctx: RenderContext): Promise<ReactNode> {
-  if (node.attrs?.bindings) node = await applyBindings(node, ctx);
+  if (node.attrs?.bindings) { const bound = await applyBindings(node, ctx); if (!bound) return null; node = bound; }
   let el = await renderNodeInner(node, key, ctx);
   if (ctx.filterBlock && node.type !== "text" && node.type !== "doc") el = await ctx.filterBlock(node, el);
   const a = node.attrs;
