@@ -530,7 +530,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
         </div>
       );
     }
-    case "iconBox": case "imageBox": case "iconList": case "counter": case "testimonial": case "progressBar": {
+    case "iconBox": case "imageBox": case "iconList": case "counter": case "testimonial": case "progressBar": case "map": {
       const tree = widgetMarkup(node.type, a);
       return tree ? widgetEl(tree, key) : null;
     }

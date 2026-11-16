@@ -687,3 +687,10 @@ test("form: cỡ ô nhập lớn thêm class is-size-lg (một lần), cỡ vừ
     assert.match(await html(form({ inputSize: "huge" }), c), /<form class="ecx-form-blocks" novalidate=""/i);
   } finally { globalThis.fetch = origFetch; }
 });
+
+test("bản đồ: khung Google Maps lazy, có title; địa chỉ rỗng thì không có khung", async () => {
+  const doc = (attrs: Record<string, unknown>) => ({ type: "doc", content: [{ type: "map", attrs }] });
+  const out = await html(doc({ address: "1 Phạm Văn Đồng, Hà Nội", zoom: 16, height: 420, title: "Văn phòng" }), ctx());
+  assert.ok(out.includes('<div class="ecx-map"><iframe') && out.includes("https://www.google.com/maps?q=1%20Ph") && out.includes('title="Văn phòng"') && out.includes('loading="lazy"') && out.includes("height:420px"), out);
+  assert.equal(await html(doc({ address: "" }), ctx()), "");
+});
