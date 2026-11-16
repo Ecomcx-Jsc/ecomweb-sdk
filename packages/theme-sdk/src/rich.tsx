@@ -364,15 +364,15 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       return a.caption || a.align ? <figure key={key} className={cls}>{pic}{a.caption && <figcaption>{a.caption}</figcaption>}</figure> : <Fragment key={key}>{pic}</Fragment>;
     }
     case "gallery": {
-      const items = ((a.images ?? []) as Array<{ src: string; srcset?: string; webpSrcset?: string; alt?: string; caption?: string; width?: number; height?: number; full?: string }>).filter((im) => !!im?.src); // ảnh chưa chọn (không src) không vẽ <img> hỏng
+      const items = ((a.images ?? []) as Array<{ src: string; srcset?: string; webpSrcset?: string; alt?: string; caption?: string; width?: number; height?: number; full?: string; href?: string }>).filter((im) => !!im?.src); // ảnh chưa chọn (không src) không vẽ <img> hỏng
       const cols = Math.min(6, Math.max(1, Number(a.columns) || 3));
-      const crop = a.imageCrop !== false; // next: imageCrop=false giữ nguyên tỉ lệ ảnh
+      const crop = a.imageCrop !== false && a.layout !== "masonry"; // next: imageCrop=false giữ nguyên tỉ lệ ảnh; masonry luôn giữ tỉ lệ
       return (
         <figure key={key} className={blockShell("gallery", a)!.className} style={blockShell("gallery", a)!.style as CSSProperties}>
           {items.map((im, i) => {
             const el = <img src={safeUrl(im.src, "")} srcSet={im.srcset || undefined} sizes={`(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`} alt={im.alt ?? ""} width={im.width} height={im.height} loading="lazy" decoding="async" style={crop ? { width: "100%", height: "100%", objectFit: "cover", aspectRatio: "1" } : { width: "100%", height: "auto" }} />;
             const pic = im.webpSrcset ? <picture><source type="image/webp" srcSet={im.webpSrcset} sizes={`(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`} />{el}</picture> : el;
-            return <figure key={i} className="ecx-gallery-item cms-gallery-item" style={{ margin: 0 }}>{a.lightbox === true ? <LightboxClient src={safeUrl(im.full || im.src, "")} alt={im.alt ?? ""}>{pic}</LightboxClient> : im.full && a.linkTo !== "none" ? <a href={safeUrl(im.full)}>{pic}</a> : pic}{im.caption && <figcaption>{im.caption}</figcaption>}</figure>;
+            return <figure key={i} className="ecx-gallery-item cms-gallery-item" style={{ margin: 0 }}>{a.lightbox === true ? <LightboxClient src={safeUrl(im.full || im.src, "")} alt={im.alt ?? ""}>{pic}</LightboxClient> : im.href && safeUrl(im.href, "") ? <a href={safeUrl(im.href)}>{pic}</a> : im.full && a.linkTo !== "none" ? <a href={safeUrl(im.full)}>{pic}</a> : pic}{im.caption && <figcaption>{im.caption}</figcaption>}</figure>;
           })}
           {a.caption && <figcaption className="ecx-gallery-caption cms-gallery-caption" style={{ gridColumn: "1 / -1" }}>{a.caption}</figcaption>}
         </figure>

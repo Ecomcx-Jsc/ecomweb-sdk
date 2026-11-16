@@ -662,3 +662,14 @@ test("tìm kiếm: phần Ô nhập / Nút và màu chữ gợi ý ra CSS trên 
   const bad = await html({ type: "doc", content: [{ type: "search", attrs: { searchPlaceholderColor: "red;}body{display:none" } }] }, ctx({ dynamic }));
   assert.ok(!bad.includes("display:none") && !bad.includes("::placeholder"), bad);
 });
+
+test("thư viện ảnh: masonry theo cột, ảnh giữ tỉ lệ; link riêng của ảnh thắng link ảnh gốc; link nguy hiểm thì bỏ; mặc định vẫn lưới 8px", async () => {
+  const g = (attrs: Record<string, unknown>, images: unknown[]) => ({ type: "doc", content: [{ type: "gallery", attrs: { images, ...attrs } }] });
+  const img = (extra: Record<string, unknown>) => ({ src: "/u/a.jpg", alt: "A", full: "/u/a-lon.jpg", ...extra });
+  const m = await html(g({ layout: "masonry", columns: 3 }, [img({ href: "/san-pham/a" })]), ctx());
+  assert.match(m, /class="ecx-gallery cms-gallery is-masonry ecx-gallery-columns-3 columns-3"/, m);
+  assert.ok(m.includes("column-count:3") && m.includes("column-gap:var(--ecx-gallery-gap, 8px)") && !m.includes("display:grid"), m);
+  assert.ok(m.includes('href="/san-pham/a"') && !m.includes("a-lon.jpg") && !m.includes("aspect-ratio"), m);
+  const bad = await html(g({}, [img({ href: "javascript:alert(1)" })]), ctx());
+  assert.ok(!bad.includes("javascript:") && bad.includes('href="/u/a-lon.jpg"') && bad.includes("display:grid") && bad.includes("gap:var(--ecx-gallery-gap, 8px)"), bad);
+});
