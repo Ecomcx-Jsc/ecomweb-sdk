@@ -106,12 +106,12 @@ export function Link({ href, prefetch = false, activeClassName, matchNested = tr
 }
 
 /** Form tìm kiếm (GET) chuyển trang phía client. */
-export function SearchFormClient({ action, defaultValue, placeholder, label, buttonLabel, postType, showLabel, buttonPosition = "right", buttonIcon, scopes, scopeAllLabel, scopeLabel, scopeValue }: { scopes?: Array<{ value: string; label: string }>; scopeAllLabel?: string; scopeLabel?: string; scopeValue?: string; buttonIcon?: boolean; action: string; defaultValue?: string | null; placeholder: string; label: string; buttonLabel: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below" }) {
+export function SearchFormClient({ action, defaultValue, placeholder, label, buttonLabel, postType, showLabel, buttonPosition = "right", buttonIcon, scopes, scopeAllLabel, scopeLabel, scopeValue, collapse }: { collapse?: "tablet" | "mobile"; scopes?: Array<{ value: string; label: string }>; scopeAllLabel?: string; scopeLabel?: string; scopeValue?: string; buttonIcon?: boolean; action: string; defaultValue?: string | null; placeholder: string; label: string; buttonLabel: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below" }) {
   const id = useId();
   const button = buttonIcon
     ? <button type="submit" aria-label={buttonLabel} title={buttonLabel}><svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d={SEARCH_ICON_PATH} /></svg></button>
     : <button type="submit">{buttonLabel}</button>;
-  return (
+  const form = (
     <NextForm action={action} role="search" style={buttonPosition === "below" ? { display: "flex", flexDirection: "column", gap: 8 } : undefined} className={`search-form${buttonPosition !== "right" ? ` search-button-${buttonPosition}` : ""}`}>
       {showLabel && <label htmlFor={id} className="search-label">{label}</label>}
       {buttonPosition === "left" && button}
@@ -121,6 +121,27 @@ export function SearchFormClient({ action, defaultValue, placeholder, label, but
         : postType && <input type="hidden" name="type" value={postType} />}
       {buttonPosition !== "left" && button}
     </NextForm>
+  );
+  if (!collapse) return form;
+  return <SearchCollapse collapse={collapse} label={buttonLabel}>{form}</SearchCollapse>;
+}
+
+/** Ô tìm kiếm thu thành nút kính lúp ở tablet / điện thoại (CSS quyết định ngưỡng); bấm mở ô nhập thả xuống, Esc hoặc bấm ra ngoài để đóng. */
+function SearchCollapse({ collapse, label, children }: { collapse: "tablet" | "mobile"; label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown); document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+  return (
+    <div ref={ref} className={cx("ecx-search-collapse", `collapse-${collapse}`, open && "is-open")}>
+      <button type="button" className="ecx-search-toggle" aria-label={label} aria-expanded={open} onClick={() => setOpen((o) => !o)}><svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d={SEARCH_ICON_PATH} /></svg></button>
+      <div className="ecx-search-panel">{children}</div>
+    </div>
   );
 }
 
@@ -576,5 +597,41 @@ export function NavDrawer({ label, closeLabel, children }: { label: string; clos
           </div>
         </div>, document.body)}
     </div>
+  );
+}
+
+/**
+ * Thanh lọc của khối Query (GET): ô tìm, mục phân loại (liên kết tới trang mục / nút lọc / ô chọn), sắp xếp.
+ * Giá trị lên URL dạng ?fq_s, ?fq_sort, ?fq_<phân loại>; khối Query bật "Nhận bộ lọc từ thanh lọc" đọc lại. Ô chọn tự gửi khi đổi.
+ */
+export function QueryFilterBar({ action, taxonomy, termStyle, terms, currentTerm, values, showSearch, showSort, sorts, labels }: {
+  action: string; taxonomy?: string; termStyle: "none" | "links" | "chips" | "select"; terms: Array<{ slug: string; name: string; link: string }>; currentTerm?: string; values: Record<string, string>;
+  showSearch: boolean; showSort: boolean; sorts: Array<{ value: string; label: string }>; labels: { all: string; search: string; placeholder: string; submit: string; sort: string };
+}) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const termKey = taxonomy ? `fq_${taxonomy}` : "";
+  const picked = termKey ? values[termKey] ?? "" : "";
+  const submit = () => formRef.current?.requestSubmit();
+  return (
+    <NextForm ref={formRef as never} action={action} className="ecx-query-filter" role="search">
+      {termStyle === "links" && terms.length > 0 && (
+        <nav className="ecx-filter-terms" aria-label={taxonomy}>
+          <NextLink href={action} className={!currentTerm ? "is-active" : undefined} aria-current={!currentTerm ? "true" : undefined}>{labels.all}</NextLink>
+          {terms.map((t) => <NextLink key={t.slug} href={t.link} className={t.slug === currentTerm ? "is-active" : undefined} aria-current={t.slug === currentTerm ? "true" : undefined}>{t.name}</NextLink>)}
+        </nav>
+      )}
+      {termStyle === "chips" && terms.length > 0 && (
+        <fieldset className="ecx-filter-terms"><legend className="ecx-visually-hidden">{taxonomy}</legend>
+          <label className={!picked ? "is-active" : undefined}><input type="radio" name={termKey} value="" defaultChecked={!picked} onChange={submit} />{labels.all}</label>
+          {terms.map((t) => <label key={t.slug} className={picked === t.slug ? "is-active" : undefined}><input type="radio" name={termKey} value={t.slug} defaultChecked={picked === t.slug} onChange={submit} />{t.name}</label>)}
+        </fieldset>
+      )}
+      {termStyle === "select" && terms.length > 0 && (
+        <select name={termKey} aria-label={taxonomy} defaultValue={picked} onChange={submit}><option value="">{labels.all}</option>{terms.map((t) => <option key={t.slug} value={t.slug}>{t.name}</option>)}</select>
+      )}
+      {showSearch && <input type="search" name="fq_s" defaultValue={values.fq_s ?? ""} placeholder={labels.placeholder} aria-label={labels.search} />}
+      {showSort && sorts.length > 0 && <select name="fq_sort" aria-label={labels.sort} defaultValue={values.fq_sort ?? sorts[0].value} onChange={submit}>{sorts.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select>}
+      {(showSearch || termStyle === "chips") && <button type="submit">{labels.submit}</button>}
+    </NextForm>
   );
 }

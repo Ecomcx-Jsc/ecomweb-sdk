@@ -1,6 +1,7 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
 import { getAdjacentPost, getArchives, getPosts, getTerms } from "./api";
-import { Link, LoginOutLink, NavDrawer, NavToggle, ScrollRow } from "./client";
+import { Link, LoginOutLink, NavDrawer, NavToggle, QueryFilterBar, ScrollRow } from "./client";
+import { buildPostQuery, SORTS } from "./query-filters";
 import { Comments, FeaturedImage, LanguageSwitcher, Menu, Pagination, PostDate, SearchForm, TermLinks } from "./components";
 import { getT } from "./i18n";
 import { applyFilters } from "./runtime";
@@ -54,7 +55,7 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       return <div key={key} className="ecx-search"><SearchForm defaultValue={ctx.data?.search} placeholder={a.placeholder} buttonLabel={a.buttonText}
         postType={typeof a.postType === "string" && /^[a-z0-9_-]{1,64}$/i.test(a.postType) ? a.postType : undefined} showLabel={a.showLabel === true}
         buttonPosition={a.buttonPosition === "left" || a.buttonPosition === "below" ? a.buttonPosition : "right"} buttonIcon={a.buttonStyle === "icon"}
-        scopes={a.scopeSelect === true ? parseScopes(a.scopes) : undefined} scopeType={ctx.data?.query?.type} /></div>;
+        scopes={a.scopeSelect === true ? parseScopes(a.scopes) : undefined} scopeType={ctx.data?.query?.type} collapse={a.collapse === "tablet" || a.collapse === "mobile" ? a.collapse : undefined} /></div>;
     case "languageSwitcher":
       return <LanguageSwitcher key={key} className="ecx-language-switcher" variant={a.display === "dropdown" ? "select" : "list"} />;
     case "copyright":
@@ -209,23 +210,27 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
 
     case "query": {
       let posts: Post[]; let data: ResolveResult | undefined; let pageParam: string | undefined;
-      if (a.inherit !== false && ctx.data?.posts) { posts = ctx.data.posts; data = ctx.data; }
+      const hasUrlFilter = a.urlFilters === true && Object.keys(ctx.data?.query ?? {}).some((k) => k.startsWith("fq_"));
+      if (a.inherit !== false && ctx.data?.posts && !hasUrlFilter) { posts = ctx.data.posts; data = ctx.data; }
       else {
-        // taxonomy + term (1.27) lọc theo phân loại bất kỳ (vd product_cat); category / tag giữ cho bài viết
-        const custom = /^[a-z0-9_-]{1,64}$/i.test(String(a.taxonomy ?? "")) && a.term ? { taxonomy: String(a.taxonomy), term: String(a.term) } : undefined;
-        const taxonomy = custom?.taxonomy ?? (a.category ? "category" : a.tag ? "post_tag" : undefined);
-        const exclude = String(a.exclude ?? "").split(",").map((x) => Number(x.trim())).filter((x) => Number.isInteger(x) && x > 0);
-        // paginate: khối nằm trong một trang → phân trang bằng ?qpage=N (không đụng /page/N của chính trang)
-        const paginate = a.paginate === true && !!ctx.data;
-        const page = paginate ? Math.max(1, Math.floor(Number(ctx.data?.query?.qpage)) || 1) : 1;
-        const res = await getPosts({ page, type: a.postType ?? "post", perPage: a.perPage ?? 10, taxonomy, term: custom?.term ?? (a.category || a.tag || undefined),
-          orderBy: a.orderBy ?? "date", order: a.order ?? "desc",
-          authorId: typeof a.authorId === "number" ? a.authorId : undefined, search: a.search || undefined, exclude: exclude.length ? exclude : undefined,
-          sticky: a.sticky === "only" ? true : a.sticky === "exclude" ? false : undefined, orderByMeta: a.orderByMeta || undefined }).catch(() => null);
+        const fromContext = a.inherit !== false && !!ctx.data;
+        // paginate: khối nằm trong một trang → phân trang bằng ?qpage=N (không đụng /page/N của chính trang); trang lưu trữ lọc theo URL giữ /page/N
+        const paginate = a.paginate === true && !!ctx.data && !fromContext;
+        const page = fromContext ? Math.max(1, ctx.data?.page ?? 1) : paginate ? Math.max(1, Math.floor(Number(ctx.data?.query?.qpage)) || 1) : 1;
+        const res = await getPosts({ ...buildPostQuery(a, { post: ctx.post ?? ctx.data?.post, data: ctx.data, fromContext }), page }).catch(() => null);
         posts = res?.items ?? [];
-        if (paginate && res && ctx.data) { data = { ...ctx.data, page: res.page, totalPages: res.totalPages, total: res.total }; pageParam = "qpage"; }
+        if ((paginate || fromContext) && res && ctx.data) { data = { ...ctx.data, page: res.page, totalPages: res.totalPages, total: res.total }; pageParam = fromContext ? undefined : "qpage"; }
       }
       return <div key={key} className="ecx-query">{await children({ ...ctx, query: { posts, data, pageParam } })}</div>;
+    }
+    case "queryFilter": {
+      const taxonomy = /^[a-z0-9_-]{1,64}$/i.test(String(a.taxonomy ?? "")) ? String(a.taxonomy) : undefined;
+      const style = ["none", "links", "chips", "select"].includes(a.termStyle) ? a.termStyle : "links";
+      const [t, terms] = await Promise.all([getT(), taxonomy && style !== "none" ? getTerms({ taxonomy, hideEmpty: true }).catch(() => []) : Promise.resolve([])]);
+      const sorts = String(a.sortOptions ?? "date_desc,date_asc,title_asc,title_desc").split(",").map((x) => x.trim()).filter((x) => SORTS[x]);
+      return <QueryFilterBar key={key} action={String(a.action || ctx.data?.basePath || "/")} taxonomy={taxonomy} termStyle={style} terms={terms.map((x) => ({ slug: x.slug, name: x.name, link: x.link }))}
+        currentTerm={ctx.data?.term?.slug} values={ctx.data?.query ?? {}} showSearch={a.showSearch === true} showSort={a.showSort === true} sorts={sorts.map((x) => ({ value: x, label: t(`filter.sort.${x}`) }))}
+        labels={{ all: String(a.allLabel || t("filter.all")), search: t("search.label"), placeholder: String(a.placeholder || t("filter.search")), submit: String(a.submitText || t("filter.apply")), sort: t("filter.sort") }} />;
     }
     case "postTemplate": {
       const posts = ctx.query?.posts ?? [];

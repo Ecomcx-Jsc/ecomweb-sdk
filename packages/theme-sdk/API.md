@@ -209,7 +209,7 @@ ResetPasswordForm({ labels, paths }: { labels?: Partial<AuthLabels>; paths?: Par
 Ô tìm kiếm — gửi về trang chủ của ngôn ngữ hiện tại (/?s= hoặc /en?s=).
 
 ```ts
-SearchForm({ defaultValue, placeholder, buttonLabel, postType, showLabel, buttonPosition, buttonIcon, scopes, scopeType }: { scopes?: Array<{ value: string; label: string; }>; scopeType?: string; buttonIcon?: boolean; defaultValue?: string | null; placeholder?: string; buttonLabel?: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below"; }): Promise<JSX.Element>
+SearchForm({ defaultValue, placeholder, buttonLabel, postType, showLabel, buttonPosition, buttonIcon, scopes, scopeType, collapse }: { collapse?: "tablet" | "mobile"; scopes?: Array<{ value: string; label: string; }>; scopeType?: string; buttonIcon?: boolean; defaultValue?: string | null; placeholder?: string; buttonLabel?: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below"; }): Promise<JSX.Element>
 ```
 
 #### `Slot`
@@ -1383,6 +1383,14 @@ Menu di động của khối Menu: nút burger mở ngăn trượt từ trái (n
 NavDrawer({ label, closeLabel, children }: { label: string; closeLabel: string; children: ReactNode; }): JSX.Element
 ```
 
+#### `QueryFilterBar`
+
+Thanh lọc của khối Query (GET): ô tìm, mục phân loại (liên kết tới trang mục / nút lọc / ô chọn), sắp xếp. Giá trị lên URL dạng ?fq_s, ?fq_sort, ?fq_<phân loại>; khối Query bật "Nhận bộ lọc từ thanh lọc" đọc lại. Ô chọn tự gửi khi đổi.
+
+```ts
+QueryFilterBar({ action, taxonomy, termStyle, terms, currentTerm, values, showSearch, showSort, sorts, labels }: { action: string; taxonomy?: string; termStyle: "none" | "links" | "chips" | "select"; terms: Array<{ slug: string; name: string; link: string; }>; currentTerm?: string; values: Record<string, string>; showSearch: boolean; showSort: boolean; sorts: Array<{ value: string; label: string; }>; labels: { all: string; search: string; placeholder: string; submit: string; sort: string; }; }): JSX.Element
+```
+
 #### `ScrollRow`
 
 Hàng cuộn ngang có nút trước / sau (Query dạng carousel): cuộn đúng một "trang" mỗi lần bấm, ẩn nút ở hai đầu. Không có JS vẫn vuốt / cuộn được.
@@ -1396,7 +1404,7 @@ ScrollRow({ children, arrows }: { children: ReactNode; arrows?: boolean; }): JSX
 Form tìm kiếm (GET) chuyển trang phía client.
 
 ```ts
-SearchFormClient({ action, defaultValue, placeholder, label, buttonLabel, postType, showLabel, buttonPosition, buttonIcon, scopes, scopeAllLabel, scopeLabel, scopeValue }: { scopes?: Array<{ value: string; label: string; }>; scopeAllLabel?: string; scopeLabel?: string; scopeValue?: string; buttonIcon?: boolean; action: string; defaultValue?: string | null; placeholder: string; label: string; buttonLabel: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below"; }): JSX.Element
+SearchFormClient({ action, defaultValue, placeholder, label, buttonLabel, postType, showLabel, buttonPosition, buttonIcon, scopes, scopeAllLabel, scopeLabel, scopeValue, collapse }: { collapse?: "tablet" | "mobile"; scopes?: Array<{ value: string; label: string; }>; scopeAllLabel?: string; scopeLabel?: string; scopeValue?: string; buttonIcon?: boolean; action: string; defaultValue?: string | null; placeholder: string; label: string; buttonLabel: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below"; }): JSX.Element
 ```
 
 #### `TabsClient`
