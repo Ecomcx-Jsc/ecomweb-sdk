@@ -47,6 +47,7 @@ export async function pluginFetch<T>(slug: string, path: string, opts: FetchOpti
   }
 }
 
+/** Lỗi khi gọi Public API của CMS. `status` = mã HTTP (0 = lỗi mạng / hết thời gian chờ). */
 export class CmsApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
@@ -61,7 +62,7 @@ export interface FetchOptions {
   vary?: Record<string, string>;
 }
 
-/** Header X-CMS-Vary từ `vary` ("device=mobile,flag:ab=b"); rỗng → không gửi. */
+/** @internal Header X-CMS-Vary từ `vary` ("device=mobile,flag:ab=b"); rỗng → không gửi. */
 export function varyHeader(vary?: Record<string, string>): Record<string, string> {
   const parts = Object.entries(vary ?? {}).filter(([k, v]) => /^(device|flag:[a-z][a-z0-9-]{0,23})$/.test(k) && /^[A-Za-z0-9_-]{1,32}$/.test(v)).map(([k, v]) => `${k}=${v.toLowerCase()}`);
   return parts.length ? { "X-CMS-Vary": parts.join(",") } : {};
@@ -97,7 +98,7 @@ function waitForApi(): Promise<boolean> {
 /** Lỗi mạng hoặc 502/503/504 (proxy/API đang khởi động) — không tính lỗi 500 thật của API. */
 const isUnavailable = (e: unknown) => isFetchKitError(e) && (!e.status || e.status === 502 || e.status === 503 || e.status === 504);
 
-/** Gọi Public API của CMS. Kết quả được cache và gắn tag "cms" để revalidate khi nội dung thay đổi. */
+/** @internal Gọi Public API của CMS (theme dùng các hàm get* thay vì gọi thẳng). Kết quả được cache và gắn tag "cms" để revalidate khi nội dung thay đổi. */
 export async function cmsFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   if ((breaker.__cmsApiDownUntil ?? 0) > Date.now()) throw new CmsApiError(503, `CMS API tạm thời không phản hồi: ${path}`);
   const headers = { ...opts.headers, ...varyHeader(opts.vary) };
@@ -130,10 +131,11 @@ export const getSite = async (locale?: string) =>
 export const UNLOCK_COOKIE = "cms-unlock";
 export const UNLOCK_HEADER = "X-CMS-Unlock";
 
-/** unlock: giá trị cookie cms-unlock — có thì không dùng cache (nội dung riêng của người đã nhập mật khẩu). */
+/** @internal Core dùng để dựng trang theo URL. unlock: giá trị cookie cms-unlock — có thì không dùng cache (nội dung riêng của người đã nhập mật khẩu). */
 export const resolvePath = (path: string, query: Record<string, string | string[] | undefined> = {}, noStore = false, unlock?: string) =>
   cmsFetch<ResolveResult>("/resolve", { tags: ["posts"], noStore: noStore || !!unlock, query: clean({ ...query, path }), headers: unlock ? { [UNLOCK_HEADER]: unlock } : undefined });
 
+/** @internal Dữ liệu trang xem trước theo token (core dùng cho Draft Mode). */
 export const getPreview = (token: string) => cmsFetch<ResolveResult>("/preview", { noStore: true, query: { token } });
 
 /** Một điều kiện lọc theo taxonomy: bài phải khớp (hoặc không khớp) các term này. */
@@ -183,15 +185,21 @@ export interface PostQuery {
   /** Chỉ lấy bài thuộc ngữ cảnh này (plugin tự lọc thêm qua filter posts.query). */
   context?: string;
   include?: number[]; exclude?: number[]; parentId?: number;
+  /** Bài con của một trong các id này / không thuộc các id này (post_parent__in / __not_in). */
+  parentIn?: number[]; parentNotIn?: number[];
+  /** Bỏ qua N bài đầu trước khi phân trang (cộng với (page-1)*perPage) — vd 5 bài nổi bật rồi mới phân trang. */
+  offset?: number;
+  /** true = không đếm tổng (nhanh hơn): `total` = số bài trả về, `totalPages` = page. Cho Tin liên quan, slider, top N. */
+  noTotal?: boolean;
   /** true = chỉ bài ghim, false = bỏ bài ghim. */
   sticky?: boolean;
   /** Kèm nội dung đầy đủ (post.content). Mặc định không — danh sách chỉ cần tiêu đề, sapo, ảnh, giúp trang nhẹ và nhanh. */
   withContent?: boolean;
   /**
-   * `relevance` = theo độ khớp với `search` (trang tìm kiếm dùng mặc định); `rand` = ngẫu nhiên (kết quả vẫn được
+   * `include` = đúng thứ tự mảng `include`; `relevance` = theo độ khớp với `search` (trang tìm kiếm dùng mặc định); `rand` = ngẫu nhiên (kết quả vẫn được
    * cache, đổi khi cache hết hạn hoặc nội dung đổi).
    */
-  page?: number; perPage?: number; orderBy?: "date" | "title" | "modified" | "menu_order" | "comment_count" | "id" | "slug" | "rand" | "relevance"; order?: "asc" | "desc";
+  page?: number; perPage?: number; orderBy?: "date" | "title" | "modified" | "menu_order" | "comment_count" | "id" | "slug" | "rand" | "include" | "relevance"; order?: "asc" | "desc";
   /** Ngày đăng từ (gồm cả mốc), ISO-8601 hoặc Date — vd sự kiện / tin tức từ đầu năm học. */
   after?: string | Date;
   /** Ngày đăng trước (không gồm mốc). */
@@ -205,6 +213,12 @@ export interface PostQuery {
    */
   orderByMeta?: string;
 }
+/**
+ * Danh sách bài đã đăng theo điều kiện (tương đương `WP_Query`). Mặc định không kèm nội dung đầy đủ (`withContent`).
+ * Trả `{ items, total, page, totalPages }`; `noTotal: true` bỏ bước đếm tổng.
+ * @example const { items } = await getPosts({ type: "post", taxQuery: [{ taxonomy: "category", terms: ["tin-tuc"] }], perPage: 6 });
+ * @see docs/query-engine.md
+ */
 export const getPosts = async ({ withContent, ...q }: PostQuery = {}) => {
   // Bóc tách TRONG thân hàm, không phải trong tham số: chữ ký đã công bố của getPosts nằm trong baseline
   // hợp đồng (api/theme-sdk.txt) nên thêm tên vào tham số là đổi một dòng đã ký (CI coi là phá hợp đồng).
@@ -215,6 +229,33 @@ export const getPosts = async ({ withContent, ...q }: PostQuery = {}) => {
     taxQuery: taxQuery?.length ? JSON.stringify(taxQuery) : undefined,
     metaQuery: metaQuery?.clauses?.length ? JSON.stringify(metaQuery) : undefined,
     content: withContent ?? false,
+    locale: rest.locale ?? (await getRequestLocale()),
+  } as Record<string, unknown>) });
+};
+
+/**
+ * Bài liền trước (`"prev"`, đăng sớm hơn) hoặc liền sau (`"next"`) cùng loại nội dung (tương đương `get_adjacent_post`).
+ * `query` lọc thêm, vd cùng chuyên mục: `{ taxQuery: [{ taxonomy: "category", terms: [slug] }] }`. Không có → `null`.
+ * @since 1.44.0
+ * @example const [prev, next] = await Promise.all([getAdjacentPost(post, "prev"), getAdjacentPost(post, "next")]);
+ */
+export async function getAdjacentPost(post: Pick<Post, "id" | "type" | "publishedAt">, direction: "prev" | "next", query: Omit<PostQuery, "after" | "before" | "orderBy" | "order" | "perPage" | "page" | "offset"> = {}): Promise<Post | null> {
+  if (!post.publishedAt) return null;
+  const at = direction === "prev" ? { before: post.publishedAt, order: "desc" as const } : { after: post.publishedAt, order: "asc" as const };
+  const r = await getPosts({ type: post.type, ...query, ...at, orderBy: "date", perPage: 1, noTotal: true, exclude: [...(query.exclude ?? []), post.id] });
+  return r.items[0] ?? null;
+}
+
+/**
+ * Chỉ lấy id bài (tương đương `WP_Query` với `fields => 'ids'`): cùng điều kiện như {@link getPosts}, máy chủ không dựng đối tượng bài.
+ * @since 1.44.0
+ */
+export const getPostIds = async ({ withContent: _w, ...q }: PostQuery = {}) => {
+  const { taxQuery, metaQuery, ...rest } = q;
+  return cmsFetch<{ items: number[]; total: number; page: number; totalPages: number }>("/posts", { tags: ["posts"], query: clean({
+    ...postQueryParams(rest), fields: "ids",
+    taxQuery: taxQuery?.length ? JSON.stringify(taxQuery) : undefined,
+    metaQuery: metaQuery?.clauses?.length ? JSON.stringify(metaQuery) : undefined,
     locale: rest.locale ?? (await getRequestLocale()),
   } as Record<string, unknown>) });
 };
@@ -309,14 +350,30 @@ export interface MediaQuery {
 export const getMedia = async ({ params, ...q }: MediaQuery = {}) =>
   cmsFetch<ListPage<Media>>("/media", { tags: ["media"], query: clean({ ...params, ...q }) });
 
+/** CMS trả 404 → null; lỗi khác (mạng, 5xx) ném tiếp để trang không hiện "không tìm thấy" sai khi CMS đang lỗi. */
+const nullIf404 = (e: unknown) => { if (e instanceof CmsApiError && e.status === 404) return null; throw e; };
+
+/**
+ * Bài đã đăng theo loại nội dung + slug, ngôn ngữ của request hiện tại (tương đương `get_page_by_path`).
+ * Không có / chưa đăng → `null`. CMS lỗi → ném `CmsApiError`.
+ * @example const about = await getPost("page", "gioi-thieu");
+ */
 export const getPost = async (type: string, slug: string, locale?: string) =>
-  cmsFetch<Post>(`/posts/${type}/${encodeURIComponent(slug)}`, { tags: ["posts"], query: clean({ locale: await loc(locale) }) }).catch(() => null);
-/** Bài đã đăng theo id (core ≥ 1.20.0 có hàm này; endpoint có từ trước). Không có / chưa đăng → null. */
+  cmsFetch<Post>(`/posts/${type}/${encodeURIComponent(slug)}`, { tags: ["posts"], query: clean({ locale: await loc(locale) }) }).catch(nullIf404);
+/**
+ * Bài đã đăng theo id (tương đương `get_post($id)`). Không có / chưa đăng → `null`. CMS lỗi → ném `CmsApiError`.
+ * @since 1.31.0
+ */
 export const getPostById = async (id: number) =>
-  cmsFetch<Post>(`/posts/id/${id}`, { tags: ["posts", `post:${id}`] }).catch(() => null);
+  cmsFetch<Post>(`/posts/id/${id}`, { tags: ["posts", `post:${id}`] }).catch(nullIf404);
+/**
+ * Mọi term của một phân loại (không phân trang), ngôn ngữ của request (tương đương `get_terms`).
+ * `hideEmpty` mặc định `true` = bỏ term chưa có bài. Cần lọc / phân trang / sắp xếp → {@link queryTerms}.
+ * @example const cats = await getTerms("category");
+ */
 export const getTerms = async (taxonomy: string, hideEmpty = true, locale?: string) =>
   cmsFetch<Term[]>(`/terms/${taxonomy}`, { tags: ["terms"], query: clean({ hideEmpty, locale: await loc(locale) }) });
-/** Cookie giữ token bản nháp của Trình dựng (website đang ở chế độ xem trước). */
+/** @internal Cookie giữ token bản nháp của Trình dựng (website đang ở chế độ xem trước). */
 export const TEMPLATE_DRAFT_COOKIE = "cms-template-draft";
 
 async function templateDraft(): Promise<string | null> {
@@ -327,7 +384,7 @@ async function templateDraft(): Promise<string | null> {
   } catch { return null; }
 }
 
-/** Template / phần dựng bằng khối của theme đang dùng (bản sửa trong Trình dựng thắng bản của theme; đang xem trước → bản nháp). */
+/** @internal Template / phần dựng bằng khối của theme đang dùng (bản sửa trong Trình dựng thắng bản của theme; đang xem trước → bản nháp). */
 export const getTemplates = async () => {
   const draft = await templateDraft();
   // Mỗi ngôn ngữ có thể có bản template / phần riêng (chưa có thì API trả bản mặc định)
@@ -340,9 +397,15 @@ export const getTemplates = async () => {
 export const getPattern = (id: number) =>
   cmsFetch<PostContentDoc | null>(`/patterns/${id}`, { tags: ["patterns", "posts"] }).catch(() => null);
 
+/**
+ * Menu gắn ở một vị trí của theme (`theme.json › menuLocations`), ngôn ngữ của request (tương đương `wp_get_nav_menu_items` theo location).
+ * Chưa gắn menu → `null`. Vẽ sẵn: `<Menu location="primary" />`.
+ */
 export const getMenu = async (location: string, locale?: string) =>
   cmsFetch<Menu | null>(`/menus/${location}`, { tags: ["menus"], query: clean({ locale: await loc(locale) }) });
+/** Menu theo id (khối Điều hướng chọn menu cụ thể). Không có → `null`. */
 export const getMenuById = (id: number) => cmsFetch<Menu | null>(`/menus/id/${id}`, { tags: ["menus"] });
+/** Widget trong một khu vực (`theme.json › widgetAreas`), theo thứ tự. Vẽ sẵn: `<WidgetArea id="sidebar" />`. */
 export const getWidgets = async (area: string, locale?: string) =>
   cmsFetch<WidgetInstance[]>(`/widgets/${area}`, { tags: ["widgets"], query: clean({ locale: await loc(locale) }) });
 /**
@@ -361,6 +424,8 @@ export async function requestUnlock(): Promise<string | undefined> {
     return (await cookies()).get(UNLOCK_COOKIE)?.value;
   } catch { return undefined; }
 }
+/** Số bài theo tháng, mới nhất trước, kèm link trang lưu trữ (tương đương `wp_get_archives`). */
 export const getArchives = async (locale?: string) =>
   cmsFetch<Array<{ year: number; month: number; count: number; link: string }>>("/archives", { tags: ["posts"], query: clean({ locale: await loc(locale) }) });
+/** Ngôn ngữ đang bật của website và ngôn ngữ mặc định. */
 export const getLanguages = () => cmsFetch<{ defaultLocale: string; languages: Array<{ code: string; name: string; isDefault: boolean; flag?: string }> }>("/languages", { tags: ["site"] });

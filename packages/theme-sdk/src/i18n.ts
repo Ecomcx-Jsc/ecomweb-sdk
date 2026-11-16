@@ -83,6 +83,10 @@ const getDicts = cache(async () => {
   return { site, dicts };
 });
 
+/**
+ * Hàm dịch phía server theo ngôn ngữ của request: chữ của theme / plugin (`locales/*.json`), cú pháp ICU — tương đương `__()`.
+ * @example const t = await getT(); t("readMore"); t("comments.count", { count: 3 })
+ */
 export const getT = cache(async (): Promise<Translator> => {
   const { site, dicts } = await getDicts();
   const compiled = new Map<string, IntlMessageFormat | null>();

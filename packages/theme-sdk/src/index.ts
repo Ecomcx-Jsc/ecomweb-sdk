@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./api";
 export * from "./utils";
+export * from "./conditions";
 export { definePlugin, getPlugin, hasPlugin, applyFilters, doAction, getSlotItems, getSlotComponents, getActiveTheme, getActiveExtensions, BUILTIN_PAGE_TEMPLATES, findShortcode, findWidget, findBlock, findRoute, findRegion } from "./runtime";
 export { PostContent, EditableRegion } from "./content";
 export { Img, imageCandidates, type ImgProps } from "./image";

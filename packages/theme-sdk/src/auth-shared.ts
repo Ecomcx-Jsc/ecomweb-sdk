@@ -1,5 +1,6 @@
-/** Tên cookie phiên đăng nhập của website (httpOnly, do frontend core đặt). Dùng chung cho proxy và SDK. */
+/** @internal Tên cookie phiên đăng nhập của website (httpOnly, do frontend core đặt). Dùng chung cho proxy và SDK. */
 export const ACCESS_COOKIE = "cms_at";
+/** @internal Cookie làm mới phiên đăng nhập (httpOnly). */
 export const REFRESH_COOKIE = "cms_rt";
 
 /** Người dùng đang đăng nhập trên website. */

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { getAuthors, getFacets, getMedia, getPosts, queryTerms } from "../src/api";
+import { getAuthors, getFacets, getMedia, getPostIds, getPosts, queryTerms } from "../src/api";
 
 // Danh sách công khai mới (core ≥ 1.15.0): kiểm tra URL + tham số mà SDK gửi lên Public API.
 // fetch được thay bằng hàm ghi lại request — không cần CMS chạy.
@@ -58,4 +58,20 @@ test("getAuthors / getMedia: đường dẫn + bộ lọc", async () => {
   assert.equal(u.searchParams.get("mime"), "application/pdf");
   assert.equal(u.searchParams.get("exclude"), "9");
   assert.equal(u.searchParams.get("perPage"), "50");
+});
+
+test("getPosts: offset, noTotal, orderBy include, parentIn/parentNotIn; getPostIds gửi fields=ids", async () => {
+  await getPosts({ locale: "vi", offset: 5, noTotal: true, include: [3, 1, 2], orderBy: "include", parentIn: [7, 8], parentNotIn: [9] });
+  let u = last();
+  assert.equal(u.searchParams.get("offset"), "5");
+  assert.equal(u.searchParams.get("noTotal"), "true");
+  assert.equal(u.searchParams.get("include"), "3,1,2");
+  assert.equal(u.searchParams.get("orderBy"), "include");
+  assert.equal(u.searchParams.get("parentIn"), "7,8");
+  assert.equal(u.searchParams.get("parentNotIn"), "9");
+  assert.equal(u.searchParams.get("fields"), null);
+  await getPostIds({ locale: "vi", perPage: 5, withContent: true });
+  u = last();
+  assert.equal(u.searchParams.get("fields"), "ids");
+  assert.equal(u.searchParams.get("content"), null);
 });

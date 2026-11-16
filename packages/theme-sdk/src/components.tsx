@@ -31,6 +31,10 @@ function MenuItems({ items, currentPath, depth }: { items: MenuItem[]; currentPa
   );
 }
 
+/**
+ * Menu theo vị trí (`location`, khai trong `theme.json › menuLocations`) hoặc theo id (`menuId`) — tương đương `wp_nav_menu`.
+ * Link khớp URL hiện tại có class `current-menu-link` + `aria-current="page"`. Chưa gắn menu → `fallback` (mặc định không vẽ gì).
+ */
 export async function Menu({ location, menuId, currentPath, className, fallback }: {
   location?: string; menuId?: number; currentPath?: string; className?: string; fallback?: ReactNode;
 }) {
@@ -77,6 +81,7 @@ async function CoreWidget({ widget }: { widget: WidgetInstance }) {
   }
 }
 
+/** Vẽ các widget của một khu vực (`theme.json › widgetAreas`) — tương đương `dynamic_sidebar`. Khu vực trống → không vẽ gì. */
 export async function WidgetArea({ id, className }: { id: string; className?: string }) {
   const [site, widgets] = await Promise.all([getSite(), getWidgets(id)]);
   if (widgets.length === 0) return null;
@@ -98,6 +103,10 @@ export async function WidgetArea({ id, className }: { id: string; className?: st
 // Slot cho plugin (head, cuối trang, trước/sau nội dung…)
 // ---------------------------------------------------------------------------
 
+/**
+ * Điểm cho plugin chèn nội dung (vd `before.content`, `body.end`) — tương đương `do_action` trong template.
+ * Mỗi plugin được bọc riêng: plugin lỗi thì phần đó ẩn, trang vẫn hiện.
+ */
 export async function Slot<P = any>({
   name,
   data,
@@ -177,10 +186,15 @@ export function FeaturedImage({ media, size = "large", className, link, label, s
   return <figure className={cx("featured-image", className)}>{link ? <Link href={link} aria-label={name}>{img}</Link> : img}</figure>;
 }
 
+/**
+ * Ngày đăng của bài trong thẻ `<time datetime>`, định dạng theo Cài đặt › Chung (xem {@link formatDate}) — tương đương `the_date`.
+ * Luôn truyền `site` (có trong `TemplateProps`), thiếu thì không theo cấu hình admin.
+ */
 export function PostDate({ post, site }: { post: Post; site?: { dateFormat: string; timezone: string; locale?: string } }) {
   return <time dateTime={post.publishedAt ?? post.createdAt}>{formatDate(post.publishedAt ?? post.createdAt, site)}</time>;
 }
 
+/** Danh sách link term (chuyên mục, thẻ), phân tách bằng `separator` — tương đương `the_category` / `the_tags`. @example <TermLinks terms={post.terms.category} /> */
 export function TermLinks({ terms, separator = ", " }: { terms?: Array<{ id: number; name: string; link: string }>; separator?: string }) {
   if (!terms?.length) return null;
   return <>{terms.map((t, i) => <span key={t.id}>{i > 0 && separator}<Link href={t.link} rel="tag">{t.name}</Link></span>)}</>;
@@ -190,6 +204,10 @@ export function TermLinks({ terms, separator = ", " }: { terms?: Array<{ id: num
 // Khu bình luận
 // ---------------------------------------------------------------------------
 
+/**
+ * Khu bình luận đầy đủ: danh sách đã duyệt (phân trang + "Xem thêm"), form gửi, ảnh đại diện — tương đương `comments_template`.
+ * Tự ẩn với bài có mật khẩu chưa mở khoá. Tự dựng theo ý mình: {@link getComments}, `<CommentList>`, `<CommentForm>`.
+ */
 export async function Comments({ post, title, perPage, order, avatarSize, showDate }: { post: Post; title?: string; perPage?: number; order?: "asc" | "desc"; avatarSize?: number; showDate?: boolean }) {
   if (post.commentStatus !== "open" && post.commentCount === 0) return null;
   if (post.passwordProtected && !post.content) return null; // bài có mật khẩu: ẩn bình luận tới khi mở khoá

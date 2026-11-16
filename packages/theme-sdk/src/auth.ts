@@ -7,7 +7,7 @@ const API = (process.env.CMS_API_URL ?? "http://localhost:5100").replace(/\/$/, 
 // Khoá frontend: request SSR của website không bị tính chung giới hạn đăng nhập theo IP của máy chủ website
 const KEY_HEADER: Record<string, string> = process.env.CMS_FRONTEND_KEY ? { "X-CMS-Frontend-Key": process.env.CMS_FRONTEND_KEY } : {};
 
-/** Access token của người đang xem (server). Trang gọi hàm này sẽ render theo từng người (không cache tĩnh). */
+/** @internal Access token của người đang xem (server). Theme dùng `getCurrentUser()` / `pluginFetch(..., { asUser: true })`. Trang gọi hàm này sẽ render theo từng người (không cache tĩnh). */
 export const getAccessToken = cache(async (): Promise<string | undefined> => {
   try {
     const { cookies } = await import("next/headers");

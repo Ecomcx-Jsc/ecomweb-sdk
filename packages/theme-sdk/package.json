@@ -12,7 +12,8 @@
     "./auth-shared": "./src/auth-shared.ts"
   },
   "files": [
-    "src"
+    "src",
+    "CHANGELOG.md"
   ],
   "dependencies": {
     "@ecomcx/ecomweb-content": "^1.25.0",

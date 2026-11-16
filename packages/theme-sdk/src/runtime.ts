@@ -45,7 +45,7 @@ export interface LoadedTheme {
   layout(): Promise<ComponentType<LayoutProps> | null>;
 }
 
-/** Theme đang active (kèm theme cha nếu là child theme). Fallback về "default" nếu theme không tồn tại trong bản build. */
+/** @internal Theme đang active (kèm theme cha nếu là child theme). Fallback về "default" nếu theme không tồn tại trong bản build. */
 export const getActiveTheme = cache(async (site?: Site): Promise<LoadedTheme> => {
   const s = site ?? (await getSite());
   const { themes } = runtime();
@@ -91,7 +91,7 @@ export const getActiveTheme = cache(async (site?: Site): Promise<LoadedTheme> =>
   };
 });
 
-/** Định nghĩa của plugin đang bật + phần "extend" của theme. */
+/** @internal Định nghĩa của plugin đang bật + phần "extend" của theme. */
 export const getActiveExtensions = cache(async (site?: Site): Promise<PluginDefinition[]> => {
   const s = site ?? (await getSite());
   const { plugins } = runtime();
@@ -137,25 +137,28 @@ const BUILTIN_SHORTCODES: Record<string, () => Promise<ComponentType<ShortcodePr
   "cms-form": async () => (await import("./plugin-form")).CmsFormShortcode,
 };
 
+/** @internal Component của shortcode theo tên (core dùng khi vẽ nội dung). */
 export async function findShortcode(name: string, site?: Site) {
   for (const d of await getActiveExtensions(site)) if (d.shortcodes?.[name]) return d.shortcodes[name];
   return BUILTIN_SHORTCODES[name] ? await BUILTIN_SHORTCODES[name]() : null;
 }
+/** @internal Component của widget theo loại. */
 export async function findWidget(type: string, site?: Site) {
   for (const d of await getActiveExtensions(site)) if (d.widgets?.[type]) return d.widgets[type];
   return null;
 }
-/** Route gốc của plugin đang bật (vd "/news-sitemap.xml"). */
+/** @internal Route gốc của plugin đang bật (vd "/news-sitemap.xml"). */
 export async function findRoute(path: string, site?: Site) {
   for (const d of await getActiveExtensions(site)) if (d.routes?.[path]) return d.routes[path];
   return null;
 }
+/** @internal Component của khối theo loại (khối của plugin / theme). */
 export async function findBlock(type: string, site?: Site) {
   for (const d of await getActiveExtensions(site)) if (d.blocks?.[type]) return d.blocks[type];
   return null;
 }
 
-/** Component thay vùng (definePlugin → regions): priority nhỏ nhất thắng, bằng nhau thì plugin trước theme. */
+/** @internal Component thay vùng (definePlugin → regions): priority nhỏ nhất thắng, bằng nhau thì plugin trước theme. */
 export async function findRegion(name: string, site?: Site): Promise<ComponentType<RegionProps> | null> {
   let best: { Component: ComponentType<RegionProps>; priority: number } | null = null;
   for (const d of await getActiveExtensions(site)) {
@@ -172,6 +175,7 @@ export interface LoadedSlotItem {
   priority: number;
 }
 
+/** @internal Mục gắn vào slot, kèm plugin sở hữu (core dùng để cô lập lỗi từng plugin). Theme dùng `<Slot>`. */
 export async function getSlotItems(name: string, site?: Site): Promise<LoadedSlotItem[]> {
   const defs = await getActiveExtensions(site);
   const items: LoadedSlotItem[] = [];
@@ -193,7 +197,7 @@ export async function getSlotItems(name: string, site?: Site): Promise<LoadedSlo
   return items.sort((a, b) => a.priority - b.priority);
 }
 
-/** Lấy các component gắn vào slot, đã sắp xếp theo priority */
+/** @internal Các component gắn vào slot, đã sắp xếp theo priority. Theme dùng `<Slot>`. */
 export async function getSlotComponents(name: string, site?: Site): Promise<ComponentType<any>[]> {
   const items = await getSlotItems(name, site);
   return items.map((x) => x.Component);

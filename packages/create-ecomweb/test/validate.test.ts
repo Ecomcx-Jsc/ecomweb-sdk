@@ -126,3 +126,18 @@ test("token v1: theme con thừa hưởng token của theme cha nằm cạnh; ch
   assert.deepEqual(themeTokens(join(root, "child"), { parent: "default" }), [], "cha là theme lõi của CMS");
   assert.equal(themeTokens(join(root, "child"), { styles: {} }).length, 1, "không có cha → vẫn cảnh báo");
 });
+
+test("file \"use client\" import giá trị từ entry chính của theme SDK → cảnh báo; import type hoặc từ /client → không", async () => {
+  const { clientImportsServerEntry } = await import("../lib/validate.mjs");
+  const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = mkdtempSync(join(tmpdir(), "client-entry-"));
+  mkdirSync(join(dir, "components"));
+  writeFileSync(join(dir, "components", "Bad.tsx"), '"use client";\nimport type { Site } from "@ecomcx/ecomweb-theme-sdk";\nimport { Link, type MenuItem } from "@ecomcx/ecomweb-theme-sdk";\n');
+  writeFileSync(join(dir, "components", "Ok.tsx"), '"use client";\nimport type { Site } from "@ecomcx/ecomweb-theme-sdk";\nimport { Link } from "@ecomcx/ecomweb-theme-sdk/client";\n');
+  writeFileSync(join(dir, "components", "Server.tsx"), 'import { Link, getPosts } from "@ecomcx/ecomweb-theme-sdk";\n');
+  const w: string[] = clientImportsServerEntry(dir);
+  assert.equal(w.length, 1, w.join("\n"));
+  assert.match(w[0]!, /^components\/Bad\.tsx:3: .*import Link từ/);
+});

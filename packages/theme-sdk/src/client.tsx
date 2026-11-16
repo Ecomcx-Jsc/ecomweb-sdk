@@ -46,6 +46,7 @@ export class ExtensionBoundary extends Component<{ name: string; children?: Reac
 /** Đường dẫn không phải trang của theme (file, feed, API…) → luôn tải lại bình thường. */
 const NON_PAGE = /^\/(uploads|api|_next|extensions)\/|^\/(feed|sitemap\.xml|robots\.txt)(\?|$)|\.[a-z0-9]{2,5}(\?|$)/i;
 
+/** `true` nếu link là trang của website (chuyển trang không tải lại); file, feed, API, link ngoài → `false`. */
 export function isInternalHref(href: string) {
   return href.startsWith("/") && !href.startsWith("//") && !NON_PAGE.test(href);
 }
@@ -79,6 +80,10 @@ function PendingSignal() {
   return null;
 }
 
+/**
+ * Link chuyển trang không tải lại (bọc `next/link`); link ngoài, file, RSS tự dùng `<a>` thường.
+ * `activeClassName` gắn class khi URL hiện tại khớp (`matchNested`: khớp cả trang con). Prefetch mặc định tắt.
+ */
 export function Link({ href, prefetch = false, activeClassName, matchNested = true, className, children, ...rest }: LinkProps) {
   const pathname = usePathname();
   const path = href.split(/[?#]/)[0];

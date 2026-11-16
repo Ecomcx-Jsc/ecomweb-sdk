@@ -1,5 +1,5 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
-import { getArchives, getPosts, getTerms } from "./api";
+import { getAdjacentPost, getArchives, getPosts, getTerms } from "./api";
 import { Link, LoginOutLink, NavToggle } from "./client";
 import { Comments, FeaturedImage, LanguageSwitcher, Menu, Pagination, PostDate, SearchForm, TermLinks } from "./components";
 import { getT } from "./i18n";
@@ -193,8 +193,8 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       if (!cur || !cur.publishedAt) return null;
       const t = await getT();
       const [prev, next] = await Promise.all([
-        getPosts({ type: cur.type, perPage: 1, before: cur.publishedAt, orderBy: "date", order: "desc", exclude: [cur.id] }).then((r) => r.items[0]).catch(() => undefined),
-        getPosts({ type: cur.type, perPage: 1, after: cur.publishedAt, orderBy: "date", order: "asc", exclude: [cur.id] }).then((r) => r.items[0]).catch(() => undefined),
+        getAdjacentPost(cur, "prev").catch(() => null),
+        getAdjacentPost(cur, "next").catch(() => null),
       ]);
       if (!prev && !next) return null;
       return (

@@ -1,6 +1,11 @@
 import type { Site } from "./types";
 
-/** Định dạng ngày theo date_format của site (dd/MM/yyyy, yyyy-MM-dd, d MMMM, yyyy…). */
+/**
+ * Định dạng một ngày theo cấu hình ngày của website (Cài đặt › Chung: `site.dateFormat`, `site.timezone`) — tương đương `date_i18n`.
+ * Token: `yyyy`, `MMMM` (tên tháng theo `site.locale`), `MM`, `dd`, `d`. Luôn truyền `site` (có trong `TemplateProps`): thiếu thì dùng
+ * `dd/MM/yyyy` + `Asia/Ho_Chi_Minh`, không theo cấu hình admin. Giá trị rỗng → `""`. Chạy được ở server và client.
+ * @example formatDate(post.publishedAt, site) // "16/11/2026"
+ */
 export function formatDate(value: string | null | undefined, site?: Pick<Site, "dateFormat" | "timezone"> & { locale?: string }) {
   if (!value) return "";
   const d = new Date(value);
@@ -19,11 +24,20 @@ export function formatDate(value: string | null | undefined, site?: Pick<Site, "
     .replace(/\bd\b/, String(Number(parts.day)));
 }
 
+/**
+ * Đọc một giá trị Tuỳ biến của theme (`theme.json › settings`) từ `settings` của `TemplateProps` / `LayoutProps`, kèm giá trị dự phòng
+ * (tương đương `get_theme_mod`). Rỗng / chưa đặt → `fallback`. Không gọi mạng.
+ * @example setting(settings, "showComments", true)
+ */
 export function setting<T = string>(settings: Record<string, unknown>, key: string, fallback: T): T {
   const v = settings?.[key];
   return (v === undefined || v === null || v === "" ? fallback : v) as T;
 }
 
+/**
+ * Đường dẫn trang thứ `page` của một danh sách (`/tin-tuc/page/2`), giữ từ khoá tìm kiếm nếu có. Trang 1 → đường dẫn gốc.
+ * Danh sách có bộ lọc khác → {@link pageLinkWithQuery}.
+ */
 export function pageLink(basePath: string, page: number, search?: string | null) {
   const base = basePath === "/" ? "" : basePath.replace(/\/$/, "");
   const path = page <= 1 ? base || "/" : `${base}/page/${page}`;
@@ -49,6 +63,7 @@ export function pageLinkWithQuery(basePath: string, page: number, query?: Record
   return qs ? `${path}${path.includes("?") ? "&" : "?"}${qs}` : path;
 }
 
+/** Ghép class CSS, bỏ giá trị rỗng / false (như `clsx`). @example cx("card", active && "is-active") */
 export function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
