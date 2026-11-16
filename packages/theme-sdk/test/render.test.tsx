@@ -704,3 +704,11 @@ test("nhóm: độ rộng nội dung tự nhập thành biến --ecx-group-width
   const site = await html(g({ constrained: true }), ctx());
   assert.ok(site.includes("ecx-is-constrained") && !site.includes("--ecx-group-width"), site);
 });
+
+test("lớp phủ nền: chuyển màu + hoà trộn ra CSS ::before trên website; blend lạ bị bỏ", async () => {
+  const g = (bg: Record<string, unknown>) => ({ type: "doc", content: [{ type: "group", attrs: { style: { background: bg } }, content: [{ type: "paragraph", content: [{ type: "text", text: "a" }] }] }] });
+  const out = await html(g({ image: { base: "/uploads/a.jpg" }, overlayGradient: "linear-gradient(180deg, #0f1e29 0%, #1a597b 100%)", overlayBlend: "multiply", overlayOpacity: 60 }), ctx());
+  assert.ok(out.includes("::before{content:") && out.includes("mix-blend-mode:multiply") && out.includes("opacity:0.6") && out.includes("background-image:linear-gradient(180deg, #0f1e29 0%, #1a597b 100%)"), out);
+  const bad = await html(g({ overlay: "#000", overlayBlend: "burn" }), ctx());
+  assert.ok(bad.includes("::before{content:") && !bad.includes("mix-blend-mode"), bad);
+});
