@@ -31,12 +31,19 @@ const html = async (content: unknown, c = ctx()) => renderToStaticMarkup(<>{awai
 for (const file of readdirSync(fixtures).filter((f) => f.endsWith(".json")).sort()) {
   const f = JSON.parse(readFileSync(path.join(fixtures, file), "utf8"));
   test(`render ${f.name}`, async () => {
-    const out = await html(f.input);
-    const snap = path.join(snapshots, `${f.name}.html`);
-    if (process.env.UPDATE_SNAPSHOTS || !existsSync(snap)) writeFileSync(snap, out + "\n");
-    assert.equal(out + "\n", readFileSync(snap, "utf8"));
-    // Vẽ đầu vào thô và bản đã chuẩn hoá cho cùng kết quả
-    assert.equal(await html(f.expected), out);
+    // Giờ cố định + /site giả: khối đếm ngược / chữ theo ngôn ngữ website không phụ thuộc đồng hồ và mạng
+    configureRuntime({ themes: {}, plugins: {} });
+    const realFetch = globalThis.fetch, realNow = Date.now;
+    globalThis.fetch = (async (u: RequestInfo | URL) => new Response(JSON.stringify(/\/site\b/.test(String(u)) ? { title: "Test", language: "vi", locale: "vi", url: "https://example.com" } : { items: [] }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
+    Date.now = () => Date.UTC(2026, 10, 1);
+    try {
+      const out = await html(f.input);
+      const snap = path.join(snapshots, `${f.name}.html`);
+      if (process.env.UPDATE_SNAPSHOTS || !existsSync(snap)) writeFileSync(snap, out + "\n");
+      assert.equal(out + "\n", readFileSync(snap, "utf8"));
+      // Vẽ đầu vào thô và bản đã chuẩn hoá cho cùng kết quả
+      assert.equal(await html(f.expected), out);
+    } finally { globalThis.fetch = realFetch; Date.now = realNow; }
   });
 }
 
