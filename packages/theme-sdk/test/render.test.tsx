@@ -277,6 +277,9 @@ test("accordion: details con dùng chung name (mở một đóng các mục khá
     assert.match(cd, /Sale/);
     assert.match(cd, /<small>ngày<\/small>.*<small>giây<\/small>/);
     assert.equal(await html({ type: "doc", content: [{ type: "countdown", attrs: { target: "không phải ngày" } }] }), "");
+    // Múi giờ: mốc theo giờ tường của múi giờ được chọn vẫn vẽ khối; múi giờ lạ bị bỏ nhưng mốc vẫn dùng được
+    assert.match(await html({ type: "doc", content: [{ type: "countdown", attrs: { target: "2999-01-01T09:00", timezone: "Asia/Ho_Chi_Minh" } }] }), /ecx-countdown/);
+    assert.match(await html({ type: "doc", content: [{ type: "countdown", attrs: { target: "2999-01-01T09:00", timezone: "Mars/Olympus" } }] }), /ecx-countdown/);
   } finally { globalThis.fetch = origFetch; }
 });
 

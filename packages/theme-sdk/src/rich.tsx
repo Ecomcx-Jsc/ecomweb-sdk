@@ -1,5 +1,5 @@
 import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
-import { DYNAMIC_NODES, ICON_PATHS, nodeText, buttonIcon, widgetMarkup, tabsClass, formSizeClass, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { DYNAMIC_NODES, ICON_PATHS, countdownTarget, nodeText, buttonIcon, widgetMarkup, tabsClass, formSizeClass, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site, BlockAsset } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
@@ -476,7 +476,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       );
     }
     case "countdown": {
-      const ms = Date.parse(String(a.target ?? ""));
+      const ms = countdownTarget(a);
       if (!Number.isFinite(ms)) return null;
       const t = await getT();
       const units = { d: t("countdown.d"), h: t("countdown.h"), m: t("countdown.m"), s: t("countdown.s") }; // theo ngôn ngữ của trang (vi: ngày/giờ/phút/giây)
