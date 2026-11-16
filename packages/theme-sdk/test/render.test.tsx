@@ -720,3 +720,11 @@ test("đường chia: website ra CSS ::after có mặt nạ + z-index -1; hình 
   const bad = await html(g({ top: { shape: "star", color: "primary" } }), ctx());
   assert.ok(!bad.includes("mask-image"), bad);
 });
+
+test("bóng chữ tự chỉnh + chữ dọc: website ra text-shadow / writing-mode; giá trị ngoài khoảng bị bỏ", async () => {
+  const p = (style: Record<string, unknown>) => ({ type: "doc", content: [{ type: "paragraph", attrs: { style }, content: [{ type: "text", text: "a" }] }] });
+  const out = await html(p({ textShadow: { x: 2, y: 4, blur: 8, color: "black/40" }, writingMode: "vertical" }), ctx());
+  assert.ok(out.includes("text-shadow:2px 4px 8px") && out.includes("writing-mode:vertical-rl"), out);
+  const bad = await html(p({ textShadow: { x: 99, y: 4, blur: 8, color: "black" } }), ctx());
+  assert.ok(!bad.includes("text-shadow"), bad);
+});
