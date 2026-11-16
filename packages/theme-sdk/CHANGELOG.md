@@ -2,7 +2,7 @@
 
 Theo [SemVer](https://semver.org/lang/vi/): bản lớn (x.0.0) mới được đổi hoặc bỏ API công khai. Tên công khai là tên có trong [API.md](API.md).
 
-## 2.0.0 (chưa phát hành)
+## 2.0.0 (16/11/2026)
 
 ### Phá tương thích, cần làm khi nâng cấp
 - **Entry chính chỉ chạy ở server.** `@ecomcx/ecomweb-theme-sdk` có `import "server-only"`: file `"use client"` import giá trị từ entry chính thì Next báo lỗi lúc build. Sửa: import từ `@ecomcx/ecomweb-theme-sdk/client` (`Link`, form đăng nhập, `CommentForm`…). `import type` vẫn dùng được ở mọi nơi. `create-ecomweb validate` báo lỗi này khi đóng gói.

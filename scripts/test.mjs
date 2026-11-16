@@ -41,5 +41,6 @@ try {
   const files = [];
   const walk = (d) => { for (const f of readdirSync(d, { withFileTypes: true })) f.isDirectory() ? walk(path.join(d, f.name)) : files.push(path.join(d, f.name)); };
   walk(out);
-  execFileSync(process.execPath, ["--test", ...files], { stdio: "inherit" });
+  // Múi giờ cố định: snapshot có giờ tường (đếm ngược không rõ múi giờ dùng giờ của máy) phải giống nhau trên máy dev và CI (UTC)
+  execFileSync(process.execPath, ["--test", ...files], { stdio: "inherit", env: { ...process.env, TZ: "Asia/Ho_Chi_Minh" } });
 } finally { rmSync(out, { recursive: true, force: true }); }
