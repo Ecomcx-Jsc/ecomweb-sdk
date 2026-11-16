@@ -75,5 +75,10 @@ export function buildPostQuery(a: Attrs, env: { post?: Post | null; data?: Resol
     if (tn && SLUG.test(url[`fq_${tn}`] ?? "")) tax.push({ taxonomy: tn, terms: [url[`fq_${tn}`]] });
   }
   if (tax.length) q.taxQuery = tax;
+  // Mọi ?fq_… còn lại chuyển cho plugin đọc (vd giá, giảm giá, còn hàng của plugin bán hàng)
+  if (a.urlFilters === true) {
+    const extra = Object.fromEntries(Object.entries(url).filter(([k, v]) => /^fq_[a-z0-9_-]{1,40}$/i.test(k) && typeof v === "string" && v.length <= 100 && k !== "fq_s"));
+    if (Object.keys(extra).length) q.extra = extra;
+  }
   return q;
 }

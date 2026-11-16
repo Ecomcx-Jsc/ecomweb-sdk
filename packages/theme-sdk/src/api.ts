@@ -215,6 +215,12 @@ export interface PostQuery {
    * Khoá chưa khai báo trả 422 (không có chỉ mục thì sắp xếp phải quét toàn bảng).
    */
   orderByMeta?: string;
+  /**
+   * Tham số bộ lọc phụ do plugin đọc (filter `posts.query`, `PostQueryData.Query`): chỉ nhận khoá `fq_…`, giá trị ≤ 100 ký tự —
+   * vd plugin bán hàng đọc `fq_price_min`, `fq_price_max`, `fq_sale`, `fq_stock`, `fq_sort=price_asc`. Khối Query bật "Nhận bộ lọc từ thanh lọc" tự chuyển các `fq_…` trên URL vào đây.
+   * @since 2.1.0
+   */
+  extra?: Record<string, string>;
 }
 /**
  * Danh sách bài đã đăng theo điều kiện (tương đương `WP_Query`). Mặc định không kèm nội dung đầy đủ (`withContent`).
@@ -225,9 +231,10 @@ export interface PostQuery {
 export const getPosts = async ({ withContent, ...q }: PostQuery = {}) => {
   // Bóc tách TRONG thân hàm, không phải trong tham số: chữ ký đã công bố của getPosts nằm trong baseline
   // hợp đồng (api/theme-sdk.txt) nên thêm tên vào tham số là đổi một dòng đã ký (CI coi là phá hợp đồng).
-  const { taxQuery, metaQuery, ...rest } = q;
+  const { taxQuery, metaQuery, extra, ...rest } = q;
   return cmsFetch<{ items: Post[]; total: number; page: number; totalPages: number }>("/posts", { tags: ["posts"], query: clean({
     ...postQueryParams(rest),
+    ...Object.fromEntries(Object.entries(extra ?? {}).filter(([k, v]) => /^fq_[a-z0-9_-]{1,40}$/i.test(k) && typeof v === "string" && v.length <= 100)),
     // Bộ lọc phức tạp đi dạng JSON — core phân tích và áp thẳng vào câu SQL (không lọc bằng bộ nhớ).
     taxQuery: taxQuery?.length ? JSON.stringify(taxQuery) : undefined,
     metaQuery: metaQuery?.clauses?.length ? JSON.stringify(metaQuery) : undefined,

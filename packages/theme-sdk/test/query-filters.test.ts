@@ -51,3 +51,8 @@ test("trang mục: lấy phân loại của trang rồi lọc thêm", () => {
   const data = { postType: "product", term: { taxonomy: "product_cat", slug: "cong-nghe" }, query: {} } as never;
   assert.deepEqual(buildPostQuery({ urlFilters: true }, { data, fromContext: true }).taxQuery, [{ taxonomy: "product_cat", terms: ["cong-nghe"] }]);
 });
+test("?fq_… còn lại chuyển cho plugin (extra), khoá lạ bị bỏ", () => {
+  const data = { query: { fq_price_min: "100000", fq_sale: "1", fq_s: "áo", other: "x" } } as never;
+  assert.deepEqual(buildPostQuery({ urlFilters: true }, { data }).extra, { fq_price_min: "100000", fq_sale: "1" });
+  assert.equal(buildPostQuery({}, { data }).extra, undefined);
+});
