@@ -384,8 +384,8 @@ export function NavToggle({ label, children, className = "ecx-navigation-toggle"
  * Tab dọc (`vertical`), thành accordion trên điện thoại (`mobileAccordion`, chỉ CSS: tiêu đề nằm ngay trên panel của nó);
  * tab có neo → panel mang id = neo, mở thẳng bằng #neo.
  */
-export function TabsClient({ titles, panels, initial = 0, icons, subtitles, anchors, vertical, mobileAccordion }: {
-  titles: string[]; panels: ReactNode[]; initial?: number; icons?: Array<string | undefined>; subtitles?: Array<string | undefined>; anchors?: Array<string | undefined>; vertical?: boolean; mobileAccordion?: boolean;
+export function TabsClient({ titles, panels, initial = 0, icons, subtitles, anchors, vertical, mobileAccordion, extraClass }: {
+  titles: string[]; panels: ReactNode[]; initial?: number; icons?: Array<string | undefined>; subtitles?: Array<string | undefined>; anchors?: Array<string | undefined>; vertical?: boolean; mobileAccordion?: boolean; /** Class đầy đủ của khối (tabsClass): thay cho class tự ghép. */ extraClass?: string;
 }) {
   const [active, setActive] = useState(initial < titles.length ? initial : 0);
   const id = useId();
@@ -405,7 +405,7 @@ export function TabsClient({ titles, panels, initial = 0, icons, subtitles, anch
     document.getElementById(`${id}-t${next}`)?.focus();
   };
   return (
-    <div className={cx("ecx-tabs", vertical && "is-vertical", mobileAccordion && "has-mobile-accordion")}>
+    <div className={extraClass ?? cx("ecx-tabs", vertical && "is-vertical", mobileAccordion && "has-mobile-accordion")}>
       <div role="tablist" className="ecx-tabs-list" aria-orientation={vertical ? "vertical" : undefined}>
         {titles.map((t, i) => (
           <button key={i} type="button" role="tab" id={`${id}-t${i}`} aria-selected={i === active} aria-controls={anchors?.[i] ?? `${id}-p${i}`} tabIndex={i === active ? 0 : -1}

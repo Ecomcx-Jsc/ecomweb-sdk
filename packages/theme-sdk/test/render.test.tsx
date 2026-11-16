@@ -630,3 +630,14 @@ test("accordion: mở sẵn mục đầu; nhóm một-mục không mở hơn m�
   assert.deepEqual(opens(await html(acc({ startOpen: "all", multiple: true }, [pane("A"), pane("B")]), ctx())), [true, true]);
   assert.deepEqual(opens(await html(acc({ startOpen: "first" }, [pane("A"), pane("B", { open: true })]), ctx())), [false, true]);
 });
+
+test("tab: icon ở trên + chỉ hiện icon → class của khối; không đặt thì class như cũ; icon sai vị trí bị bỏ", async () => {
+  const tabs = (attrs: Record<string, unknown>) => ({ type: "doc", content: [{ type: "tabs", attrs, content: [{ type: "tab", attrs: { title: "A", icon: "star" }, content: [{ type: "paragraph", content: [{ type: "text", text: "a" }] }] }] }] });
+  const out = await html(tabs({ iconPosition: "top", iconOnly: true, orientation: "vertical" }), ctx());
+  assert.match(out, /class="ecx-tabs is-vertical has-icon-top is-icon-only"/, out);
+  assert.ok(out.includes('class="ecx-tab-label"') && out.includes(">A<"), out); // chữ vẫn có trong HTML (trình đọc màn hình)
+  assert.match(await html(tabs({}), ctx()), /class="ecx-tabs"/);
+  const right = await html(tabs({ iconPosition: "right" }), ctx());
+  assert.ok(/class="ecx-tabs has-icon-right"/.test(right) && !right.includes("is-icon-only"), right);
+  assert.match(await html(tabs({ iconPosition: "bottom" }), ctx()), /class="ecx-tabs"/);
+});

@@ -1,5 +1,5 @@
 import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
-import { DYNAMIC_NODES, ICON_PATHS, nodeText, buttonIcon, widgetMarkup, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { DYNAMIC_NODES, ICON_PATHS, nodeText, buttonIcon, widgetMarkup, tabsClass, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site, BlockAsset } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
@@ -551,7 +551,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       return <TabsClient key={key} titles={tabs.map((t, i) => String(t.attrs?.title || `Tab ${i + 1}`))} panels={panels} initial={Math.max(0, (Number(a.initial) || 1) - 1)}
         icons={tabs.map((t) => ICON_PATHS[String(t.attrs?.icon ?? "")])} subtitles={tabs.map((t) => (t.attrs?.subtitle ? String(t.attrs.subtitle) : undefined))}
         anchors={tabs.map((t) => (typeof t.attrs?.anchor === "string" && /^[\w-]{1,80}$/.test(t.attrs.anchor) ? t.attrs.anchor : undefined))}
-        vertical={a.orientation === "vertical"} mobileAccordion={a.mobileAccordion === true} />;
+        vertical={a.orientation === "vertical"} mobileAccordion={a.mobileAccordion === true} extraClass={tabsClass(a)} />;
     }
     case "tab":
       return <div key={key} className="ecx-tab">{await children()}</div>;
