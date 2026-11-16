@@ -619,3 +619,14 @@ test("bộ đếm: số chữ thập phân tự đặt, tiêu đề là h3; than
   assert.match(out, /class="ecx-progress"[^>]*>.*class="ecx-progress ecx-in"/s, out);
   assert.ok(out.includes(">40%<") && out.includes('aria-label="B"'), out);
 });
+
+test("accordion: mở sẵn mục đầu; nhóm một-mục không mở hơn một; chọn tất cả khi cho mở nhiều; mục tự đặt open thì giữ nguyên", async () => {
+  const pane = (t: string, extra: Record<string, unknown> = {}) => ({ type: "details", attrs: { summary: t, ...extra }, content: [{ type: "paragraph", content: [{ type: "text", text: t.toLowerCase() }] }] });
+  const acc = (attrs: Record<string, unknown>, panes: unknown[]) => ({ type: "doc", content: [{ type: "accordion", attrs, content: panes }] });
+  const opens = (out: string) => (out.match(/<details[^>]*>/g) ?? []).map((t) => t.includes(" open"));
+  assert.deepEqual(opens(await html(acc({}, [pane("A"), pane("B")]), ctx())), [false, false]);
+  assert.deepEqual(opens(await html(acc({ startOpen: "first" }, [pane("A"), pane("B")]), ctx())), [true, false]);
+  assert.deepEqual(opens(await html(acc({ startOpen: "all" }, [pane("A"), pane("B")]), ctx())), [true, false]);
+  assert.deepEqual(opens(await html(acc({ startOpen: "all", multiple: true }, [pane("A"), pane("B")]), ctx())), [true, true]);
+  assert.deepEqual(opens(await html(acc({ startOpen: "first" }, [pane("A"), pane("B", { open: true })]), ctx())), [false, true]);
+});

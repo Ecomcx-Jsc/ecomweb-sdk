@@ -458,7 +458,11 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     case "accordion": {
       const tag = ["h2", "h3", "h4", "h5", "h6"].includes(String(a.titleTag)) ? String(a.titleTag) : undefined;
       const sub = { ...ctx, accordion: a.multiple === true ? undefined : `ecx-acc-${key}`, accTag: tag };
-      const items = node.content ?? [];
+      // Mở sẵn: mục đầu / tất cả (nhóm "mở một mục" chỉ mở được mục đầu); không đụng khi có mục tự đặt `open`
+      const raw = node.content ?? [];
+      const start = a.startOpen === "all" && a.multiple === true ? "all" : a.startOpen === "first" || a.startOpen === "all" ? "first" : "none";
+      const items = start === "none" || raw.some((c) => c.type === "details" && c.attrs?.open === true) ? raw
+        : raw.map((c, i) => (c.type === "details" && (start === "all" || i === 0) ? { ...c, attrs: { ...c.attrs, open: true } } : c));
       // FAQ Schema: câu hỏi = tiêu đề mục, trả lời = chữ trong mục (JSON trong <script>: thoát "<" để không đóng thẻ sớm)
       const faq = a.faq === true && items.some((c) => c.type === "details" && c.attrs?.summary) ? JSON.stringify({
         "@context": "https://schema.org", "@type": "FAQPage",
