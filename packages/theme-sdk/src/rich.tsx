@@ -606,7 +606,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
         <nav key={key} className={cx("ecx-toc", a.smoothScroll === true && "is-smooth")} aria-label={title}>
           {a.collapsible === true
             ? <details className="ecx-toc-details" open={a.startCollapsed !== true || undefined}><summary className="ecx-toc-title">{title}</summary>{list}</details>
-            : <><p className="ecx-toc-title">{title}</p>{list}</>}
+            : <>{a.showTitle !== false && <p className="ecx-toc-title">{title}</p>}{list}</>}
           {a.highlight === true && <TocSpy />}
         </nav>
       );

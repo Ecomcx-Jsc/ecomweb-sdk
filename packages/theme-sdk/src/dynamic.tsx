@@ -52,7 +52,7 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
     case "search":
       return <div key={key} className="ecx-search"><SearchForm defaultValue={ctx.data?.search} placeholder={a.placeholder} buttonLabel={a.buttonText}
         postType={typeof a.postType === "string" && /^[a-z0-9_-]{1,64}$/i.test(a.postType) ? a.postType : undefined} showLabel={a.showLabel === true}
-        buttonPosition={a.buttonPosition === "left" || a.buttonPosition === "below" ? a.buttonPosition : "right"} /></div>;
+        buttonPosition={a.buttonPosition === "left" || a.buttonPosition === "below" ? a.buttonPosition : "right"} buttonIcon={a.buttonStyle === "icon"} /></div>;
     case "languageSwitcher":
       return <LanguageSwitcher key={key} className="ecx-language-switcher" variant={a.display === "dropdown" ? "select" : "list"} />;
     case "copyright":

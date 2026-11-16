@@ -641,3 +641,24 @@ test("tab: icon ở trên + chỉ hiện icon → class của khối; không đ�
   assert.ok(/class="ecx-tabs has-icon-right"/.test(right) && !right.includes("is-icon-only"), right);
   assert.match(await html(tabs({ iconPosition: "bottom" }), ctx()), /class="ecx-tabs"/);
 });
+
+test("mục lục: ẩn tiêu đề thì chỉ còn danh sách; thu gọn được thì tiêu đề vẫn hiện (là nút mở / đóng)", async () => {
+  const doc = (attrs: Record<string, unknown>) => ({ type: "doc", content: [{ type: "tableOfContents", attrs }, { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Giới thiệu" }] }] });
+  const shown = await html(doc({ title: "Nội dung" }), ctx());
+  assert.ok(shown.includes('class="ecx-toc-title"') && shown.includes("Giới thiệu"), shown);
+  const hidden = await html(doc({ title: "Nội dung", showTitle: false }), ctx());
+  assert.ok(!hidden.includes("ecx-toc-title") && hidden.includes("ecx-toc-list") && hidden.includes('aria-label="Nội dung"'), hidden);
+  const folded = await html(doc({ title: "Nội dung", showTitle: false, collapsible: true }), ctx());
+  assert.ok(folded.includes('<summary class="ecx-toc-title">Nội dung</summary>'), folded);
+});
+
+test("tìm kiếm: phần Ô nhập / Nút và màu chữ gợi ý ra CSS trên website như khung soạn; giá trị màu lạ bị bỏ", async () => {
+  const dynamic: RenderContext["dynamic"] = async (node, key) => <div key={key} className="ecx-search"><form className="search-form"><input type="search" /><button type="submit">Tìm</button></form></div>;
+  const attrs = { buttonStyle: "icon", searchPlaceholderColor: "#5d6a75", searchMaxWidth: { base: "24rem" },
+    parts: { input: { style: { color: { text: "#0f1e29" } }, hover: { color: { background: "#f3f4f6" } } }, button: { style: { color: { background: "#1a597b" } } } } };
+  const out = await html({ type: "doc", content: [{ type: "search", attrs }] }, ctx({ dynamic }));
+  assert.ok(out.includes('input[type="search"]') && out.includes("color:#0f1e29") && out.includes("input::placeholder{color: #5d6a75}") && out.includes("max-width: 24rem"), out);
+  assert.ok(out.includes("button[type=&quot;submit&quot;]") || out.includes('button[type="submit"]'), out);
+  const bad = await html({ type: "doc", content: [{ type: "search", attrs: { searchPlaceholderColor: "red;}body{display:none" } }] }, ctx({ dynamic }));
+  assert.ok(!bad.includes("display:none") && !bad.includes("::placeholder"), bad);
+});

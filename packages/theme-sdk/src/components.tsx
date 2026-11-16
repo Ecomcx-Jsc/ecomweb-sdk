@@ -129,9 +129,9 @@ export async function Slot<P = any>({
 // ---------------------------------------------------------------------------
 
 /** Ô tìm kiếm — gửi về trang chủ của ngôn ngữ hiện tại (/?s= hoặc /en?s=). */
-export async function SearchForm({ defaultValue, placeholder, buttonLabel, postType, showLabel, buttonPosition }: { defaultValue?: string | null; placeholder?: string; buttonLabel?: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below" }) {
+export async function SearchForm({ defaultValue, placeholder, buttonLabel, postType, showLabel, buttonPosition, buttonIcon }: { buttonIcon?: boolean; defaultValue?: string | null; placeholder?: string; buttonLabel?: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below" }) {
   const [t, site] = await Promise.all([getT(), getSite()]);
-  return <SearchFormClient action={localeHref(site, "/")} defaultValue={defaultValue} placeholder={placeholder ?? t("search.placeholder")} label={t("search.label")} buttonLabel={buttonLabel ?? t("search.button")} postType={postType} showLabel={showLabel} buttonPosition={buttonPosition} />;
+  return <SearchFormClient action={localeHref(site, "/")} defaultValue={defaultValue} placeholder={placeholder ?? t("search.placeholder")} label={t("search.label")} buttonLabel={buttonLabel ?? t("search.button")} postType={postType} showLabel={showLabel} buttonIcon={buttonIcon} buttonPosition={buttonPosition} />;
 }
 
 function paramLink(data: ResolveResult, param: string, p: number) {

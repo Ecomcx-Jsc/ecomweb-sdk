@@ -1,6 +1,6 @@
 "use client";
 
-import { countdownParts, type CountdownUnit } from "@ecomcx/ecomweb-content";
+import { countdownParts, SEARCH_ICON_PATH, type CountdownUnit } from "@ecomcx/ecomweb-content";
 import { extraFields } from "./auth-forms";
 import { Component, Suspense, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -100,9 +100,11 @@ export function Link({ href, prefetch = false, activeClassName, matchNested = tr
 }
 
 /** Form tìm kiếm (GET) chuyển trang phía client. */
-export function SearchFormClient({ action, defaultValue, placeholder, label, buttonLabel, postType, showLabel, buttonPosition = "right" }: { action: string; defaultValue?: string | null; placeholder: string; label: string; buttonLabel: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below" }) {
+export function SearchFormClient({ action, defaultValue, placeholder, label, buttonLabel, postType, showLabel, buttonPosition = "right", buttonIcon }: { buttonIcon?: boolean; action: string; defaultValue?: string | null; placeholder: string; label: string; buttonLabel: string; postType?: string; showLabel?: boolean; buttonPosition?: "right" | "left" | "below" }) {
   const id = useId();
-  const button = <button type="submit">{buttonLabel}</button>;
+  const button = buttonIcon
+    ? <button type="submit" aria-label={buttonLabel} title={buttonLabel}><svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d={SEARCH_ICON_PATH} /></svg></button>
+    : <button type="submit">{buttonLabel}</button>;
   return (
     <NextForm action={action} role="search" style={buttonPosition === "below" ? { display: "flex", flexDirection: "column", gap: 8 } : undefined} className={`search-form${buttonPosition !== "right" ? ` search-button-${buttonPosition}` : ""}`}>
       {showLabel && <label htmlFor={id} className="search-label">{label}</label>}
