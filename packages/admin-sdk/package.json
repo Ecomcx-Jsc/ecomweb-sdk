@@ -15,6 +15,6 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@ecomcx/ecomweb-content": "^1.25.0"
+    "@ecomcx/ecomweb-content": "^1.26.0"
   }
 }
