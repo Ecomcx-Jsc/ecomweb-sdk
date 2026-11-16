@@ -731,3 +731,15 @@ test("bóng chữ tự chỉnh + chữ dọc: website ra text-shadow / writing-m
   const bad = await html(p({ textShadow: { x: 99, y: 4, blur: 8, color: "black" } }), ctx());
   assert.ok(!bad.includes("text-shadow"), bad);
 });
+
+test("icon cạnh chữ: tiêu đề / đoạn ra class + biến mặt nạ + title; mục lục dùng tocTitle", async () => {
+  const doc = { type: "doc", content: [
+    { type: "tableOfContents", attrs: {} },
+    { type: "heading", attrs: { level: 2, icon: "star", iconPosition: "right", iconTitle: "Nổi bật", tocTitle: "Mục nổi bật" }, content: [{ type: "text", text: "Tiêu đề dài" }] },
+    { type: "paragraph", attrs: { icon: "rocket" }, content: [{ type: "text", text: "Đoạn" }] }] };
+  const out = await html(doc, ctx());
+  assert.match(out, /<h2[^>]*class="ecx-has-icon ecx-icon-right"[^>]*title="Nổi bật"/);
+  assert.ok(out.includes("--ecx-text-icon:url(") || out.includes("--ecx-text-icon: url("), out);
+  assert.ok(out.includes("Mục nổi bật"), out);
+  assert.ok(!/<p[^>]*ecx-has-icon/.test(out), out);
+});

@@ -104,7 +104,7 @@ function headingId(node: Node): string {
 function collectHeadings(blocks: Block[]): Array<{ level: number; id: string; text: string }> {
   const out: Array<{ level: number; id: string; text: string }> = [];
   const walk = (n: Node) => {
-    if (n.type === "heading") out.push({ level: Math.min(6, Math.max(1, Number(n.attrs?.level) || 2)), id: headingId(n), text: plainText(n) });
+    if (n.type === "heading") out.push({ level: Math.min(6, Math.max(1, Number(n.attrs?.level) || 2)), id: headingId(n), text: (typeof n.attrs?.tocTitle === "string" && n.attrs.tocTitle.trim()) || plainText(n) });
     else for (const c of n.content ?? []) walk(c);
   };
   for (const b of blocks) if (b.type === "richtext" && b.data) walk(b.data as Node);
