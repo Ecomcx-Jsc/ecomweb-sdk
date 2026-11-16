@@ -596,3 +596,15 @@ test("hộp icon: media là ảnh nằm trái, căn giữa theo chiều dọc, c
   const bad = await html(box({ src: "javascript:alert(1)", verticalAlign: "center" }), ctx());
   assert.ok(!bad.includes("<img") && !bad.includes("ecx-icon-box-icon") && !bad.includes("is-v-center") && !bad.includes("javascript:"), bad);
 });
+
+test("lời chứng thực: kiểu bong bóng, 4/5 sao có nhãn đọc màn hình, dấu trích; mặc định không sao, không dấu trích", async () => {
+  const t = (attrs: Record<string, unknown>) => ({ type: "doc", content: [{ type: "testimonial", attrs: { quote: "Tốt", name: "Lan", ...attrs } }] });
+  const out = await html(t({ variant: "bubble", rating: 4, quoteMark: true }), ctx());
+  assert.match(out, /<figure class="ecx-testimonial is-bubble[^"]*"/, out);
+  assert.ok(out.includes('<span role="img" aria-label="4/5" class="ecx-testimonial-rating">'), out);
+  assert.equal(out.match(/class="is-on"/g)?.length, 4, out);
+  assert.equal(out.match(/class="is-off"/g)?.length, 1, out);
+  assert.ok(out.includes('<span aria-hidden="true" class="ecx-testimonial-mark">“</span>'), out);
+  const plain = await html(t({}), ctx());
+  assert.ok(!plain.includes("ecx-testimonial-rating") && !plain.includes("ecx-testimonial-mark") && /class="ecx-testimonial[ "]/.test(plain) && !plain.includes("is-bubble"), plain);
+});
