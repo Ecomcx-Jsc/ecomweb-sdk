@@ -712,3 +712,11 @@ test("lớp phủ nền: chuyển màu + hoà trộn ra CSS ::before trên websi
   const bad = await html(g({ overlay: "#000", overlayBlend: "burn" }), ctx());
   assert.ok(bad.includes("::before{content:") && !bad.includes("mix-blend-mode"), bad);
 });
+
+test("đường chia: website ra CSS ::after có mặt nạ + z-index -1; hình lạ bị bỏ", async () => {
+  const g = (divider: Record<string, unknown>) => ({ type: "doc", content: [{ type: "group", attrs: { style: { divider } }, content: [{ type: "paragraph", content: [{ type: "text", text: "a" }] }] }] });
+  const out = await html(g({ top: { shape: "wave", color: "primary", height: 120 }, bottom: { shape: "zigzag", color: "white" } }), ctx());
+  assert.ok(out.includes("::after{content:") && out.includes("mask-image:url(") && out.includes("background-size:100% 120px,100% 80px") && out.includes("z-index:-1"), out);
+  const bad = await html(g({ top: { shape: "star", color: "primary" } }), ctx());
+  assert.ok(!bad.includes("mask-image"), bad);
+});
