@@ -673,3 +673,17 @@ test("thư viện ảnh: masonry theo cột, ảnh giữ tỉ lệ; link riêng 
   const bad = await html(g({}, [img({ href: "javascript:alert(1)" })]), ctx());
   assert.ok(!bad.includes("javascript:") && bad.includes('href="/u/a-lon.jpg"') && bad.includes("display:grid") && bad.includes("gap:var(--ecx-gallery-gap, 8px)"), bad);
 });
+
+test("form: cỡ ô nhập lớn thêm class is-size-lg (một lần), cỡ vừa giữ class cũ; giá trị lạ bị bỏ", async () => {
+  const form = (attrs: Record<string, unknown>) => ({ type: "doc", content: [{ type: "form", attrs: { formId: "f_abc123", ...attrs }, content: [{ type: "formField", attrs: { kind: "text", name: "name", label: "Họ tên" } }] }] });
+  configureRuntime({ themes: {}, plugins: {} });
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ title: "Test", language: "vi", locale: "vi", url: "https://example.com", activePlugins: [], activeTheme: null }), { headers: { "content-type": "application/json" } })) as typeof fetch;
+  try {
+    const c = ctx({ source: "post:12" });
+    assert.match(await html(form({ inputSize: "lg" }), c), /<form class="ecx-form-blocks is-size-lg" novalidate="" data-form="f_abc123">/i);
+    assert.match(await html(form({ inputSize: "sm" }), c), /<form class="ecx-form-blocks is-size-sm"/);
+    assert.match(await html(form({}), c), /<form class="ecx-form-blocks" novalidate=""/i);
+    assert.match(await html(form({ inputSize: "huge" }), c), /<form class="ecx-form-blocks" novalidate=""/i);
+  } finally { globalThis.fetch = origFetch; }
+});

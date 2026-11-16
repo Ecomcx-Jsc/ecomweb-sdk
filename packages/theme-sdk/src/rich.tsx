@@ -1,5 +1,5 @@
 import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
-import { DYNAMIC_NODES, ICON_PATHS, nodeText, buttonIcon, widgetMarkup, tabsClass, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { DYNAMIC_NODES, ICON_PATHS, nodeText, buttonIcon, widgetMarkup, tabsClass, formSizeClass, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site, BlockAsset } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
@@ -490,9 +490,9 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const t = await getT();
       const inner = await Promise.all((node.content ?? []).map((c, i) => renderNode(c, `${key}-${i}`, { ...ctx, form: formId })));
       return (
-        <FormBlockClient key={key} formId={formId} source={ctx.source} successMessage={a.successMessage ? String(a.successMessage) : undefined}
+        <FormBlockClient key={key} formId={formId} source={ctx.source} className={formSizeClass(a) || undefined} successMessage={a.successMessage ? String(a.successMessage) : undefined}
           fields={(await getSlotItems("form.fields")).length ? <Slot name="form.fields" props={{ form: `core:${ctx.source}/${formId}`, settings: a.ext && typeof a.ext === "object" ? a.ext : {} }} /> : undefined}
-          button={{ className: blockShell("button", { variant: "primary" })?.className, style: blockShell("button", { variant: "primary" })?.style as CSSProperties }}
+          button={{ className: blockShell("button", { variant: "primary" })?.className, style: (({ background: _b, color: _c, ...rest }) => rest)(blockShell("button", { variant: "primary" })?.style as CSSProperties) }}
           labels={{ submit: a.submitText ? String(a.submitText) : t("form.submit"), sending: t("form.sending"), error: t("form.error") }}>
           {inner}
         </FormBlockClient>
