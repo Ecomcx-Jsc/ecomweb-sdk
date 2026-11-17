@@ -2,6 +2,18 @@
 
 Theo [SemVer](https://semver.org/lang/vi/): bản lớn (x.0.0) mới được đổi hoặc bỏ API công khai. Tên công khai là tên có trong [API.md](API.md).
 
+## 2.1.0 (17/11/2026)
+
+### Thêm (không phá tương thích)
+- `getPosts({ extra })`: chuyển tham số `fq_…` của URL cho plugin đọc qua filter `posts.query` (vd lọc giá của plugin bán hàng).
+- Khối Query: bộ lọc nguồn (mới nhất / chọn tay / liên quan), nhiều mục của phân loại, trường tuỳ biến, khoảng ngày, bài con, bỏ N bài đầu, loại bài đang xem, cùng tác giả, nhận bộ lọc từ thanh lọc (`urlFilters`); lọc theo `taxonomy` + `term`.
+- Khối `queryFilter` (thanh lọc: tìm, phân loại dạng liên kết / nút / ô chọn, sắp xếp) và component `QueryFilterBar` (`/client`).
+- Khuôn mỗi bài dạng `carousel` (`ScrollRow`, `/client`), `columnsTablet`, `columnsMobile`, `gap`.
+- Khối Tìm kiếm: `scopeSelect` + `scopes` (ô chọn phạm vi), `collapse` (thu thành nút kính lúp trên tablet / điện thoại).
+- Khối Menu: `NavDrawer` (ngăn trượt, gắn vào `<body>`), `overlayMenu: "tablet"`; menu con thả xuống trên máy tính.
+- Binding `hideIfEmpty` (ẩn khối khi nguồn không có giá trị); core tự gán `formId`.
+- `?type=any` / `?type=a,b` cho tìm kiếm của website (core).
+
 ## 2.0.0 (16/11/2026)
 
 ### Phá tương thích, cần làm khi nâng cấp
