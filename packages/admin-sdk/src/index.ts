@@ -187,6 +187,8 @@ export const registerPostBulkAction = (a: import("./types").PostBulkAction) => h
 export const registerPostListFilter = (f: import("./types").PostListFilter) => host().registerPostListFilter?.(f);
 /** Hộp trong trang sửa thành viên / hồ sơ, lưu vào user meta (CMS ≥ 1.2.0). */
 export const registerUserProfileBox = (b: import("./types").UserProfileBox) => host().registerUserProfileBox?.(b);
+/** Ẩn bớt phần trình soạn bài (CMS ≥ 1.35.0; CMS cũ bỏ qua). */
+export const registerEditorPanelFilter = (f: import("./types").EditorPanelFilter) => host().registerEditorPanelFilter?.(f);
 /** Cột / nút trên dòng / thao tác hàng loạt cho danh sách người dùng, bình luận, media (list: "users" | "comments" | "media"). */
 export const registerListColumn = (c: import("./types").ListColumn) => host().registerListColumn?.(c);
 export const registerListRowAction = (a: import("./types").ListRowAction) => host().registerListRowAction?.(a);

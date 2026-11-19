@@ -31,11 +31,8 @@ export function verifyItem(publicKeyPem, item) {
 const core = (v) => v.split("-")[0].split(".").map(Number);
 const newer = (a, b) => { const x = core(a), y = core(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; };
 
-/**
- * Latest stable release with a built package -> image built here. Returns { version, apiImage, builderImage }
- * (one image since CMS 1.25; two for older packages, built from their own two Dockerfiles).
- */
-export async function cmsFromStore(envDir, { storeUrl, publicKey, log }) {
+/** Latest stable release (or `version` when the Store still has it) with a built package, signature checked against the Store key. */
+async function pickRelease({ storeUrl, publicKey, version }) {
   const store = (storeUrl || OFFICIAL_STORE).replace(/\/$/, "");
   const key = publicKey || (store === OFFICIAL_STORE ? OFFICIAL_PUBLIC_KEY : "");
   if (!key) throw new Error(`Store ${store}: cần khoá công khai của Store (STORE_PUBLIC_KEY, lấy ở ${store}/api/public-key) để kiểm chữ ký`);
@@ -43,31 +40,56 @@ export async function cmsFromStore(envDir, { storeUrl, publicKey, log }) {
   if (!r.ok) throw new Error(`Store ${store}: HTTP ${r.status}`);
   const releases = (await r.json()).filter((x) => !x.yanked && typeof x.version === "string" && !x.version.includes("-"))
     .map((x) => verifyItem(key, x)).filter((x) => x?.packages?.built);
-  const release = releases.sort((a, b) => newer(b.version, a.version))[0];
+  const release = releases.find((x) => x.version === version) ?? releases.sort((a, b) => newer(b.version, a.version))[0];
   if (!release) throw new Error(`Store ${store} chưa có bản phát hành ổn định có gói đã build (hoặc chữ ký không khớp khoá)`);
   const built = release.packages.built;
   if (!built.url?.startsWith("/") || !/^[a-f0-9]{64}$/.test(built.sha256 ?? "")) throw new Error(`Bản ${release.version}: thông tin gói không hợp lệ`);
+  return { release, built, store };
+}
 
+/** Download the built package, check its SHA-256 (signed by the Store) and extract it into `root`. */
+async function downloadBuilt({ release, built, store }, root, log) {
+  log(`• Tải CMS ${release.version} từ Store (${(built.size / 1048576).toFixed(0)} MB)…`);
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.mkdirSync(root, { recursive: true });
+  const res = await fetch(store + built.url, { signal: AbortSignal.timeout(30 * 60_000) });
+  if (!res.ok) throw new Error(`Tải gói: HTTP ${res.status}`);
+  const bytes = Buffer.from(await res.arrayBuffer());
+  const got = sha256(bytes);
+  if (got !== built.sha256) throw new Error(`SHA-256 của gói không khớp bản Store đã ký (${got}) — không dùng`);
+  const file = path.join(root, built.file ?? "package.tar.gz");
+  fs.writeFileSync(file, bytes);
+  await run("tar", ["-xzf", file, "-C", root], { quiet: true });
+  fs.rmSync(file);
+}
+
+/**
+ * Website source (app/frontend, no node_modules) of the Store release closest to `version` (same release when the Store has it),
+ * extracted under `cacheDir/<release>`. Returns { version, frontendDir }. Used by `dev --data` (Node only, no Docker).
+ */
+export async function websiteFromStore(cacheDir, { storeUrl, publicKey, version, log }) {
+  const pick = await pickRelease({ storeUrl, publicKey, version });
+  const root = path.join(cacheDir, pick.release.version);
+  const frontendDir = path.join(root, `ecomweb-${pick.release.version}`, "app", "frontend");
+  if (!fs.existsSync(path.join(frontendDir, "package.json"))) await downloadBuilt(pick, root, log);
+  if (!fs.existsSync(path.join(frontendDir, "package.json"))) throw new Error(`Gói ${pick.release.version} không có app/frontend`);
+  return { version: pick.release.version, frontendDir };
+}
+
+/**
+ * Latest stable release with a built package -> image built here. Returns { version, apiImage, builderImage }
+ * (one image since CMS 1.25; two for older packages, built from their own two Dockerfiles).
+ */
+export async function cmsFromStore(envDir, { storeUrl, publicKey, log }) {
+  const pick = await pickRelease({ storeUrl, publicKey });
+  const { release } = pick;
   const root = path.join(envDir, "cms", release.version);
   const src = path.join(root, `ecomweb-${release.version}`);
   const one = `ecomweb:${release.version}`;
   const local = async (img) => run("docker", ["image", "inspect", img], { quiet: true }).then(() => true, () => false);
   if (await local(one)) return { version: release.version, apiImage: one, builderImage: one };
 
-  if (!fs.existsSync(path.join(src, "VERSION"))) {
-    log(`• Tải CMS ${release.version} từ Store (${(built.size / 1048576).toFixed(0)} MB)…`);
-    fs.rmSync(root, { recursive: true, force: true });
-    fs.mkdirSync(root, { recursive: true });
-    const res = await fetch(store + built.url, { signal: AbortSignal.timeout(30 * 60_000) });
-    if (!res.ok) throw new Error(`Tải gói: HTTP ${res.status}`);
-    const bytes = Buffer.from(await res.arrayBuffer());
-    const got = sha256(bytes);
-    if (got !== built.sha256) throw new Error(`SHA-256 của gói không khớp bản Store đã ký (${got}) — không dùng`);
-    const file = path.join(root, built.file ?? "package.tar.gz");
-    fs.writeFileSync(file, bytes);
-    await run("tar", ["-xzf", file, "-C", root], { quiet: true });
-    fs.rmSync(file);
-  }
+  if (!fs.existsSync(path.join(src, "VERSION"))) await downloadBuilt(pick, root, log);
   log(`• Dựng image CMS ${release.version} từ gói (chỉ chép file, khoảng một phút)…`);
   const build = (dockerfile, tag) => run("docker", ["build", "-q", "--build-arg", "TREE=package", "-f", path.join(src, dockerfile), "-t", tag, src], { quiet: true });
   if (fs.existsSync(path.join(src, "deploy", "Dockerfile"))) {

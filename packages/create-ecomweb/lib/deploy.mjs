@@ -1,23 +1,19 @@
 import fs from "node:fs";
 import { c } from "./util.mjs";
+import { connect } from "./auth.mjs";
 
 /** Đăng nhập CMS và upload gói zip (dùng cho `cms deploy` / `cms dev`). */
-export async function deploy({ zipPath, kind, manifest }, { url, user, password, activate, acceptPermissions = false, acceptRisk = false }) {
-  const base = (url ?? process.env.CMS_URL ?? "http://localhost:5100").replace(/\/$/, "");
-  user ??= process.env.CMS_USER ?? "admin";
-  password ??= process.env.CMS_PASSWORD;
-  if (!password) throw new Error("Thiếu mật khẩu: dùng --password hoặc biến môi trường CMS_PASSWORD");
-
-  const login = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ login: user, password }) });
-  if (!login.ok) throw new Error(`Đăng nhập thất bại (${login.status})`);
-  const { accessToken } = await login.json();
-  const auth = { authorization: `Bearer ${accessToken}` };
+export async function deploy({ zipPath, kind, manifest }, { url, user, password, token, activate, acceptPermissions = false, acceptRisk = false, baseHash, force = false }) {
+  const { base, auth } = await connect({ url, user, password, token });
 
   // CMS hỏi lại khi gói xin quyền mới (409) hoặc bộ quét thấy hành vi rủi ro cao (422, canOverride): quản trị viên phải đồng ý.
   // Trên máy dev của chính bạn: --accept-permissions / --accept-risk để đồng ý thay (giống bấm "Đồng ý" trong trang Plugin).
   const query = new URLSearchParams();
   if (acceptPermissions) query.set("acceptPermissions", manifest.slug);
   if (acceptRisk) query.set("acceptRisk", "true");
+  // push: server báo 409 nếu mã nguồn trên server đã đổi từ lần pull gần nhất
+  if (baseHash) { query.set("slug", manifest.slug); query.set("baseHash", baseHash); }
+  if (force) query.set("force", "true");
   const form = new FormData();
   form.append("file", new Blob([fs.readFileSync(zipPath)], { type: "application/zip" }), zipPath.split("/").pop());
   const res = await fetch(`${base}/api/admin/${kind === "theme" ? "themes" : "plugins"}/upload${query.size ? `?${query}` : ""}`, { method: "POST", headers: auth, body: form });
@@ -25,6 +21,7 @@ export async function deploy({ zipPath, kind, manifest }, { url, user, password,
   if (!res.ok) {
     const details = body.errors ? "\n" + Object.values(body.errors).flat().map((e) => "  - " + e).join("\n") : "";
     const asked = body.data?.permissionsRequired;
+    if (res.status === 409 && baseHash && !asked) throw new Error(`${body.title ?? "Server đã thay đổi"} (409)\n  Chạy \`pull\` trước, hoặc \`push --force\` để ghi đè`);
     if (res.status === 409 && asked)
       throw new Error(`${body.title} (409)\n  Quyền xin thêm: ${asked.added.join(", ")} — đồng ý: chạy lại với --accept-permissions`);
     if (res.status === 422 && body.canOverride) {
@@ -90,18 +87,12 @@ async function waitHealthy(base) {
  * Chạy thử quy trình cài trên CMS (manifest, biên dịch mã nguồn, quét bảo mật — giống hệt khi cài và khi nộp Store) mà không cài.
  * Trả true nếu gói cài được không cần xác nhận rủi ro.
  */
-export async function check({ zipPath, kind }, { url, user, password }) {
+export async function check({ zipPath, kind }, { url, user, password, token }) {
   if (kind === "theme") throw new Error("check hiện dành cho plugin — theme: dùng validate + deploy");
-  const base = (url ?? process.env.CMS_URL ?? "http://localhost:5100").replace(/\/$/, "");
-  user ??= process.env.CMS_USER ?? "admin";
-  password ??= process.env.CMS_PASSWORD;
-  if (!password) throw new Error("Thiếu mật khẩu: dùng --password, CMS_PASSWORD hoặc `create-ecomweb env up`");
-  const login = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ login: user, password }) });
-  if (!login.ok) throw new Error(`Đăng nhập thất bại (${login.status})`);
-  const { accessToken } = await login.json();
+  const { base, auth } = await connect({ url, user, password, token });
   const form = new FormData();
   form.append("file", new Blob([fs.readFileSync(zipPath)], { type: "application/zip" }), zipPath.split("/").pop());
-  const res = await fetch(`${base}/api/admin/plugins/check`, { method: "POST", headers: { authorization: `Bearer ${accessToken}` }, body: form });
+  const res = await fetch(`${base}/api/admin/plugins/check`, { method: "POST", headers: auth, body: form });
   const r = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(r.title ?? `CMS trả ${res.status}`);
   for (const e of r.errors ?? []) console.log(c.red(`  ✗ ${e}`));

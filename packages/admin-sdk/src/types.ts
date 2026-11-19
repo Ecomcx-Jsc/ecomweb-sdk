@@ -8,6 +8,11 @@ export interface ApiClient {
   upload<T = any>(path: string, file: File, field?: string): Promise<T>;
 }
 
+/** Một mục của ô chọn (`Select`). `label` là ReactNode thì thêm `text` để tìm kiếm / đọc màn hình; mục liền nhau cùng `group` gom dưới một tiêu đề. */
+export interface SelectOption {
+  value: string; label: ReactNode; text?: string; description?: ReactNode; icon?: ReactNode; disabled?: boolean; group?: string;
+}
+
 export interface MetaBoxProps {
   postType: string;
   post: { id?: number; title: string; slug: string; status: string; meta: Record<string, any>; [k: string]: any };
@@ -80,7 +85,8 @@ export interface ObjectMetaBoxProps {
 export interface ObjectMetaBox {
   id: string;
   title: string;
-  /** Tên đối tượng "{slug}/{name}"; bỏ trống = mọi đối tượng. */
+  /** Tên đối tượng "{slug}/{name}"; bỏ trống = mọi đối tượng của plugin. Đối tượng core (CMS ≥ 1.35.0) phải nêu tên:
+   *  "core/media" (chi tiết media), "core/comment" (bình luận › Thông tin thêm), "core/widget" (widget trong Giao diện › Widget; meta là các khoá thêm trong `settings` của widget, kiểm bằng action "widgets.saving"), "core/menu_item" (mục trong trang Menu). */
   objects?: string[];
   context?: "main" | "side";
   priority?: number;
@@ -101,9 +107,28 @@ export interface MetaBox {
   title: string;
   /** Bỏ trống = mọi post type. */
   postTypes?: string[];
-  context?: "main" | "side";
+  /** "main" (khu Hộp meta dưới khung soạn), "side" (thanh bên), "after_title" (CMS ≥ 1.35.0: dải ngay trên khung soạn —
+   *  như edit_form_after_title; CMS cũ hơn bỏ qua hộp này). */
+  context?: "main" | "side" | "after_title";
   priority?: number;
   component: ComponentType<MetaBoxProps>;
+}
+
+/** Phần trình soạn plugin ẩn được (CMS ≥ 1.35.0) — như "Ẩn trên màn hình" của ACF / remove_post_type_support. */
+export type EditorPanel = "permalink" | "the_content" | "excerpt" | "discussion" | "revisions" | "page_attributes" | "featured_image"
+  | "categories" | "tags" | "custom_fields" | `tax:${string}`;
+
+export interface EditorPanelContext {
+  postType: string;
+  post: { id?: number; status: string; template?: string | null; parentId?: number | null; terms: Record<string, number[]>; meta: Record<string, any> };
+}
+
+/** Plugin trả các phần cần ẩn cho bài đang soạn; gọi lại mỗi lần bài đổi (vd đổi template, chuyên mục). Giữ hàm nhanh, không gọi API. */
+export interface EditorPanelFilter {
+  id: string;
+  /** Bỏ trống = mọi post type. */
+  postTypes?: string[];
+  hidden(ctx: EditorPanelContext): Array<EditorPanel | string>;
 }
 
 /**
@@ -348,9 +373,11 @@ export interface UserProfileBoxProps {
   saveMeta(patch: Record<string, any>): Promise<Record<string, any>>;
   /** Đang xem hồ sơ của chính mình. */
   isSelf: boolean;
+  /** Form "Thêm thành viên" (CMS ≥ 1.35.0): chưa có tài khoản — `user.id` = 0, `saveMeta` giữ tạm, CMS ghi sau khi tạo. */
+  isNew?: boolean;
 }
 
-/** Hộp thêm vào trang sửa thành viên và "Hồ sơ của bạn" (dữ liệu lưu trong user meta). */
+/** Hộp thêm vào trang sửa thành viên, "Hồ sơ của bạn" và (CMS ≥ 1.35.0) form thêm thành viên — dữ liệu lưu trong user meta. */
 export interface UserProfileBox {
   id: string;
   title: string;
@@ -399,7 +426,14 @@ export interface UiKit {
   Button: ComponentType<{ variant?: "primary" | "secondary" | "danger" | "ghost"; size?: "sm" | "md"; loading?: boolean; icon?: ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>>;
   Input: ComponentType<React.InputHTMLAttributes<HTMLInputElement> & { ref?: React.Ref<HTMLInputElement> }>;
   Textarea: ComponentType<React.TextareaHTMLAttributes<HTMLTextAreaElement> & { ref?: React.Ref<HTMLTextAreaElement> }>;
-  Select: ComponentType<React.SelectHTMLAttributes<HTMLSelectElement> & { options: Array<{ value: string; label: string }> }>;
+  /**
+   * Ô chọn chung. Chữ ký như `<select>` (`value`, `onChange(e)` với `e.target.value`) chạy ở mọi CMS; từ CMS 1.35.0 thêm: tìm kiếm tự bật từ 8 mục,
+   * mục có mô tả / biểu tượng / nhóm, `allowClear`, `size`, `status`, `loading`, `onSearch`, `footer`, `onValueChange(value)`. CMS cũ bỏ qua các thuộc tính mới.
+   */
+  Select: ComponentType<Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "size"> & {
+    options: SelectOption[]; onValueChange?(v: string): void; size?: "sm" | "md" | "lg"; status?: "error" | "warning"; loading?: boolean; allowClear?: boolean;
+    showSearch?: boolean | "auto"; onSearch?(q: string): void; notFound?: ReactNode; footer?: ReactNode; filterOption?(q: string, o: SelectOption): boolean;
+  }>;
   /** `ariaLabel` khi không có nhãn hiện; `indeterminate` = chọn một phần. */
   Checkbox: ComponentType<{ checked: boolean; onChange(checked: boolean): void; label?: ReactNode; disabled?: boolean; description?: ReactNode; ariaLabel?: string; indeterminate?: boolean }>;
   /** Nhãn + chú thích/lỗi tự gắn vào ô nhập đầu tiên bên trong (trình đọc màn hình). */
@@ -460,7 +494,7 @@ export interface UiKit {
   /** Chọn nhiều / nhập thẻ: có `options` là MultiSelect, `creatable` cho gõ giá trị mới (Enter hoặc dấu phẩy). */
   TagInput?: ComponentType<{ value: string[]; onChange(v: string[]): void; options?: UiOption[]; creatable?: boolean; placeholder?: string; ariaLabel?: string; disabled?: boolean; max?: number; onSearch?(q: string): void }>;
   /** Ngày "YYYY-MM-DD"; `withTime`: "YYYY-MM-DDTHH:mm" giờ địa phương (đổi với ISO bằng `isoToLocal` / `localToIso`). */
-  DatePicker?: ComponentType<{ value: string | null; onChange(v: string | null): void; withTime?: boolean; placeholder?: string; ariaLabel?: string; disabled?: boolean; min?: string; max?: string; clearable?: boolean }>;
+  DatePicker?: ComponentType<{ value: string | null; onChange(v: string | null): void; withTime?: boolean; placeholder?: string; ariaLabel?: string; disabled?: boolean; min?: string; max?: string; clearable?: boolean; weekStart?: 0 | 1 | 2 | 3 | 4 | 5 | 6 }>;
   RadioGroup?: ComponentType<{ value: string; onChange(v: string): void; options: Array<{ value: string; label: ReactNode; description?: ReactNode; disabled?: boolean }>; ariaLabel?: string; variant?: "list" | "cards" | "segmented"; disabled?: boolean }>;
   TreeView?: ComponentType<{ nodes: TreeNode[]; ariaLabel: string; checkable?: boolean; checked?: Array<string | number>; onCheck?(id: string | number, value: boolean): void; selected?: string | number | null; onSelect?(id: string | number): void; defaultExpanded?: "all" | "none" | Array<string | number>; className?: string }>;
   Pagination?: ComponentType<{ page: number; totalPages: number; onPage(p: number): void; total?: number; pageSize?: number; onPageSize?(n: number): void; pageSizes?: number[] }>;
@@ -496,6 +530,8 @@ export interface CmsAdmin {
   registerPostBulkAction?(action: PostBulkAction): void;
   registerPostListFilter?(filter: PostListFilter): void;
   registerUserProfileBox?(box: UserProfileBox): void;
+  /** CMS ≥ 1.35.0 */
+  registerEditorPanelFilter?(filter: EditorPanelFilter): void;
   registerListColumn?(column: ListColumn): void;
   registerListRowAction?(action: ListRowAction): void;
   registerListBulkAction?(action: ListBulkAction): void;

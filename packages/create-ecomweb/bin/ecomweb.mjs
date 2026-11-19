@@ -18,6 +18,9 @@ import { upgrade } from "../lib/upgrade.mjs";
 import { pack } from "../lib/pack.mjs";
 import { check, deploy } from "../lib/deploy.mjs";
 import { env, findEnv } from "../lib/env.mjs";
+import { connect, saveToken, verify } from "../lib/auth.mjs";
+import { afterPush, clone, pull, pushGuard } from "../lib/remote.mjs";
+import { devData } from "../lib/site.mjs";
 
 const HELP = `${c.bold("create-ecomweb")} — công cụ viết theme/plugin cho Ecomweb
 
@@ -31,6 +34,11 @@ const HELP = `${c.bold("create-ecomweb")} — công cụ viết theme/plugin cho
   ${c.cyan("pack")} [thư-mục] [--out dist]         đóng gói → dist/<slug>-<version>.zip
   ${c.cyan("deploy")} [thư-mục] [--activate]       đóng gói + cài lên CMS (--url, --user, --password; --accept-permissions, --accept-risk)
   ${c.cyan("dev")} [thư-mục]                       tự đóng gói + cài lại mỗi khi sửa file
+  ${c.cyan("dev")} --data URL [--port 3000]        website chạy trên máy (Node, không Docker) với theme này, đọc dữ liệu thật của site (chỉ đọc)
+  ${c.cyan("login")} --url URL --token cmsp_…      lưu token API của site (không qua mật khẩu/2FA)
+  ${c.cyan("clone")} <slug> [thư-mục] [--plugin]   lấy mã nguồn theme (hoặc plugin) đang chạy trên site về máy
+  ${c.cyan("pull")} [thư-mục]                      lấy phần server đã đổi; file bạn đã sửa được giữ, cùng sửa một file thì dừng
+  ${c.cyan("push")} [thư-mục] [--force]            như deploy nhưng từ chối nếu server đã đổi từ lần pull gần nhất
   ${c.cyan("env")} up [--dev] [--build DIR] | status | logs [api|builder] [-f] | down [--purge]
                                       CMS chạy bằng Docker để thử theme/plugin (--dev: sửa là thấy, không build lại)
 
@@ -38,6 +46,7 @@ Mặc định CMS ở http://localhost:5100 (hoặc môi trường của \`env u
 
 const args = parseArgs(process.argv.slice(2));
 const [cmd, ...rest] = args._;
+const DIR_FIRST = ["theme", "plugin", "env", "clone", "login"];
 
 /** Thông tin đăng nhập: tham số dòng lệnh → môi trường của `env up` (.cms-env) → biến môi trường (deploy tự đọc). */
 function connection() {
@@ -46,6 +55,7 @@ function connection() {
     url: args.url ?? (process.env.CMS_URL ? undefined : saved?.url),
     user: args.user ?? (process.env.CMS_USER ? undefined : saved?.user),
     password: args.password ?? (process.env.CMS_PASSWORD ? undefined : saved?.password),
+    token: args.token,
     activate: !!args.activate,
     acceptPermissions: !!args["accept-permissions"],
     acceptRisk: !!args["accept-risk"],
@@ -94,7 +104,7 @@ async function dev(dir) {
 }
 
 try {
-  const dir = path.resolve(rest[0] && !["theme", "plugin", "env"].includes(cmd) ? rest[0] : ".");
+  const dir = path.resolve(rest[0] && !DIR_FIRST.includes(cmd) ? rest[0] : ".");
   switch (cmd) {
     case "theme":
     case "plugin": {
@@ -121,6 +131,29 @@ try {
     case "deploy":
       await deploy(await packAndReport(dir), connection());
       break;
+    case "login": {
+      if (!args.url || typeof args.token !== "string") throw new Error("Dùng: create-ecomweb login --url https://site --token cmsp_…");
+      await verify(await connect({ url: args.url, token: args.token }));
+      saveToken(args.url, args.token);
+      console.log(c.green("✓ Token hợp lệ, đã lưu") + c.dim(" (~/.config/ecomweb/config.json, quyền 600)"));
+      break;
+    }
+    case "clone": {
+      if (!rest[0]) throw new Error("Dùng: create-ecomweb clone <slug> [thư-mục] [--url …] [--token …]");
+      if (args.plugin) throw new Error("clone chỉ cho theme: plugin cài trên server chỉ còn bản đã biên dịch (DLL, bundle), không có mã nguồn — giữ mã nguồn plugin ở repo của bạn rồi deploy");
+      await clone(rest[0], { kind: "theme", dir: rest[1], ...connection() });
+      break;
+    }
+    case "pull":
+      await pull(dir, { force: !!args.force, ...connection() });
+      break;
+    case "push": {
+      const conn = connection();
+      const g = await pushGuard(dir, { force: !!args.force, ...conn });
+      await deploy(await packAndReport(dir), { ...conn, url: conn.url ?? g.url, baseHash: g.baseHash, force: !!args.force });
+      await afterPush(dir, g.meta, { ...conn, url: conn.url ?? g.url });
+      break;
+    }
     case "test": {
       // Đóng gói → chạy dotnet test cho tests/*.csproj (Cms.Plugin.Testing cài gói lên CMS thử một lần rồi chạy test)
       const testsDir = path.join(dir, "tests");
@@ -139,7 +172,8 @@ try {
       if (!(await check(await packAndReport(dir), connection()))) process.exitCode = 1;
       break;
     case "dev":
-      await dev(dir);
+      if (args.data) await devData(dir, { url: String(args.data), port: Number(args.port ?? 3000), source: args.source, storeUrl: args.store ?? process.env.STORE_URL, publicKey: process.env.STORE_PUBLIC_KEY });
+      else await dev(dir);
       break;
     case "env":
       await env(rest[0], args);

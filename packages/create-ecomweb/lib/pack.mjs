@@ -9,8 +9,8 @@ import { validate } from "./validate.mjs";
 
 // .cms-env: CMS thử của `env up` chạy ngay trong thư mục theme/plugin — chứa mật khẩu admin (credentials.json), không bao giờ vào gói.
 // .env*: biến môi trường / khoá riêng của máy người viết.
-const EXCLUDE = new Set(["node_modules", ".git", "dist", ".DS_Store", "bin", "obj", ".next", ".cms-env"]);
-const excluded = (name) => EXCLUDE.has(name) || name === ".env" || name.startsWith(".env.");
+const EXCLUDE = new Set(["node_modules", ".git", "dist", ".DS_Store", "bin", "obj", ".next", ".cms-env", ".ecomweb"]);
+export const excluded = (name) => EXCLUDE.has(name) || name === ".env" || name.startsWith(".env.");
 const cliDir = path.dirname(fileURLToPath(import.meta.url));
 
 function copyFiltered(src, dest, filter = () => true) {
@@ -21,6 +21,30 @@ function copyFiltered(src, dest, filter = () => true) {
     if (e.isDirectory()) copyFiltered(s, d, filter);
     else if (e.isFile()) fs.copyFileSync(s, d);
   }
+}
+
+/**
+ * .ecomwebignore (theme): mỗi dòng một mẫu, # là chú thích. "tên" hoặc "thư-mục/" khớp ở mọi cấp, "a/b" khớp từ gốc, "*" thay cho
+ * chuỗi bất kỳ trong một tên (vd "*.psd", "design/*.png"). Chưa hỗ trợ "!" phủ định / "**" — mẫu như vậy bị bỏ qua.
+ */
+export function ignoreMatcher(dir) {
+  const f = path.join(dir, ".ecomwebignore");
+  if (!fs.existsSync(f)) return () => false;
+  const rules = fs.readFileSync(f, "utf8").split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#") && !l.startsWith("!") && !l.includes("**"))
+    .map((l) => {
+      const dirOnly = l.endsWith("/");
+      const body = l.replace(/^\/+|\/+$/g, "");
+      const re = new RegExp("^" + body.split("*").map((x) => x.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join("[^/]*") + "$");
+      return { re, dirOnly, anchored: body.includes("/") || l.startsWith("/") };
+    });
+  // Khớp theo từng đoạn đường dẫn: file nằm trong thư mục bị loại cũng khớp ("thư-mục/" chỉ khớp đoạn không phải đoạn cuối, hoặc đoạn cuối là thư mục)
+  return (rel, isDir) => {
+    const segs = rel.split("/");
+    return rules.some((r) => {
+      if (r.anchored) return [...segs.keys()].some((i) => (!r.dirOnly || i < segs.length - 1 || isDir) && r.re.test(segs.slice(0, i + 1).join("/")));
+      return segs.some((seg, i) => r.re.test(seg) && (!r.dirOnly || i < segs.length - 1 || isDir));
+    });
+  };
 }
 
 /** Mã của @ecomcx/ecomweb-admin-sdk: trong repo CMS dùng src/*.ts; cài từ npm dùng dist/*.js (bản đã biên dịch). */
@@ -82,7 +106,8 @@ export async function pack(dir, { out } = {}) {
   const root = path.join(staging, manifest.slug);
   try {
     if (kind === "theme") {
-      copyFiltered(dir, root);
+      const ignored = ignoreMatcher(dir);
+      copyFiltered(dir, root, (p, e) => !ignored(path.relative(dir, p).split(path.sep).join("/"), e.isDirectory()));
     } else {
       fs.mkdirSync(root, { recursive: true });
       fs.copyFileSync(path.join(dir, "plugin.json"), path.join(root, "plugin.json"));
