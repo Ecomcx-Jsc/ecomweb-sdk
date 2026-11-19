@@ -14,7 +14,7 @@
   ],
   "dependencies": {
     "@ecomcx/ecomweb-admin-sdk": "file:../admin-sdk",
-    "@ecomcx/ecomweb-content": "^1.28.0",
+    "@ecomcx/ecomweb-content": "^1.28.1",
     "adm-zip": "0.6.1",
     "esbuild": "0.25.12",
     "intl-messageformat": "12.1.3"

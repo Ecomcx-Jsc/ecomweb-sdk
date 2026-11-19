@@ -801,7 +801,7 @@ const AUTH_PATHS: AuthPaths
 
 #### `BINDABLE`
 
-Thuộc tính gắn được của khối lõi: tên trong bindings → nơi đặt giá trị.
+Thuộc tính gắn được của khối lõi (dùng chung với trình soạn:
 
 ```ts
 const BINDABLE: Record<string, readonly string[]>
@@ -1343,12 +1343,36 @@ Dùng trong file `"use client"`. Tên đã có ở entry chính (component clien
 
 ### Component
 
+#### `AudienceGate`
+
+Khối theo nhóm người xem: kiểm ở trình duyệt (trang vẫn cache được). Chưa biết người xem → ẩn; khớp nhóm → hiện.
+
+```ts
+AudienceGate({ audience, children }: { audience: "guest" | "user"; children: ReactNode; }): JSX.Element
+```
+
+#### `BgVideo`
+
+Video nền (Ảnh bìa): tự phát, tắt tiếng, lặp, không có điều khiển; người xem bật "giảm chuyển động" thì dừng và chỉ hiện ảnh (poster).
+
+```ts
+BgVideo({ src, poster, className, style }: { src: string; poster?: string; className?: string; style?: CSSProperties; }): JSX.Element
+```
+
+#### `CarouselClient`
+
+Khối Carousel (slider): track cuộn ngang bám mép slide (vuốt được trên điện thoại, không JS vẫn cuộn), nút trước / sau, chấm theo vị trí, tự chạy tuỳ chọn (dừng khi rê chuột / đang focus / tab ẩn / người dùng tắt hiệu ứng chuyển động, có nút Tạm dừng). Số slide thấy cùng lúc theo khổ máy do CSS (style.css).
+
+```ts
+CarouselClient({ children, count, config: c, label }: { children: ReactNode; count: number; config: CarouselConfig; label?: string; }): JSX.Element
+```
+
 #### `CountdownClient`
 
 Khối countdown: đếm ngược tới `target` (ms). Dựng lần đầu cùng giá trị trên máy chủ, rồi cập nhật mỗi giây.
 
 ```ts
-CountdownClient({ target, label, expiredText, units, serverNow, attrs }: { target: number; label?: string; expiredText?: string; units?: Partial<Record<CountdownUnit, string>>; serverNow?: number; attrs?: Record<string, unknown>; }): JSX.Element
+CountdownClient({ target, label, expiredText, units, serverNow, rules, storageKey, attrs }: { target: number; label?: string; expiredText?: string; units?: Partial<Record<CountdownUnit, string>>; serverNow?: number; rules?: CountdownRules; storageKey?: string; attrs?: Record<string, unknown>; }): JSX.Element | null
 ```
 
 #### `FormBlockClient`
@@ -1356,7 +1380,15 @@ CountdownClient({ target, label, expiredText, units, serverNow, attrs }: { targe
 Khối form cơ bản của lõi (1.39): các ô đã vẽ sẵn ở máy chủ (children), phần này gửi bài qua /api/cms/forms, báo lỗi đúng ô (422), hiện lời cảm ơn. Chống spam: ô bẫy ẩn (_hp) + thời gian điền (máy chủ kiểm), máy chủ còn giới hạn theo IP.
 
 ```ts
-FormBlockClient({ formId, source, successMessage, labels, button, className, children, fields: extraUi }: { formId: string; source: string; successMessage?: string; labels: { submit: string; sending: string; error: string; }; fields?: ReactNode; button?: { className?: string; style?: CSSProperties; }; className?: string; children?: ReactNode; }): JSX.Element
+FormBlockClient({ formId, source, successMessage, labels, button, className, children, fields: extraUi }: { formId: string; source: string; successMessage?: string; labels: { submit: string; sending: string; error: string; next?: string; back?: string; step?: string; }; fields?: ReactNode; button?: { className?: string; style?: CSSProperties; }; className?: string; children?: ReactNode; }): JSX.Element
+```
+
+#### `GalleryThumbsClient`
+
+Gallery dạng thumbnail slider: ảnh lớn + dải ảnh nhỏ bấm / bàn phím (← → Home End) đổi ảnh lớn.
+
+```ts
+GalleryThumbsClient({ mains, thumbs, label }: { mains: ReactNode[]; thumbs: ReactNode[]; label?: string; }): JSX.Element
 ```
 
 #### `LanguageSwitcherClient`
@@ -1383,12 +1415,20 @@ Menu di động của khối Menu: nút burger mở ngăn trượt từ trái (n
 NavDrawer({ label, closeLabel, children }: { label: string; closeLabel: string; children: ReactNode; }): JSX.Element
 ```
 
+#### `PopupClient`
+
+Popup: nút mở + hộp thoại <dialog> gốc của trình duyệt (khoá focus trong hộp, Esc đóng, trả focus về nút) — nội dung nằm sẵn trong HTML. Bấm nền tối để đóng (khi cho phép), khoá cuộn trang khi mở.
+
+```ts
+PopupClient({ trigger, triggerClass, triggerStyle, className, style, label, closeButton, closeOnOverlay, children, popupId, auto, autoDelay, autoScroll, onceDays }: { popupId?: string; auto?: "none" | "delay" | "scroll" | "exit" | "idle"; autoDelay?: number; autoScroll?: number; onceDays?: number; trigger: ReactNode; triggerClass: string; triggerStyle?: CSSProperties; className: string; style?: CSSProperties; label?: string; closeButton: boolean; closeOnOverlay: boolean; children: ReactNode; }): JSX.Element
+```
+
 #### `QueryFilterBar`
 
 Thanh lọc của khối Query (GET): ô tìm, mục phân loại (liên kết tới trang mục / nút lọc / ô chọn), sắp xếp. Giá trị lên URL dạng ?fq_s, ?fq_sort, ?fq_<phân loại>; khối Query bật "Nhận bộ lọc từ thanh lọc" đọc lại. Ô chọn tự gửi khi đổi.
 
 ```ts
-QueryFilterBar({ action, taxonomy, termStyle, terms, currentTerm, values, showSearch, showSort, sorts, labels }: { action: string; taxonomy?: string; termStyle: "none" | "links" | "chips" | "select"; terms: Array<{ slug: string; name: string; link: string; }>; currentTerm?: string; values: Record<string, string>; showSearch: boolean; showSort: boolean; sorts: Array<{ value: string; label: string; }>; labels: { all: string; search: string; placeholder: string; submit: string; sort: string; }; }): JSX.Element
+QueryFilterBar({ action, taxonomy, termStyle, terms, currentTerm, values, showSearch, showSort, showYear, showReset, years, sorts, labels, range }: { range?: { param: string; label?: string; max?: number; }; action: string; taxonomy?: string; termStyle: "none" | "links" | "chips" | "select" | "checks"; terms: Array<{ slug: string; name: string; link: string; }>; currentTerm?: string; values: Record<string, string>; showSearch: boolean; showSort: boolean; showYear: boolean; showReset: boolean; years: number[]; sorts: Array<{ value: string; label: string; }>; labels: { all: string; search: string; placeholder: string; submit: string; sort: string; year: string; reset: string; from?: string; to?: string; }; }): JSX.Element
 ```
 
 #### `ScrollRow`
@@ -1412,7 +1452,7 @@ SearchFormClient({ action, defaultValue, placeholder, label, buttonLabel, postTy
 Khối tabs: các panel đã vẽ sẵn trên máy chủ (nội dung vẫn có trong HTML cho SEO); chỉ đổi panel đang hiện. Tab dọc (`vertical`), thành accordion trên điện thoại (`mobileAccordion`, chỉ CSS: tiêu đề nằm ngay trên panel của nó); tab có neo → panel mang id = neo, mở thẳng bằng #neo.
 
 ```ts
-TabsClient({ titles, panels, initial, icons, subtitles, anchors, vertical, mobileAccordion, extraClass }: { titles: string[]; panels: ReactNode[]; initial?: number; icons?: Array<string | undefined>; subtitles?: Array<string | undefined>; anchors?: Array<string | undefined>; vertical?: boolean; mobileAccordion?: boolean; extraClass?: string; }): JSX.Element
+TabsClient({ titles, panels, initial, icons, subtitles, anchors, vertical, mobileAccordion, extraClass }: { titles: string[]; panels: ReactNode[]; initial?: number; icons?: Array<ReactNode | undefined>; subtitles?: Array<string | undefined>; anchors?: Array<string | undefined>; vertical?: boolean; mobileAccordion?: boolean; extraClass?: string; }): JSX.Element
 ```
 
 #### `TocSpy`
@@ -1429,6 +1469,14 @@ Chuyển chuỗi đã dịch xuống component client. Server Component lấy b�
 
 ```ts
 TranslationsProvider({ value, children }: { value: ClientMessages; children: ReactNode; }): JSX.Element
+```
+
+#### `TypedText`
+
+Chữ gõ ở cuối Tiêu đề: gõ từng ký tự, dừng, xoá, sang từ kế (lặp hoặc dừng ở từ cuối). HTML dựng sẵn là từ đầu tiên; người xem bật giảm chuyển động thì giữ nguyên từ đầu. Trình đọc màn hình đọc cả nhóm từ một lần (aria-label), không đọc từng ký tự.
+
+```ts
+TypedText({ words, speed, pause, loop }: { words: string[]; speed: number; pause: number; loop: boolean; }): JSX.Element
 ```
 
 ### Hàm
