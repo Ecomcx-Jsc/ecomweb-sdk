@@ -9,7 +9,7 @@ import { localeHref } from "./locale";
 import { renderContent, type RenderContext, type RenderNode } from "./rich";
 import type { Post, ResolveResult, Term } from "./types";
 import { cx } from "./utils";
-import { spacingValue } from "@ecomcx/ecomweb-content";
+import { applyPatternOverrides, spacingValue } from "@ecomcx/ecomweb-content";
 
 type Children = (ctx: RenderContext, nodes?: RenderNode[]) => Promise<ReactNode[]>;
 
@@ -257,8 +257,9 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
       return ctx.query && !ctx.query.posts.length ? <div key={key} className="ecx-query-empty">{await children(ctx)}</div> : null;
     case "syncedPattern": {
       if (typeof a.ref !== "number" || !ctx.pattern || (ctx.partDepth ?? 0) >= 4) return null;
-      const doc = await ctx.pattern(a.ref);
-      if (!doc) return null;
+      const base = await ctx.pattern(a.ref);
+      if (!base) return null;
+      const doc = applyPatternOverrides(base, a.overrides); // 1.32: chỗ dùng mẫu sửa riêng vài ô (khối có overrideKey trong mẫu)
       return <Fragment key={key}>{await renderContent(doc, { ...ctx, partDepth: (ctx.partDepth ?? 0) + 1, source: `pattern:${a.ref}` })}</Fragment>;
     }
     case "templatePart": {

@@ -932,3 +932,36 @@ test("1.32 tiêu đề có link cả khối: một <a> bọc chữ, link trong c
   const bad = await html({ type: "doc", content: [{ type: "heading", attrs: { level: 2, href: "javascript:alert(1)" }, content: [{ type: "text", text: "A" }] }] });
   assert.doesNotMatch(bad, /<a/);
 });
+
+test("1.32 gắn dữ liệu cho hầu hết ô: iconBox / testimonial / counter / video / map / details; đường dẫn qua safeUrl; thuộc tính ngoài danh sách bị bỏ", async () => {
+  const values: Record<string, string> = { title: "Sản phẩm A", text: "Mô tả A", url: "/san-pham-a", poster: "https://x/p.jpg", bad: "javascript:alert(1)", addr: "1 Phạm Văn Đồng, Hà Nội" };
+  const c = { ...ctx(), binding: async (_s: string, args: Record<string, string | number | boolean>) => values[String(args.field)] };
+  const b = (field: string) => ({ source: "x/y", args: { field } });
+  const out = await html({ type: "doc", content: [
+    { type: "iconBox", attrs: { icon: "star", title: "cũ", text: "cũ", href: "/cu", bindings: { title: b("title"), text: b("text"), href: b("url") } } },
+    { type: "testimonial", attrs: { quote: "cũ", name: "cũ", bindings: { quote: b("text"), name: b("title") } } },
+    { type: "details", attrs: { summary: "cũ", bindings: { summary: b("title") } }, content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] },
+    { type: "map", attrs: { address: "cũ", bindings: { address: b("addr") } } },
+    { type: "iconBox", attrs: { icon: "star", title: "an toàn", href: "/ok", bindings: { href: b("bad") } } },
+    { type: "spacer", attrs: { height: "md", bindings: { height: b("title") } } },
+  ] }, c);
+  assert.match(out, /Sản phẩm A/); assert.match(out, /Mô tả A/); assert.match(out, /href="\/san-pham-a"/);
+  assert.match(out, /1%20Ph%E1%BA%A1m|1\+Ph|Ph%E1%BA%A1m/); // địa chỉ vào URL bản đồ
+  assert.doesNotMatch(out, /javascript:/); assert.match(out, /href="\/ok"/); // href độc → giữ href cũ
+  assert.doesNotMatch(out, /height:[^"]*Sản phẩm/); // spacer.height không nằm trong danh sách gắn được
+});
+
+test("1.32 mẫu đồng bộ sửa riêng vài ô: khối có overrideKey đổi theo chỗ dùng, phần còn lại theo mẫu", async () => {
+  const T = (t: string) => [{ type: "text", text: t }];
+  const patternDoc = { version: 2, blocks: [{ id: "main", type: "richtext", data: { type: "doc", content: [
+    { type: "heading", attrs: { level: 2, overrideKey: "tieu-de" }, content: T("Tiêu đề mẫu") },
+    { type: "paragraph", content: T("Đoạn của mẫu") },
+  ] } }] };
+  const c = { ...ctx(), dynamic: renderDynamic, pattern: async (ref: number) => (ref === 5 ? patternDoc : null) } as never;
+  const use = (overrides?: unknown) => ({ type: "doc", content: [{ type: "syncedPattern", attrs: { ref: 5, ...(overrides ? { overrides } : {}) } }] });
+  const plain = await html(use(), c);
+  assert.match(plain, /Tiêu đề mẫu/);
+  const custom = await html(use({ "tieu-de": { content: "Tiêu đề riêng" } }), c);
+  assert.match(custom, /Tiêu đề riêng/); assert.doesNotMatch(custom, /Tiêu đề mẫu/); assert.match(custom, /Đoạn của mẫu/);
+  assert.match(await html(use({ "tieu-de": { content: "<script>x</script>" } }), c), /&lt;script&gt;/); // chữ thường, không HTML
+});

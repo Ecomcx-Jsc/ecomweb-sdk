@@ -1,7 +1,7 @@
 import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { ICON_LIBRARY } from "@ecomcx/ecomweb-content/icon-library";
 import { iconSvg } from "./icon-svg";
-import { registerIconLibrary, tableClass, blockBgVideo, typedConfig, coverVideo, scheduleVisible, normalizeStyle, imageFx, countdownRules, testimonialsConfig, testimonialsVars, popupClass, popupConfig, popupPlayStyle, popupVars, carouselConfig, DYNAMIC_NODES, countdownTarget, nodeText, buttonIcon, widgetMarkup, tabsClass, formSizeClass, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { BINDING_URL_ATTRS, CORE_BINDABLE, registerIconLibrary, tableClass, blockBgVideo, typedConfig, coverVideo, scheduleVisible, normalizeStyle, imageFx, countdownRules, testimonialsConfig, testimonialsVars, popupClass, popupConfig, popupPlayStyle, popupVars, carouselConfig, DYNAMIC_NODES, countdownTarget, nodeText, buttonIcon, widgetMarkup, tabsClass, formSizeClass, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site, BlockAsset } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
@@ -244,15 +244,14 @@ function widgetEl(el: WidgetEl | string, key: string | number): ReactNode {
 }
 
 /** Thuộc tính gắn được của khối lõi (ngoài danh sách bị bỏ qua). */
-const BINDABLE: Record<string, readonly string[]> = { paragraph: ["content"], heading: ["content"], image: ["src", "alt", "caption"], button: ["text", "href"] };
-const URL_ATTRS = new Set(["src", "href"]);
+
 /**
  * Áp gắn dữ liệu: thay chữ / thuộc tính bằng giá trị của nguồn lúc hiển thị. Giá trị là chữ thường (không HTML), đường dẫn qua safeUrl;
  * nguồn không có / trả về rỗng → giữ nội dung gõ tay. Lỗi của nguồn (plugin) chỉ bỏ qua thuộc tính đó.
  */
 async function applyBindings(node: Node, ctx: RenderContext): Promise<Node | null> {
   const bindings = node.attrs?.bindings as Record<string, { source: string; args?: Record<string, string | number | boolean> }> | undefined;
-  const allowed = BINDABLE[node.type];
+  const allowed = CORE_BINDABLE[node.type];
   if (!bindings || !allowed || !ctx.binding) return node;
   let out: Node = node;
   for (const [attr, b] of Object.entries(bindings)) {
@@ -265,7 +264,7 @@ async function applyBindings(node: Node, ctx: RenderContext): Promise<Node | nul
     }
     const text = String(v);
     if (attr === "content") out = { ...out, content: [{ type: "text", text }] };
-    else if (URL_ATTRS.has(attr)) { const u = safeUrl(text, ""); if (u) out = { ...out, attrs: { ...out.attrs, [attr]: u } }; }
+    else if (BINDING_URL_ATTRS.has(attr)) { const u = safeUrl(text, ""); if (u) out = { ...out, attrs: { ...out.attrs, [attr]: u } }; }
     else out = { ...out, attrs: { ...out.attrs, [attr]: text } };
   }
   return out;

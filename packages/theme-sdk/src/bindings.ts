@@ -1,3 +1,4 @@
+import { CORE_BINDABLE } from "@ecomcx/ecomweb-content";
 import type { Post, ResolveResult, Site } from "./types";
 
 /**
@@ -8,10 +9,8 @@ import type { Post, ResolveResult, Site } from "./types";
 export interface BindingContext { site: Site; post?: Post | null; data?: ResolveResult | null }
 export type BindingSource = (args: Record<string, string | number | boolean>, ctx: BindingContext) => unknown | Promise<unknown>;
 
-/** Thuộc tính gắn được của khối lõi: tên trong bindings → nơi đặt giá trị. */
-export const BINDABLE: Record<string, readonly string[]> = {
-  paragraph: ["content"], heading: ["content"], image: ["src", "alt", "caption"], button: ["text", "href"],
-};
+/** Thuộc tính gắn được của khối lõi (dùng chung với trình soạn: @ecomcx/ecomweb-content CORE_BINDABLE). */
+export const BINDABLE = CORE_BINDABLE;
 
 const scalar = (v: unknown) => (typeof v === "string" || typeof v === "number" || typeof v === "boolean" ? String(v) : undefined);
 
@@ -25,6 +24,15 @@ export const CORE_BINDING_SOURCES: Record<string, BindingSource> = {
       case "author": return post.author?.name;
       case "link": return post.link;
       case "featuredImage": return post.featuredMedia?.url;
+      // 1.32: thêm trường cho các ô gắn dữ liệu
+      case "featuredImageAlt": return post.featuredMedia?.alt;
+      case "slug": return post.slug;
+      case "id": return String(post.id);
+      case "modified": return post.updatedAt ? new Date(post.updatedAt).toLocaleDateString(post.locale || "vi") : undefined;
+      case "comments": return String(post.commentCount ?? 0);
+      case "category": return post.terms?.category?.[0]?.name;
+      case "authorAvatar": return post.author?.avatarUrl ?? undefined;
+      case "authorBio": return post.author?.bio ?? undefined;
       default: return undefined;
     }
   },
