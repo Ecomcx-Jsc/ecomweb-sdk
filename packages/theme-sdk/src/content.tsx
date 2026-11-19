@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ExtensionBoundary, Link, PostPasswordForm } from "./client";
+import { ExtensionBoundary, PostPasswordForm } from "./client";
 import { applyFilters, findBlock, findRegion, findShortcode, getActiveExtensions, getActiveTheme } from "./runtime";
 import type { Block, Post, PostContentDoc, ResolveResult, Site } from "./types";
 import { getPattern, getSite, getTemplates } from "./api";
@@ -21,43 +21,10 @@ export async function PostContent({ post, content, className, page }: { post?: P
     return <div className={cx(className ?? "entry-content", "ecx-content")}><PostPasswordForm postId={post.id} labels={{ intro: t("password.intro"), label: t("password.label"), submit: t("password.submit"), wrong: t("password.wrong") }} /></div>;
   }
   if (!doc?.blocks?.length) return null;
-  // Khối pageBreak chia bài thành nhiều trang (?trang=N): chỉ vẽ trang đang xem + thanh chuyển trang
-  let total = 1;
-  const current = Math.max(1, Math.floor(Number(page)) || 1);
-  const rendered = await renderContent(doc, { ...(await contentContext(site, post)), source: post ? `post:${post.id}` : undefined }, async (blocks) => {
-    const pages = splitPages(await applyFilters("post.blocks", blocks, { site, post }, site));
-    total = pages.length;
-    return pages[Math.min(current, total) - 1];
-  });
-  const n = Math.min(current, total);
-  const t = total > 1 ? await getT() : null;
-  const href = (i: number) => (post?.link ?? "") + (i > 1 ? `?trang=${i}` : "");
-  return (
-    <div className={cx(className ?? "entry-content", "ecx-content")}>
-      {rendered}
-      {t && post && (
-        <nav className="ecx-page-links" aria-label={t("pagination.label")}>
-          {n > 1 && <Link href={href(n - 1)} rel="prev">{t("pagination.prev")}</Link>}
-          {Array.from({ length: total }, (_, i) => i + 1).map((i) => i === n ? <span key={i} aria-current="page">{i}</span> : <Link key={i} href={href(i)}>{i}</Link>)}
-          {n < total && <Link href={href(n + 1)} rel="next">{t("pagination.next")}</Link>}
-        </nav>
-      )}
-    </div>
-  );
-}
-
-/** Cắt khối richtext tại mỗi `pageBreak` cấp cao nhất; khối khác nằm ở trang đang mở. Không có pageBreak → một trang. */
-function splitPages(blocks: Block[]): Block[][] {
-  const pages: Block[][] = [[]];
-  for (const b of blocks) {
-    const nodes = b.type === "richtext" ? ((b.data as { content?: Array<{ type: string }> } | undefined)?.content ?? []) : [];
-    if (!nodes.some((x) => x.type === "pageBreak")) { pages[pages.length - 1].push(b); continue; }
-    let seg: typeof nodes = [];
-    const flush = () => { if (seg.length) pages[pages.length - 1].push({ ...b, data: { ...(b.data as object), content: seg } } as Block); seg = []; };
-    for (const x of nodes) { if (x.type === "pageBreak") { flush(); pages.push([]); } else seg.push(x); }
-    flush();
-  }
-  return pages.filter((p, i) => p.length || i === 0);
+  // 2 (v3): khối "Ngắt trang" đã bỏ — bài luôn hiện trên một trang (`page` giữ lại cho theme cũ, không còn tác dụng)
+  void page;
+  const rendered = await renderContent(doc, { ...(await contentContext(site, post)), source: post ? `post:${post.id}` : undefined }, async (blocks) => applyFilters("post.blocks", blocks, { site, post }, site));
+  return <div className={cx(className ?? "entry-content", "ecx-content")}>{rendered}</div>;
 }
 
 /**

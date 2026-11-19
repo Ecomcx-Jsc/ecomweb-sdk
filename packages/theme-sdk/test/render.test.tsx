@@ -264,7 +264,7 @@ test("khối theme 1.15: tiêu đề trang lưu trữ là H1 theo ngữ cảnh, 
   } finally { globalThis.fetch = origFetch; }
 });
 
-test("accordion: details con dùng chung name (mở một đóng các mục khác); multiple=true thì không; rating và countdown vẽ đúng, ngày hỏng bị bỏ", async () => {
+test("accordion: details con dùng chung name (mở một đóng các mục khác); multiple=true thì không; countdown vẽ đúng, ngày hỏng bị bỏ", async () => {
   const item = (s: string) => ({ type: "details", attrs: { summary: s }, content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] });
   const one = await html({ type: "doc", content: [{ type: "accordion", attrs: {}, content: [item("A"), item("B")] }] });
   assert.match(one, /class="ecx-accordion has-icon-arrow"/);
@@ -272,9 +272,6 @@ test("accordion: details con dùng chung name (mở một đóng các mục khá
   assert.equal(new Set(one.match(/name="ecx-acc-[^"]+"/g)).size, 1);
   const many = await html({ type: "doc", content: [{ type: "accordion", attrs: { multiple: true }, content: [item("A")] }] });
   assert.doesNotMatch(many, /<details[^>]* name=/);
-  const stars = await html({ type: "doc", content: [{ type: "rating", attrs: { value: 3.6, max: 5, label: "ok" } }] });
-  assert.equal((stars.match(/is-on/g) ?? []).length, 4);
-  assert.match(stars, /aria-label="3\.6\/5"/);
   // Đơn vị đếm ngược theo ngôn ngữ website (getT đọc /site): tiếng Việt → ngày/giờ/phút/giây
   const origFetch = globalThis.fetch;
   globalThis.fetch = (async (u: RequestInfo | URL) => new Response(JSON.stringify(/\/site\b/.test(String(u)) ? { title: "Test", language: "vi", locale: "vi", url: "https://example.com" } : { items: [], total: 0 }), { headers: { "content-type": "application/json" } })) as typeof fetch;
@@ -430,7 +427,7 @@ test("varyHeader: chỉ chiều hợp lệ, giá trị chữ thường, rỗng t
   assert.deepEqual(varyHeader(), {});
 });
 
-test("icon / footnotes / loginout / pageBreak", async () => {
+test("icon / dấu chú thích / loginout", async () => {
   configureRuntime({ themes: {}, plugins: {} });
   const origFetch = globalThis.fetch;
   globalThis.fetch = (async (u: RequestInfo | URL) => new Response(JSON.stringify(/\/site\b/.test(String(u)) ? { title: "Test", language: "vi", locale: "vi", url: "https://example.com", activePlugins: [], activeTheme: null } : { items: [], total: 0 }), { headers: { "content-type": "application/json" } })) as typeof fetch;
@@ -439,28 +436,21 @@ test("icon / footnotes / loginout / pageBreak", async () => {
     const ic = await html(doc({ type: "icon", attrs: { name: "mail", size: 40, label: "Thư" } }, { type: "icon", attrs: { name: "evil" } }));
     assert.equal((ic.match(/<svg/g) ?? []).length, 1);
     assert.match(ic, /width="40"[^>]*role="img" aria-label="Thư"/);
+    // 2 (v3): khối "Chú thích cuối trang" đã bỏ; dấu [n] vẫn đánh số theo thứ tự, nội dung nằm ở tooltip, không còn liên kết tới khối
     const fn = await html(doc(
       { type: "paragraph", content: [{ type: "text", text: "A", marks: [{ type: "footnote", attrs: { note: "Nguồn <b>1</b>" } }] }, { type: "text", text: " B", marks: [{ type: "footnote", attrs: { note: "Nguồn 2" } }] }] },
-      { type: "footnotes", attrs: { title: "Chú thích" } },
     ), ctx({ post: { id: 7 } as never }));
-    assert.match(fn, /id="fnref-7-1"><a href="#fn-7-1">\[1\]<\/a>/);
-    assert.match(fn, /id="fnref-7-2"/);
-    assert.match(fn, /<li id="fn-7-1">Nguồn &lt;b&gt;1&lt;\/b&gt; <a href="#fnref-7-1"/);
-    assert.equal(await html(doc({ type: "footnotes" })), ""); // không có chú thích → không vẽ
+    assert.match(fn, /<sup class="ecx-footnote-ref" title="Nguồn &lt;b&gt;1&lt;\/b&gt;">\[1\]<\/sup>/);
+    assert.match(fn, /<sup class="ecx-footnote-ref" title="Nguồn 2">\[2\]<\/sup>/);
+    assert.doesNotMatch(fn, /<a href="#fn-/);
     const lo = await html(doc({ type: "loginout" }), ctx({ dynamic: renderDynamic }));
     assert.match(lo, /ecx-loginout/);
-    // pageBreak: mỗi trang một đoạn + thanh chuyển trang
-    const paged = doc({ type: "paragraph", content: [{ type: "text", text: "Một" }] }, { type: "pageBreak" }, { type: "paragraph", content: [{ type: "text", text: "Hai" }] });
-    const post = { id: 1, link: "/bai", content: paged } as never;
+    // 2 (v3): khối "Ngắt trang" đã bỏ — bài luôn hiện đủ trên một trang, `page` không còn tác dụng
+    const post = { id: 1, link: "/bai", content: doc({ type: "paragraph", content: [{ type: "text", text: "Một" }] }, { type: "pageBreak" }, { type: "paragraph", content: [{ type: "text", text: "Hai" }] }) } as never;
     const { renderToStaticMarkup } = await import("react-dom/server");
     const { PostContent } = await import("../src/content");
-    const p1 = renderToStaticMarkup(await PostContent({ post }));
-    assert.match(p1, /Một/); assert.doesNotMatch(p1, /Hai/);
-    assert.match(p1, /rel="next"[^>]*>Sau »|href="\/bai\?trang=2"/);
-    const p2 = renderToStaticMarkup(await PostContent({ post, page: 2 }));
-    assert.match(p2, /Hai/); assert.doesNotMatch(p2, /Một/);
-    assert.match(p2, /href="\/bai"/);
-    assert.match(renderToStaticMarkup(await PostContent({ post, page: 99 })), /Hai/); // vượt quá → trang cuối
+    const out = renderToStaticMarkup(await PostContent({ post, page: 2 }));
+    assert.match(out, /Một/); assert.match(out, /Hai/); assert.doesNotMatch(out, /ecx-page-links/);
   } finally { globalThis.fetch = origFetch; }
 });
 
@@ -518,12 +508,10 @@ test("ảnh đại diện có link mà chưa có alt: link lấy tiêu đề bà
 test("không có <p> lồng trong <p> (HTML sai → trình duyệt tách thẻ, React báo lệch khi hydrate) — mọi khối chứa đoạn văn", async () => {
   const para = { type: "paragraph", content: [{ type: "text", text: "x" }] };
   const doc = (n: unknown) => ({ version: 1, blocks: [{ type: "richtext", data: { type: "doc", content: [n] } }] });
-  for (const type of ["pullquote", "blockquote", "callout", "group", "details", "cover"]) {
+  for (const type of ["blockquote", "group", "details", "cover"]) {
     const out = await html(doc({ type, attrs: type === "details" ? { summary: "s" } : {}, content: [para, para] }));
     assert.doesNotMatch(out, /<p[^>]*>(?:(?!<\/p>).)*<p[\s>]/s, `${type}: ${out}`);
   }
-  // pullquote dữ liệu cũ (chữ trần) vẫn có <p>
-  assert.match(await html(doc({ type: "pullquote", content: [{ type: "text", text: "cu" }] })), /<blockquote><p>cu<\/p><\/blockquote>/);
 });
 
 test("form cơ bản (1.39): ô vẽ ở máy chủ có nhãn / id / required, ô bẫy ẩn, ô sai tên bị bỏ; không có nguồn thì không vẽ", async () => {
@@ -935,4 +923,12 @@ test("Show More: tuỳ chọn tắt mờ dần / ẩn nút sau khi mở thành c
   assert.ok(!(await html(g({}))).includes("is-nofade"));
   const h = await html({ type: "doc", content: [{ type: "heading", attrs: { level: 2, htmlTag: "p" }, content: [{ type: "text", text: "Không phải h2" }] }] });
   assert.ok(h.includes("<p") && !h.includes("<h2") && h.includes("Không phải h2"), h);
+});
+
+test("1.32 tiêu đề có link cả khối: một <a> bọc chữ, link trong chữ chỉ giữ chữ (không lồng <a>), rel nofollow + tab mới", async () => {
+  const out = await html({ type: "doc", content: [{ type: "heading", attrs: { level: 2, href: "/san-pham", linkTarget: "_blank", linkRel: "nofollow" }, content: [{ type: "text", text: "Xem " }, { type: "text", text: "ngay", marks: [{ type: "link", attrs: { href: "/khac" } }] }] }] });
+  assert.equal((out.match(/<a /g) ?? []).length, 1);
+  assert.match(out, /<h2[^>]*><a href="\/san-pham" class="ecx-heading-link" target="_blank" rel="nofollow noopener noreferrer">Xem ngay<\/a><\/h2>/);
+  const bad = await html({ type: "doc", content: [{ type: "heading", attrs: { level: 2, href: "javascript:alert(1)" }, content: [{ type: "text", text: "A" }] }] });
+  assert.doesNotMatch(bad, /<a/);
 });

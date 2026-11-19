@@ -61,6 +61,8 @@ export interface RenderContext {
   styles?: Map<string, string>;
   /** Đang vẽ bên trong nhóm nút (`buttons`): nút không bọc thêm đoạn văn. */
   inButtons?: boolean;
+  /** Đang vẽ bên trong một liên kết (tiêu đề có link cả khối): link trong chữ chỉ giữ chữ — không lồng <a> trong <a>. */
+  inLink?: boolean;
   /** Lấy giá trị của nguồn gắn dữ liệu (attrs.bindings). Không có → bỏ qua bindings (giữ nội dung gõ tay). */
   binding?(source: string, args: Record<string, string | number | boolean>, ctx: RenderContext): Promise<unknown>;
   /** Tiêu đề của bài (khối mục lục) — renderContent ngoài cùng tính. */
@@ -165,9 +167,10 @@ function renderMarks(text: ReactNode, marks: Node["marks"], key: string, ctx?: R
       case "strike": out = <s key={k}>{out}</s>; break;
       case "code": out = <code key={k}>{out}</code>; break;
       case "footnote": {
+        // 2 (v3): khối "Chú thích cuối trang" đã bỏ — dấu [n] giữ lại, nội dung chú thích hiện khi rê chuột
         const f = ctx?.footnotes;
         const n = f ? f.notes.findIndex((x) => x.mark === m) + 1 : 0;
-        if (n > 0) out = <Fragment key={k}>{out}<sup className="ecx-footnote-ref" id={`fnref-${f!.prefix}-${n}`}><a href={`#fn-${f!.prefix}-${n}`}>[{n}]</a></sup></Fragment>;
+        if (n > 0) out = <Fragment key={k}>{out}<sup className="ecx-footnote-ref" title={typeof m.attrs?.note === "string" ? m.attrs.note : undefined}>[{n}]</sup></Fragment>;
         break;
       }
       case "kbd": out = <kbd key={k}>{out}</kbd>; break;
@@ -178,7 +181,7 @@ function renderMarks(text: ReactNode, marks: Node["marks"], key: string, ctx?: R
       case "link": {
         const target = m.attrs?.target;
         const href = safeUrl(m.attrs?.href);
-        out = href ? <Link key={k} href={href} target={target ?? undefined} rel={linkRel(m.attrs?.rel, target)}>{out}</Link> : <a key={k}>{out}</a>;
+        out = ctx?.inLink ? out : href ? <Link key={k} href={href} target={target ?? undefined} rel={linkRel(m.attrs?.rel, target)}>{out}</Link> : <a key={k}>{out}</a>;
         break;
       }
     }
@@ -300,7 +303,7 @@ async function renderNode(node: Node, key: string, ctx: RenderContext): Promise<
 const emptyAttr = (v: unknown) => v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length);
 
 /** Nút không chọn riêng được trong khung soạn (hoặc bọc thêm thẻ sẽ sai cấu trúc HTML: li trong ul, ô trong bảng). */
-const UNMARKED = new Set(["text", "hardBreak", "listItem", "taskItem", "tableRow", "tableCell", "tableHeader"]);
+const UNMARKED = new Set(["text", "hardBreak", "listItem", "tableRow", "tableCell", "tableHeader"]);
 
 /** Gắn vị trí khối: thẻ HTML thì thêm thuộc tính, component thì bọc thẻ display:contents (không đổi bố cục). */
 function markBlock(el: ReactNode, source: string, path: string, key: string): ReactNode {
@@ -332,27 +335,20 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     case "heading": {
       // Chữ gõ ở cuối tiêu đề (heading.typedWords): HTML dựng sẵn có từ đầu tiên, trình duyệt gõ lần lượt các từ
       const typed = typedConfig(a);
-      return shelled("heading", a, key, typed ? <>{await children()} <TypedText words={typed.words} speed={typed.speed} pause={typed.pause} loop={typed.loop} /></> : await children(), { id: headingId(node) || undefined });
+      const hHref = safeUrl(a.href, "");
+      const kids = hHref ? await Promise.all((node.content ?? []).map((c, i) => renderNode(c, `${key}-${i}`, { ...ctx, inLink: true }))) : await children();
+      const inner = typed ? <>{kids} <TypedText words={typed.words} speed={typed.speed} pause={typed.pause} loop={typed.loop} /></> : kids;
+      // 1.32: liên kết cả tiêu đề
+      const body = hHref ? <Link className="ecx-heading-link" href={hHref} target={a.linkTarget === "_blank" ? "_blank" : undefined} rel={linkRel(a.linkRel, a.linkTarget)}>{inner}</Link> : inner;
+      return shelled("heading", a, key, body, { id: headingId(node) || undefined });
     }
     case "bulletList": return <ul key={key}>{await children()}</ul>;
     case "orderedList": return <ol key={key} start={a.start && a.start !== 1 ? a.start : undefined} reversed={a.reversed === true || undefined}>{await children()}</ol>;
     case "listItem": return <li key={key}>{await children()}</li>;
-    case "taskList": return <ul key={key} className="ecx-task-list task-list">{await children()}</ul>;
-    case "taskItem": return <li key={key} className="ecx-task-item task-item"><input type="checkbox" checked={!!a.checked} readOnly /> {await children()}</li>;
     case "blockquote": return shelled("blockquote", a, key, <>{await children()}{blockCitation(a) && <cite>{blockCitation(a)}</cite>}</>);
     case "codeBlock": return <pre key={key}><code className={a.language ? `language-${a.language}` : undefined}>{plainText(node)}</code></pre>;
     case "hardBreak": return <br key={key} />;
-    case "pageBreak": return null;
-    case "footnotes": {
-      const f = ctx.footnotes;
-      if (!f?.notes.length) return null;
-      return (
-        <aside key={key} className="ecx-footnotes">
-          {a.title && <p className="ecx-footnotes-title">{a.title}</p>}
-          <ol>{f.notes.map((x, i) => <li key={i} id={`fn-${f.prefix}-${i + 1}`}>{x.note} <a href={`#fnref-${f.prefix}-${i + 1}`} aria-label="↩">↩</a></li>)}</ol>
-        </aside>
-      );
-    }
+
     case "icon": {
       const size = Math.min(128, Math.max(12, Number(a.size) || 24));
       const stroke = Math.min(4, Math.max(0.5, Number(a.stroke) || 2));
@@ -366,7 +362,6 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
         ? <Link href={href} className={cls} style={pad} data-ecx-tip={tip} {...(a.linkTarget === "_blank" ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{svg}</Link>
         : <span className={cls} style={pad} data-ecx-tip={tip}>{svg}</span>}</div>;
     }
-    case "horizontalRule": return <hr key={key} />;
     case "image": {
       // Ảnh chèn từ thư viện mang sẵn srcset (JPEG + WebP) và kích thước → responsive, không nhảy layout
       // Bề rộng hiển thị = cỡ người viết kéo trong trình soạn → trình duyệt chọn file vừa đúng
@@ -441,11 +436,6 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     case "tableRow": return <tr key={key}>{await children()}</tr>;
     case "tableHeader": return <th key={key} colSpan={a.colspan > 1 ? a.colspan : undefined} rowSpan={a.rowspan > 1 ? a.rowspan : undefined}>{await children()}</th>;
     case "tableCell": return <td key={key} colSpan={a.colspan > 1 ? a.colspan : undefined} rowSpan={a.rowspan > 1 ? a.rowspan : undefined}>{await children()}</td>;
-    case "youtube": {
-      const m = String(a.src ?? "").match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/);
-      const start = Number(a.start) > 0 ? `?start=${Math.floor(Number(a.start))}` : "";
-      return m ? <div key={key} className="ecx-youtube embed"><iframe src={`https://www.youtube-nocookie.com/embed/${m[1]}${start}`} allowFullScreen loading="lazy" title="YouTube" /></div> : null;
-    }
     // Bố cục (@ecomcx/ecomweb-content 1.2). Cấu trúc dùng style trực tiếp → mọi theme hiển thị đúng; class `ecx-*` để theme tạo kiểu thêm (`cms-*` giữ tới 2.0).
     case "columns": {
       const cols = await Promise.all((node.content ?? []).map(async (c, i) => {
@@ -467,7 +457,6 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
         <label htmlFor={id} className="ecx-sm-btn"><span className="ecx-sm-more">{String(a.moreText || "Xem thêm")}</span><span className="ecx-sm-less">{String(a.lessText || "Thu gọn")}</span></label>
       </div>;
     }
-    case "callout": return shelled("callout", a, key, <>{a.title && <p className="ecx-callout-title cms-callout-title" style={{ margin: 0, fontWeight: 600 }}>{a.title}</p>}{await children()}</>);
     case "button": {
       if (!a.text) return null;
       const target = a.target === "_blank" ? "_blank" : undefined;
@@ -497,14 +486,6 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
         <div className="ecx-cover-inner">{await children()}</div>
       </>, undefined);
     }
-    case "mediaText": return shelled("mediaText", a, key, <>
-      <figure className="ecx-media-text-media" style={{ margin: 0 }}>{a.src && <img src={safeUrl(a.src, "")} alt={a.alt ?? ""} loading="lazy" decoding="async" />}</figure>
-      <div className="ecx-media-text-content">{await children()}</div>
-    </>);
-    case "pullquote":
-      // Nội dung là các khối (đoạn văn…) → không bọc <p> (<p><p> sai HTML: trình duyệt tách thẻ → React báo lệch khi hydrate);
-      // chữ trần (dữ liệu cũ) mới cần <p>
-      return shelled("pullquote", a, key, <><blockquote>{(node.content ?? []).every((c) => c.type === "text" || c.type === "hardBreak") ? <p>{await children()}</p> : await children()}</blockquote>{blockCitation(a) && <figcaption>{blockCitation(a)}</figcaption>}</>);
     case "accordion": {
       const tag = ["h2", "h3", "h4", "h5", "h6"].includes(String(a.titleTag)) ? String(a.titleTag) : undefined;
       const sub = { ...ctx, accordion: a.multiple === true ? undefined : `ecx-acc-${key}`, accTag: tag };
@@ -586,16 +567,6 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     case "iconBox": case "imageBox": case "imageOverlay": case "iconList": case "counter": case "testimonial": case "progressBar": case "map": {
       const tree = widgetMarkup(node.type, a);
       return tree ? widgetEl(tree, key) : null;
-    }
-    case "rating": {
-      const max = Math.min(10, Math.max(1, Math.round(Number(a.max) || 5)));
-      const v = Math.min(max, Math.max(0, Number(a.value) || 0));
-      return (
-        <div key={key} className="ecx-rating" role="img" aria-label={`${v}/${max}`}>
-          {Array.from({ length: max }, (_, i) => <span key={i} aria-hidden="true" className={i < Math.round(v) ? "is-on" : "is-off"} style={{ color: i < Math.round(v) ? "#f59e0b" : "#d4d4d8" }}>★</span>)}
-          {a.label && <span className="ecx-rating-label"> {String(a.label)}</span>}
-        </div>
-      );
     }
     case "tabs": {
       const tabs = (node.content ?? []).filter((c) => c.type === "tab");
@@ -685,8 +656,6 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
         </nav>
       );
     }
-    case "preformatted":
-      return <pre key={key} className="ecx-pre">{await children()}</pre>;
     case "embed": {
       // Khung nhúng chỉ cho nhà cung cấp đã biết; địa chỉ khung do embedInfo dựng → không nhúng được trang tuỳ ý
       const info = embedInfo(a.url);
