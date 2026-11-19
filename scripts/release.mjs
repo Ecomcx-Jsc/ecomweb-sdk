@@ -147,7 +147,7 @@ if (check) {
     if (typeof admin.registerPage !== "function") throw new Error("@ecomcx/ecomweb-admin-sdk thiếu export");
     console.log("  ✓ @ecomcx/ecomweb-admin-sdk import được (Node ESM)");
     const content = await import("@ecomcx/ecomweb-content");
-    if (content.normalizeContent({ type: "doc", content: [] }).doc.version !== 1) throw new Error("@ecomcx/ecomweb-content sai");
+    if (content.normalizeContent({ type: "doc", content: [] }).doc.version !== content.CONTENT_VERSION) throw new Error("@ecomcx/ecomweb-content sai");
     console.log("  ✓ @ecomcx/ecomweb-content (phụ thuộc của theme-sdk, cài từ npm) import được");
   `);
   console.log(run("node", ["check.mjs"], tmp).trim());
