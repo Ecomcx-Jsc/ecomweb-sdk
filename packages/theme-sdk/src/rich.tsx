@@ -1,9 +1,11 @@
 import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
-import { DYNAMIC_NODES, ICON_PATHS, countdownTarget, nodeText, buttonIcon, widgetMarkup, tabsClass, formSizeClass, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { ICON_LIBRARY } from "@ecomcx/ecomweb-content/icon-library";
+import { iconSvg } from "./icon-svg";
+import { registerIconLibrary, tableClass, blockBgVideo, typedConfig, coverVideo, scheduleVisible, normalizeStyle, imageFx, countdownRules, testimonialsConfig, testimonialsVars, popupClass, popupConfig, popupPlayStyle, popupVars, carouselConfig, DYNAMIC_NODES, countdownTarget, nodeText, buttonIcon, widgetMarkup, tabsClass, formSizeClass, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site, BlockAsset } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
-import { CountdownClient, FormBlockClient, LightboxClient, Link, TabsClient, TocSpy } from "./client";
+import { GalleryThumbsClient, AudienceGate, TypedText, BgVideo, PopupClient, CarouselClient, CountdownClient, FormBlockClient, LightboxClient, Link, TabsClient, TocSpy } from "./client";
 import { CounterClient } from "./counter-client";
 import { AssetScript } from "./browser";
 import { getT } from "./i18n";
@@ -266,7 +268,15 @@ async function applyBindings(node: Node, ctx: RenderContext): Promise<Node | nul
   return out;
 }
 
+// Thư viện ~1.900 icon: nạp một lần khi module chạy (máy chủ) → mọi khối có icon vẽ được tên trong thư viện
+registerIconLibrary(ICON_LIBRARY);
+
+/** Video nền của Section / Row / Column (style.background.video): thẻ <video> tự phát, tắt tiếng, lặp, nằm dưới nội dung. */
+const bgVideoNode = (a: Record<string, any> | undefined): ReactNode => { const v = a?.style ? blockBgVideo(a.style) : null; return v ? <BgVideo key="bgv" className="ecx-bg-video" src={v} /> : null; };
+
 async function renderNode(node: Node, key: string, ctx: RenderContext): Promise<ReactNode> {
+  // Lịch hiển thị (tab Nâng cao): ngoài khoảng [from, until) thì website không vẽ khối (trình soạn vẫn hiện để sửa)
+  if (node.type !== "text" && node.attrs?.style && typeof node.attrs.style === "object" && (node.attrs.style as { schedule?: unknown }).schedule && !scheduleVisible(normalizeStyle(node.attrs.style as never))) return null;
   if (node.attrs?.bindings) { const bound = await applyBindings(node, ctx); if (!bound) return null; node = bound; }
   let el = await renderNodeInner(node, key, ctx);
   if (ctx.filterBlock && node.type !== "text" && node.type !== "doc") el = await ctx.filterBlock(node, el);
@@ -279,9 +289,12 @@ async function renderNode(node: Node, key: string, ctx: RenderContext): Promise<
   const given = pick?.filter((k) => !emptyAttr(a?.[k]));
   const data = pick && (!pick.length || given!.length) ? { "data-ecx-ready": node.type, "data-ecx-attrs": JSON.stringify(Object.fromEntries(given!.map((k) => [k, a![k]]))) } : undefined;
   const out = (a && (a.style || a.blockStyle || a.className || a.anchor || widthClass(node.type, a))) || ctrl || data ? decorate(el, a ?? {}, key, ctx, node.type, ctrl, data) : el;
-  return ctx.markBlocks && ctx.source && ctx.pathRoot != null && key.startsWith(ctx.pathRoot + "-") && !UNMARKED.has(node.type)
+  const marked = ctx.markBlocks && ctx.source && ctx.pathRoot != null && key.startsWith(ctx.pathRoot + "-") && !UNMARKED.has(node.type)
     ? markBlock(out, ctx.source, key.slice(ctx.pathRoot.length + 1), key)
     : out;
+  // Nhóm người xem (tab Nâng cao): bỏ qua ở trình soạn (markBlocks) để vẫn sửa được
+  const aud = node.type !== "text" && !ctx.markBlocks && node.attrs?.style ? normalizeStyle(node.attrs.style as never)?.audience : undefined;
+  return aud && marked != null ? <AudienceGate key={key} audience={aud}>{marked}</AudienceGate> : marked;
 }
 
 const emptyAttr = (v: unknown) => v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length);
@@ -317,7 +330,9 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       return shelled("paragraph", a, key, await children());
     }
     case "heading": {
-      return shelled("heading", a, key, await children(), { id: headingId(node) || undefined });
+      // Chữ gõ ở cuối tiêu đề (heading.typedWords): HTML dựng sẵn có từ đầu tiên, trình duyệt gõ lần lượt các từ
+      const typed = typedConfig(a);
+      return shelled("heading", a, key, typed ? <>{await children()} <TypedText words={typed.words} speed={typed.speed} pause={typed.pause} loop={typed.loop} /></> : await children(), { id: headingId(node) || undefined });
     }
     case "bulletList": return <ul key={key}>{await children()}</ul>;
     case "orderedList": return <ol key={key} start={a.start && a.start !== 1 ? a.start : undefined} reversed={a.reversed === true || undefined}>{await children()}</ol>;
@@ -339,17 +354,17 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       );
     }
     case "icon": {
-      const path = ICON_PATHS[String(a.name)];
-      if (!path) return null;
       const size = Math.min(128, Math.max(12, Number(a.size) || 24));
       const stroke = Math.min(4, Math.max(0.5, Number(a.stroke) || 2));
       const shape = a.iconStyle === "circle" || a.iconStyle === "square" ? a.iconStyle : undefined;
-      const svg = <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" role={a.label ? "img" : undefined} aria-label={a.label || undefined} aria-hidden={a.label ? undefined : true}><path d={path} /></svg>;
+      const tip = typeof a.tooltip === "string" && a.tooltip.trim() ? a.tooltip.trim().slice(0, 120) : undefined;
+      const svg = iconSvg(a.name, { size, stroke, label: a.label ? String(a.label) : undefined });
+      if (!svg) return null;
       const href = safeUrl(a.href, "");
-      const cls = `ecx-icon-shape${shape ? ` is-${shape}` : ""}`, pad = shape ? { padding: Math.round(size * 0.4) } : undefined;
+      const cls = `ecx-icon-shape${shape ? ` is-${shape}` : ""}`, pad = shape ? ({ "--ecx-icon-pad-auto": `${Math.round(size * 0.4)}px` } as CSSProperties) : undefined;
       return <div key={key} className="ecx-icon-block" style={alignStyle(a)}>{href
-        ? <Link href={href} className={cls} style={pad} {...(a.linkTarget === "_blank" ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{svg}</Link>
-        : <span className={cls} style={pad}>{svg}</span>}</div>;
+        ? <Link href={href} className={cls} style={pad} data-ecx-tip={tip} {...(a.linkTarget === "_blank" ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{svg}</Link>
+        : <span className={cls} style={pad} data-ecx-tip={tip}>{svg}</span>}</div>;
     }
     case "horizontalRule": return <hr key={key} />;
     case "image": {
@@ -358,8 +373,9 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const sizes = a.width ? `(max-width: ${a.width}px) 100vw, ${a.width}px` : (a.sizes || "(max-width: 1024px) 100vw, 1024px");
       const imgSrc = safeUrl(a.src, "");
       if (!imgSrc) return null; // chưa chọn ảnh: không in <img> không có địa chỉ (hiện icon ảnh hỏng)
+      const fx = imageFx(a);
       const img = <img src={imgSrc} srcSet={a.srcset || undefined} sizes={a.srcset ? sizes : undefined}
-        alt={a.alt ?? ""} title={a.title ?? undefined} width={a.width ?? undefined} height={a.height ?? undefined} loading="lazy" decoding="async" />;
+        alt={a.alt ?? ""} title={a.title ?? undefined} width={a.width ?? undefined} height={a.height ?? undefined} loading="lazy" decoding="async" className={fx.className || undefined} style={fx.style as CSSProperties | undefined} />;
       const bare = a.webpSrcset ? <picture><source type="image/webp" srcSet={a.webpSrcset} sizes={sizes} />{img}</picture> : img;
       // next: ảnh có liên kết (href qua safeUrl; mở tab mới thì noopener)
       const pic = a.lightbox === true && !a.href ? <LightboxClient src={safeUrl(a.src, "")} alt={a.alt ?? ""}>{bare}</LightboxClient> : a.href ? <Link href={safeUrl(a.href)} target={a.linkTarget === "_blank" ? "_blank" : undefined} rel={a.linkTarget === "_blank" ? "noopener noreferrer" : undefined}>{bare}</Link> : bare;
@@ -370,16 +386,34 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const items = ((a.images ?? []) as Array<{ src: string; srcset?: string; webpSrcset?: string; alt?: string; caption?: string; width?: number; height?: number; full?: string; href?: string }>).filter((im) => !!im?.src); // ảnh chưa chọn (không src) không vẽ <img> hỏng
       const cols = Math.min(6, Math.max(1, Number(a.columns) || 3));
       const crop = a.imageCrop !== false && a.layout !== "masonry"; // next: imageCrop=false giữ nguyên tỉ lệ ảnh; masonry luôn giữ tỉ lệ
-      return (
-        <figure key={key} className={blockShell("gallery", a)!.className} style={blockShell("gallery", a)!.style as CSSProperties}>
-          {items.map((im, i) => {
+      // Một ảnh (có srcset / WebP / lightbox) — dùng cho cả lưới lẫn slide
+      const galleryItem = (im: (typeof items)[number], i: number) => {
             const el = <img src={safeUrl(im.src, "")} srcSet={im.srcset || undefined} sizes={`(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`} alt={im.alt ?? ""} width={im.width} height={im.height} loading="lazy" decoding="async" style={crop ? { width: "100%", height: "100%", objectFit: "cover", aspectRatio: "1" } : { width: "100%", height: "auto" }} />;
             const pic = im.webpSrcset ? <picture><source type="image/webp" srcSet={im.webpSrcset} sizes={`(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`} />{el}</picture> : el;
             return <figure key={i} className="ecx-gallery-item cms-gallery-item" style={{ margin: 0 }}>{a.lightbox === true ? <LightboxClient src={safeUrl(im.full || im.src, "")} alt={im.alt ?? ""}>{pic}</LightboxClient> : im.href && safeUrl(im.href, "") ? <a href={safeUrl(im.href)}>{pic}</a> : im.full && a.linkTo !== "none" ? <a href={safeUrl(im.full)}>{pic}</a> : pic}{im.caption && <figcaption>{im.caption}</figcaption>}</figure>;
-          })}
-          {a.caption && <figcaption className="ecx-gallery-caption cms-gallery-caption" style={{ gridColumn: "1 / -1" }}>{a.caption}</figcaption>}
-        </figure>
-      );
+      };
+      const caption = a.caption && <figcaption className="ecx-gallery-caption cms-gallery-caption" style={{ gridColumn: "1 / -1" }}>{a.caption}</figcaption>;
+      // Dạng slider: mỗi ảnh một slide, số ảnh thấy cùng lúc = columns (tối đa 4) — dùng chung CarouselClient với Slider
+      if (a.layout === "slider" && items.length > 1) {
+        return (
+          <figure key={key} className="ecx-gallery cms-gallery is-slider" style={{ margin: 0 }}>
+            <CarouselClient count={items.length} config={carouselConfig({ slidesPerView: Math.min(4, cols), arrows: a.arrows, dots: a.dots, autoplay: a.autoplay, interval: a.interval, loop: a.loop, gap: "var(--ecx-gallery-gap, 8px)" })}>
+              {items.map((im, i) => <div key={i} className="ecx-carousel-slide" role="group" aria-roledescription="slide" aria-label={`${i + 1} / ${items.length}`}>{galleryItem(im, i)}</div>)}
+            </CarouselClient>
+            {caption}
+          </figure>
+        );
+      }
+      // Thumbnail slider: ảnh lớn + dải ảnh nhỏ (không lightbox riêng — ảnh lớn đã là ảnh chính)
+      if (a.layout === "thumbs" && items.length > 1) {
+        return (
+          <figure key={key} className="ecx-gallery cms-gallery is-thumbs" style={{ margin: 0 }}>
+            <GalleryThumbsClient mains={items.map((im, i) => galleryItem(im, i))} thumbs={items.map((im, i) => <img key={i} src={safeUrl(im.src, "")} alt="" loading="lazy" decoding="async" />)} />
+            {caption}
+          </figure>
+        );
+      }
+      return <figure key={key} className={blockShell("gallery", a)!.className} style={blockShell("gallery", a)!.style as CSSProperties}>{items.map((im, i) => galleryItem(im, i))}{caption}</figure>;
     }
     case "video":
       return <figure key={key} className="ecx-video cms-video"><video src={safeUrl(a.src, "")} poster={a.poster ? safeUrl(a.poster, "") : undefined} controls={a.controls !== false} autoPlay={a.autoplay === true} loop={a.loop === true} muted={a.muted === true || a.autoplay === true} preload={["none", "metadata", "auto"].includes(a.preload) ? a.preload : "metadata"} playsInline={a.playsInline !== false} style={{ width: "100%", height: "auto" }} />{a.caption && <figcaption>{a.caption}</figcaption>}</figure>;
@@ -402,7 +436,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       // Hàng cuối là chân bảng (attrs.footer) → <tfoot>
       const foot = a.footer === true && rows.length > (head ? 2 : 1);
       const body = rows.slice(head ? 1 : 0, foot ? -1 : undefined);
-      return <div key={key} className="ecx-table table-wrap"><table className={a.fixed ? "is-fixed" : undefined}>{head && <thead>{rows[0]}</thead>}<tbody>{body}</tbody>{foot && <tfoot>{rows.at(-1)}</tfoot>}</table></div>;
+      return <div key={key} className={tableClass(a)}><table className={a.fixed ? "is-fixed" : undefined}>{typeof a.caption === "string" && a.caption.trim() && <caption>{a.caption}</caption>}{head && <thead>{rows[0]}</thead>}<tbody>{body}</tbody>{foot && <tfoot>{rows.at(-1)}</tfoot>}</table></div>;
     }
     case "tableRow": return <tr key={key}>{await children()}</tr>;
     case "tableHeader": return <th key={key} colSpan={a.colspan > 1 ? a.colspan : undefined} rowSpan={a.rowspan > 1 ? a.rowspan : undefined}>{await children()}</th>;
@@ -416,12 +450,23 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     case "columns": {
       const cols = await Promise.all((node.content ?? []).map(async (c, i) => {
         const inner = await Promise.all((c.content ?? []).map((cc, j) => renderNode(cc, `${key}-${i}-${j}`, ctx)));
-        return shelled("column", c.attrs ?? {}, `${key}-${i}`, <>{inner}{overlayLink(c.attrs ?? {})}</>, undefined, { type: "columns", attrs: a });
+        return shelled("column", c.attrs ?? {}, `${key}-${i}`, <>{bgVideoNode(c.attrs)}{inner}{overlayLink(c.attrs ?? {})}</>, undefined, { type: "columns", attrs: a });
       }));
-      return shelled("columns", a, key, cols);
+      return shelled("columns", a, key, <>{bgVideoNode(a)}{cols}</>);
     }
-    case "column": return shelled("column", a, key, <>{await children()}{overlayLink(a)}</>);
-    case "group": return shelled("group", a, key, await children());
+    case "column": return shelled("column", a, key, <>{bgVideoNode(a)}{await children()}{overlayLink(a)}</>);
+    case "group": {
+      const g = shelled("group", a, key, <>{bgVideoNode(a)}{await children()}{overlayLink(a)}</>);
+      // Xem thêm: cắt khối ở chiều cao thu gọn, nút là <label> của ô tick ẩn (CSS thuần, không cần JS)
+      const ch = typeof a.collapseHeight === "string" && /^\d{1,3}(\.\d{1,2})?(rem|em|px|vh)$/.test(a.collapseHeight.trim()) ? a.collapseHeight.trim() : "";
+      if (!ch || ctx.markBlocks) return g;
+      const id = `sm-${key.replace(/[^a-z0-9]/gi, "")}`;
+      return <div key={`${key}-sm`} className={`ecx-sm${a.collapseFade === false ? " is-nofade" : ""}${a.collapseOnce === true ? " is-once" : ""}`} style={{ "--ecx-sm-h": ch } as CSSProperties}>
+        <input type="checkbox" id={id} className="ecx-sm-in" aria-label={String(a.moreText || "Xem thêm")} />
+        {g}
+        <label htmlFor={id} className="ecx-sm-btn"><span className="ecx-sm-more">{String(a.moreText || "Xem thêm")}</span><span className="ecx-sm-less">{String(a.lessText || "Thu gọn")}</span></label>
+      </div>;
+    }
     case "callout": return shelled("callout", a, key, <>{a.title && <p className="ecx-callout-title cms-callout-title" style={{ margin: 0, fontWeight: 600 }}>{a.title}</p>}{await children()}</>);
     case "button": {
       if (!a.text) return null;
@@ -430,7 +475,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const ic = buttonIcon(a);
       // Chỉ icon: chữ đã thành aria-label của nút (blockShell)
       const label = ic ? (a.iconOnly === true ? widgetEl(ic, "i") : a.iconPosition === "right" ? [a.text, widgetEl(ic, "i")] : [widgetEl(ic, "i"), a.text]) : a.text;
-      const link = shelled("button", a, ctx.inButtons ? key : "", label, { href: safeUrl(a.href), target, rel: linkRel(a.rel, target) });
+      const link = shelled("button", a, ctx.inButtons ? key : "", label, { href: safeUrl(a.href), target, rel: linkRel(a.rel, target), title: typeof a.tooltip === "string" && a.tooltip ? a.tooltip : undefined });
       if (ctx.inButtons) return link;
       return createElement(buttonWrapShell(a).tag, { key, className: buttonWrapShell(a).className, style: buttonWrapShell(a).style }, link);
     }
@@ -444,8 +489,10 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     case "cover": {
       const { src, fixed, overlay, imgStyle, overlayStyle } = coverParts(a);
       const url = src ? safeUrl(src, "") : "";
+      const video = coverVideo(a);
       return shelled("cover", a, key, <>
-        {url && !fixed && <img className="ecx-cover-img" src={url} alt={a.alt ?? ""} loading="lazy" decoding="async" style={imgStyle as CSSProperties} />}
+        {video && <BgVideo className="ecx-cover-video" src={video} poster={url || undefined} style={imgStyle as CSSProperties} />}
+        {url && !fixed && !video && <img className="ecx-cover-img" src={url} alt={a.alt ?? ""} loading="lazy" decoding="async" style={imgStyle as CSSProperties} />}
         {overlay && <span className="ecx-cover-overlay" aria-hidden="true" style={overlayStyle as CSSProperties} />}
         <div className="ecx-cover-inner">{await children()}</div>
       </>, undefined);
@@ -479,11 +526,13 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       );
     }
     case "countdown": {
-      const ms = countdownTarget(a);
+      const rules = countdownRules(a);
+      // Evergreen không cần ngày; còn lại cần mốc hợp lệ
+      const ms = rules.evergreenMs ? 0 : countdownTarget(a); // evergreen: mốc do client tính theo từng người xem (HTML dựng sẵn hiện đủ thời lượng)
       if (!Number.isFinite(ms)) return null;
       const t = await getT();
       const units = { d: t("countdown.d"), h: t("countdown.h"), m: t("countdown.m"), s: t("countdown.s") }; // theo ngôn ngữ của trang (vi: ngày/giờ/phút/giây)
-      return <CountdownClient key={key} target={ms} serverNow={Date.now()} units={units} label={a.label ? String(a.label) : undefined} expiredText={a.expiredText ? String(a.expiredText) : undefined}
+      return <CountdownClient key={key} target={ms} rules={rules} storageKey={typeof a.anchor === "string" && a.anchor ? a.anchor : `${a.label ?? ""}|${a.evergreenHours ?? 0}|${a.evergreenMinutes ?? 0}`} serverNow={Date.now()} units={units} label={a.label ? String(a.label) : undefined} expiredText={a.expiredText ? String(a.expiredText) : undefined}
         attrs={{ layout: a.layout, divider: a.divider, pad: a.pad, postText: a.postText, showDays: a.showDays, showSeconds: a.showSeconds, daysLabel: a.daysLabel, hoursLabel: a.hoursLabel, minutesLabel: a.minutesLabel, secondsLabel: a.secondsLabel }} />;
     }
     case "form": {
@@ -496,7 +545,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
         <FormBlockClient key={key} formId={formId} source={ctx.source} className={formSizeClass(a) || undefined} successMessage={a.successMessage ? String(a.successMessage) : undefined}
           fields={(await getSlotItems("form.fields")).length ? <Slot name="form.fields" props={{ form: `core:${ctx.source}/${formId}`, settings: a.ext && typeof a.ext === "object" ? a.ext : {} }} /> : undefined}
           button={{ className: blockShell("button", { variant: "primary" })?.className, style: (({ background: _b, color: _c, ...rest }) => rest)(blockShell("button", { variant: "primary" })?.style as CSSProperties) }}
-          labels={{ submit: a.submitText ? String(a.submitText) : t("form.submit"), sending: t("form.sending"), error: t("form.error") }}>
+          labels={{ next: t("form.next"), back: t("form.back"), step: t("form.step"), submit: a.submitText ? String(a.submitText) : t("form.submit"), sending: t("form.sending"), error: t("form.error") }}>
           {inner}
         </FormBlockClient>
       );
@@ -516,7 +565,8 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const types: Record<string, string> = { email: "email", tel: "tel", number: "number", date: "date" };
       const choose = kind === "select" && !a.placeholder ? (await getT())("form.choose") : String(a.placeholder ?? "");
       return (
-        <div key={key} className={cx("ecx-field", `is-${kind}`, (a.width === "half" || a.width === "third") && `is-${a.width}`, check && "is-check")} data-field={name}>
+        <div key={key} className={cx("ecx-field", `is-${kind}`, (a.width === "half" || a.width === "third") && `is-${a.width}`, check && "is-check")} data-field={name}
+          data-showif={typeof a.showIf === "string" && /^[a-z][a-z0-9_]{0,39}(!?=[^\n]{0,100})?$/.test(a.showIf.trim()) ? a.showIf.trim() : undefined} data-step={Number.isInteger(a.step) && a.step >= 1 && a.step <= 8 ? a.step : undefined}>
           {check ? <label htmlFor={id}><input type="checkbox" id={id} name={name} value="1" required={required} aria-describedby={describedBy} /> <span>{kind === "consent" ? linkedLabel(label) : label}{star}</span></label>
             : kind === "radio" ? (
               <fieldset aria-describedby={describedBy}>
@@ -533,7 +583,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
         </div>
       );
     }
-    case "iconBox": case "imageBox": case "iconList": case "counter": case "testimonial": case "progressBar": case "map": {
+    case "iconBox": case "imageBox": case "imageOverlay": case "iconList": case "counter": case "testimonial": case "progressBar": case "map": {
       const tree = widgetMarkup(node.type, a);
       return tree ? widgetEl(tree, key) : null;
     }
@@ -552,23 +602,44 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       if (!tabs.length) return null;
       const panels = await Promise.all(tabs.map(async (t, i) => <Fragment key={i}>{await Promise.all((t.content ?? []).map((c, j) => renderNode(c, `${key}-${i}-${j}`, ctx)))}</Fragment>));
       return <TabsClient key={key} titles={tabs.map((t, i) => String(t.attrs?.title || `Tab ${i + 1}`))} panels={panels} initial={Math.max(0, (Number(a.initial) || 1) - 1)}
-        icons={tabs.map((t) => ICON_PATHS[String(t.attrs?.icon ?? "")])} subtitles={tabs.map((t) => (t.attrs?.subtitle ? String(t.attrs.subtitle) : undefined))}
+        icons={tabs.map((t, i) => iconSvg(t.attrs?.icon, { size: 18, className: "ecx-tab-icon", key: `i${i}` }) || undefined)} subtitles={tabs.map((t) => (t.attrs?.subtitle ? String(t.attrs.subtitle) : undefined))}
         anchors={tabs.map((t) => (typeof t.attrs?.anchor === "string" && /^[\w-]{1,80}$/.test(t.attrs.anchor) ? t.attrs.anchor : undefined))}
         vertical={a.orientation === "vertical"} mobileAccordion={a.mobileAccordion === true} extraClass={tabsClass(a)} />;
     }
     case "tab":
       return <div key={key} className="ecx-tab">{await children()}</div>;
     case "carousel": {
-      const per = Math.min(4, Math.max(1, Math.round(Number(a.slidesPerView) || 1)));
-      const kids = await Promise.all((node.content ?? []).map(async (c, i) => <div key={i} className="ecx-carousel-slide" style={{ scrollSnapAlign: "start" }}>{await renderNode(c, `${key}-${i}`, ctx)}</div>));
-      return <div key={key} className="ecx-carousel" role="region" aria-roledescription="carousel" tabIndex={0}
-        style={{ display: "grid", gridAutoFlow: "column", gridAutoColumns: `calc((100% - ${(per - 1) * 16}px) / ${per})`, gap: 16, overflowX: "auto", scrollSnapType: "x mandatory" }}>{kids}</div>;
+      const cfg = carouselConfig(a);
+      const total = (node.content ?? []).length;
+      const kids = await Promise.all((node.content ?? []).map(async (c, i) => <div key={i} className="ecx-carousel-slide" role="group" aria-roledescription="slide" aria-label={`${i + 1} / ${total}`}>{await renderNode(c, `${key}-${i}`, ctx)}</div>));
+      return <CarouselClient key={key} count={total} config={cfg}>{kids}</CarouselClient>;
     }
     case "shortcode": {
       const name = String(a.name ?? "");
       if (!/^[a-z0-9_-]{1,64}$/i.test(name)) return null;
       const Comp = await ctx.resolve.shortcode(name);
       return Comp ? <Comp key={key} attrs={(a.args && typeof a.args === "object" ? a.args : {}) as Record<string, string>} site={ctx.site} post={ctx.post} /> : null;
+    }
+    case "testimonials": {
+      // Nhiều lời chứng thực: lưới theo số cột từng khổ, hoặc slider (dùng chung bộ máy Slider)
+      const c = testimonialsConfig(a);
+      const items = node.content ?? [];
+      if (!items.length) return null;
+      if (c.layout === "carousel") {
+        const slides = await Promise.all(items.map(async (it, i) => <div key={i} className="ecx-carousel-slide" role="group" aria-roledescription="slide" aria-label={`${i + 1} / ${items.length}`}>{await renderNode(it, `${key}-${i}`, ctx)}</div>));
+        return <CarouselClient key={key} count={items.length} config={c.carousel}>{slides}</CarouselClient>;
+      }
+      return <div key={key} className="ecx-testimonials" style={testimonialsVars(c) as CSSProperties}>{await children()}</div>;
+    }
+    case "popup": {
+      // Nút mở (kiểu như khối Nút) + hộp thoại; không có chữ nút thì không vẽ gì (không có cách mở)
+      const c = popupConfig(a);
+      const text = typeof a.triggerText === "string" ? a.triggerText : "";
+      if (!text && !c.id && c.auto === "none") return null; // không nút, không ID, không tự mở = không có cách mở
+      const plain = c.triggerStyle === "link" || c.triggerStyle === "play";
+      const shell = plain ? null : blockShell("button", { variant: c.triggerStyle });
+      return <PopupClient key={key} className={popupClass(c)} style={popupVars(c) as CSSProperties} label={typeof a.label === "string" ? a.label : text} closeButton={c.closeButton} closeOnOverlay={c.closeOnOverlay}
+        popupId={c.id || undefined} auto={c.auto} autoDelay={c.autoDelay} autoScroll={c.autoScroll} onceDays={c.onceDays} trigger={!text ? null : c.triggerStyle === "play" ? <span className="ecx-visually-hidden">{text}</span> : text} triggerClass={`ecx-popup-trigger ${shell ? shell.className : c.triggerStyle === "play" ? "is-play" : "is-link"}`} triggerStyle={(shell?.style ?? (c.triggerStyle === "play" ? popupPlayStyle(a) : undefined)) as CSSProperties | undefined}>{await children()}</PopupClient>;
     }
     case "details":
       return <details key={key} className="ecx-details" name={ctx.accordion} open={a.open === true || undefined}><summary>{ctx.accTag ? createElement(ctx.accTag, { className: "ecx-details-title" }, a.summary || "…") : a.summary || "…"}</summary>{await children()}</details>;

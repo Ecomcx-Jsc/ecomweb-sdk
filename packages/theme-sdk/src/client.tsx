@@ -1,7 +1,7 @@
 "use client";
 
-import { countdownParts, SEARCH_ICON_PATH, type CountdownUnit } from "@ecomcx/ecomweb-content";
-import { extraFields } from "./auth-forms";
+import { carouselData, carouselVars, countdownParts, evergreenWindow, nextTarget, type CountdownRules, SEARCH_ICON_PATH, type CarouselConfig, type CountdownUnit } from "@ecomcx/ecomweb-content";
+import { extraFields, useCurrentUser } from "./auth-forms";
 import { Component, Suspense, useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
@@ -359,19 +359,41 @@ export { LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm, LogoutB
 export { safeRedirect, type CurrentUser } from "./auth-shared";
 
 /** Khối countdown: đếm ngược tới `target` (ms). Dựng lần đầu cùng giá trị trên máy chủ, rồi cập nhật mỗi giây. */
-export function CountdownClient({ target, label, expiredText, units, serverNow, attrs = {} }: { target: number; label?: string; expiredText?: string; units?: Partial<Record<CountdownUnit, string>>; serverNow?: number; attrs?: Record<string, unknown> }) {
+export function CountdownClient({ target, label, expiredText, units, serverNow, rules, storageKey, attrs = {} }: { target: number; label?: string; expiredText?: string; units?: Partial<Record<CountdownUnit, string>>; serverNow?: number; rules?: CountdownRules; storageKey?: string; attrs?: Record<string, unknown> }) {
   // Lần render đầu của client dùng ĐÚNG thời điểm máy chủ đã dùng (serverNow) để khớp HTML dựng sẵn / cache; sau đó lấy giờ thật ngay (tránh hydration mismatch #418)
   const [now, setNow] = useState(() => serverNow ?? Date.now());
-  useEffect(() => { setNow(Date.now()); }, []);
-  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
-  const left = Math.max(0, target - now);
-  if (left === 0 && expiredText) return <div className="ecx-countdown is-expired">{expiredText}</div>;
+  const [paused, setPaused] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  // Evergreen: mốc bắt đầu của RIÊNG người xem này nằm trong localStorage (không có thì bắt đầu từ lúc vào trang)
+  const [end, setEnd] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now()); setMounted(true);
+    if (rules?.evergreenMs && storageKey) {
+      let saved: number | null = null;
+      try { const v = localStorage.getItem(`ecx-cd:${storageKey}`); saved = v ? Number(v) : null; } catch { /* trình duyệt chặn lưu: đếm từ lúc vào trang */ }
+      const [start, finish] = evergreenWindow(saved, Date.now(), rules.evergreenMs, rules.evergreenResetDays);
+      try { if (start !== saved) localStorage.setItem(`ecx-cd:${storageKey}`, String(start)); } catch { /* bỏ qua */ }
+      setEnd(finish);
+    }
+  }, [rules?.evergreenMs, rules?.evergreenResetDays, storageKey]);
+  useEffect(() => { if (paused) return; const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, [paused]);
+  const evergreen = !!rules?.evergreenMs;
+  const base = evergreen ? (end ?? (serverNow ?? now) + rules!.evergreenMs!) : target;
+  const live = rules && !evergreen ? nextTarget(base, rules.repeat, now) : base;
+  const left = Math.max(0, live - now);
+  const action = rules?.action ?? (expiredText ? "message" : "zero");
+  const expired = left === 0 && mounted;
+  const url = rules?.redirectUrl;
+  useEffect(() => { if (expired && action === "redirect" && url) location.assign(url); }, [expired, action, url]);
+  if (left === 0 && action === "hide") return null;
+  if (left === 0 && action === "message" && expiredText) return <div className="ecx-countdown is-expired">{expiredText}</div>;
   const post = typeof attrs.postText === "string" && attrs.postText ? attrs.postText : null;
   return (
-    <div className={cx("ecx-countdown", attrs.layout === "inline" && "is-inline", attrs.divider === true && "has-divider")} role="timer" aria-live="off" suppressHydrationWarning>
+    <div className={cx("ecx-countdown", attrs.layout === "inline" && "is-inline", attrs.divider === true && "has-divider", rules?.pause && "has-pause")} role="timer" aria-live="off" suppressHydrationWarning>
       {label && <p className="ecx-countdown-label">{label}</p>}
       <div className="ecx-countdown-parts">{countdownParts(attrs, left, units).map((p) => <span key={p.u} className={`ecx-countdown-${p.u}`}><strong>{p.value}</strong><small>{p.label}</small></span>)}</div>
       {post && <p className="ecx-countdown-post">{post}</p>}
+      {rules?.pause && mounted && <button type="button" className="ecx-countdown-pause" aria-pressed={paused} aria-label={paused ? "▶" : "⏸"} onClick={() => { if (paused) setNow(Date.now()); setPaused(!paused); }}>{paused ? "▶" : "⏸"}</button>}
     </div>
   );
 }
@@ -416,7 +438,7 @@ export function NavToggle({ label, children, className = "ecx-navigation-toggle"
  * tab có neo → panel mang id = neo, mở thẳng bằng #neo.
  */
 export function TabsClient({ titles, panels, initial = 0, icons, subtitles, anchors, vertical, mobileAccordion, extraClass }: {
-  titles: string[]; panels: ReactNode[]; initial?: number; icons?: Array<string | undefined>; subtitles?: Array<string | undefined>; anchors?: Array<string | undefined>; vertical?: boolean; mobileAccordion?: boolean; /** Class đầy đủ của khối (tabsClass): thay cho class tự ghép. */ extraClass?: string;
+  titles: string[]; panels: ReactNode[]; initial?: number; icons?: Array<ReactNode | undefined>; subtitles?: Array<string | undefined>; anchors?: Array<string | undefined>; vertical?: boolean; mobileAccordion?: boolean; /** Class đầy đủ của khối (tabsClass): thay cho class tự ghép. */ extraClass?: string;
 }) {
   const [active, setActive] = useState(initial < titles.length ? initial : 0);
   const id = useId();
@@ -441,7 +463,7 @@ export function TabsClient({ titles, panels, initial = 0, icons, subtitles, anch
         {titles.map((t, i) => (
           <button key={i} type="button" role="tab" id={`${id}-t${i}`} aria-selected={i === active} aria-controls={anchors?.[i] ?? `${id}-p${i}`} tabIndex={i === active ? 0 : -1}
             className={cx("ecx-tab-button", i === active && "is-active")} style={{ "--i": i } as CSSProperties} onClick={() => setActive(i)} onKeyDown={(e) => move(e, i)}>
-            {icons?.[i] && <svg className="ecx-tab-icon" viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d={icons[i]} /></svg>}
+            {icons?.[i]}
             <span className="ecx-tab-label">{t}{subtitles?.[i] && <small className="ecx-tab-subtitle">{subtitles[i]}</small>}</span>
           </button>
         ))}
@@ -478,7 +500,7 @@ export function LightboxClient({ src, alt, children }: { src: string; alt: strin
  * hiện lời cảm ơn. Chống spam: ô bẫy ẩn (_hp) + thời gian điền (máy chủ kiểm), máy chủ còn giới hạn theo IP.
  */
 export function FormBlockClient({ formId, source, successMessage, labels, button, className, children, fields: extraUi }: {
-  formId: string; source: string; successMessage?: string; labels: { submit: string; sending: string; error: string };
+  formId: string; source: string; successMessage?: string; labels: { submit: string; sending: string; error: string; next?: string; back?: string; step?: string };
   /** Ô thêm của plugin (captcha…): <Slot name="form.fields" />. Ô name="extra.*" gửi kèm trong "extra" (hook form.submitting). */
   fields?: ReactNode;
   /** Vỏ nút gửi = nút "primary" của nội dung (cùng màu / bo góc với nút của theme). */
@@ -486,6 +508,39 @@ export function FormBlockClient({ formId, source, successMessage, labels, button
 }) {
   const started = useRef(Date.now());
   const [state, setState] = useState<{ status: "idle" | "sending" | "done" | "error"; message?: string }>({ status: "idle" });
+  const formEl = useRef<HTMLFormElement>(null);
+  const [step, setStep] = useState(1);
+  const [maxStep, setMaxStep] = useState(1);
+  // Hiện / ẩn ô theo điều kiện (data-showif) và theo bước (data-step); ô đang ẩn không gửi lên
+  const sync = useCallback((cur: number) => {
+    const form = formEl.current; if (!form) return;
+    const value = (name: string) => {
+      const els = Array.from(form.elements).filter((e): e is HTMLInputElement => (e as HTMLInputElement).name === name);
+      if (!els.length) return "";
+      const first = els[0];
+      if (first.type === "checkbox") return first.checked ? "1" : "";
+      if (first.type === "radio") return els.find((r) => r.checked)?.value ?? "";
+      return first.value.trim();
+    };
+    let max = 1;
+    form.querySelectorAll<HTMLElement>("[data-field]").forEach((el) => {
+      const s = Number(el.dataset.step) || 1; if (s > max) max = s;
+      let condOff = false;
+      const m = /^([a-z][a-z0-9_]*)(!?=)?(.*)$/.exec(el.dataset.showif ?? "");
+      if (m) { const v = value(m[1]); condOff = m[2] === "=" ? v !== m[3] : m[2] === "!=" ? v === m[3] : !v; }
+      el.hidden = condOff || s !== cur; // ô ở bước khác chỉ ẩn (giữ giá trị); ô bị điều kiện ẩn thì tắt hẳn để không gửi và không bắt buộc
+      if (condOff) el.dataset.condOff = "1"; else delete el.dataset.condOff;
+      el.querySelectorAll<HTMLInputElement>("input, textarea, select").forEach((i) => { i.disabled = condOff; });
+    });
+    setMaxStep((x) => (x === max ? x : max));
+  }, []);
+  useEffect(() => { sync(step); }, [sync, step, state.status]);
+  const goNext = () => {
+    const form = formEl.current; if (!form) return;
+    const bad = Array.from(form.querySelectorAll<HTMLInputElement>("[data-field]:not([hidden]) input:not([type=hidden]), [data-field]:not([hidden]) textarea, [data-field]:not([hidden]) select")).find((i) => !i.checkValidity());
+    if (bad) { bad.reportValidity(); return; }
+    setStep((s) => Math.min(maxStep, s + 1));
+  };
 
   function showErrors(form: HTMLFormElement, errors: Record<string, string[]>) {
     form.querySelectorAll<HTMLElement>("[data-field]").forEach((el) => {
@@ -500,11 +555,13 @@ export function FormBlockClient({ formId, source, successMessage, labels, button
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (step < maxStep) { goNext(); return; }
     const form = e.currentTarget;
     const data = new FormData(form);
     const fields: Record<string, string | boolean> = {};
     form.querySelectorAll<HTMLElement>("[data-field]").forEach((el) => {
       const name = el.dataset.field!;
+      if (el.dataset.condOff) return; // ô bị điều kiện ẩn không gửi
       const box = el.querySelector<HTMLInputElement>("input[type=checkbox]");
       fields[name] = box ? box.checked : String(data.get(name) ?? "");
     });
@@ -523,18 +580,189 @@ export function FormBlockClient({ formId, source, successMessage, labels, button
 
   if (state.status === "done") return <p className="ecx-form-status is-success" role="status" data-form-done={formId}>{state.message}</p>;
   return (
-    <form className={cx("ecx-form-blocks", className)} onSubmit={submit} noValidate data-form={formId}>
+    <form ref={formEl} className={cx("ecx-form-blocks", className)} onSubmit={submit} onChange={() => sync(step)} onInput={() => sync(step)} noValidate data-form={formId}>
+      {maxStep > 1 && <p className="ecx-form-step" role="status">{(labels.step ?? "{n}/{total}").replace("{n}", String(step)).replace("{total}", String(maxStep))}</p>}
       {children}
       {extraUi}
       <p className="ecx-form-hp" aria-hidden="true"><label>Website<input type="text" name="_hp" tabIndex={-1} autoComplete="off" /></label></p>
       {state.status === "error" && <p className="ecx-form-status is-error" role="alert">{state.message}</p>}
       <div className="ecx-form-actions">
-        <button type="submit" className={button?.className ?? "ecx-button"} style={{ border: 0, cursor: "pointer", font: "inherit", ...button?.style }} disabled={state.status === "sending"}>{state.status === "sending" ? labels.sending : labels.submit}</button>
+        {step > 1 && <button type="button" className="ecx-form-back" onClick={() => setStep((s) => Math.max(1, s - 1))}>{labels.back ?? "←"}</button>}
+        <button type="submit" className={button?.className ?? "ecx-button"} style={{ border: 0, cursor: "pointer", font: "inherit", ...button?.style }} disabled={state.status === "sending"}>{state.status === "sending" ? labels.sending : step < maxStep ? (labels.next ?? "→") : labels.submit}</button>
       </div>
     </form>
   );
 }
 
+
+/**
+ * Khối Carousel (slider): track cuộn ngang bám mép slide (vuốt được trên điện thoại, không JS vẫn cuộn), nút trước / sau, chấm theo vị trí,
+ * tự chạy tuỳ chọn (dừng khi rê chuột / đang focus / tab ẩn / người dùng tắt hiệu ứng chuyển động, có nút Tạm dừng). Số slide thấy cùng lúc theo khổ máy do CSS (style.css).
+ */
+export function CarouselClient({ children, count, config: c, label }: { children: ReactNode; count: number; config: CarouselConfig; label?: string }) {
+  const track = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ index: 0, visible: c.per });
+  const [held, setHeld] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [reduced, setReduced] = useState(true);
+  const fade = c.effect === "fade";
+  const [ready, setReady] = useState(false);
+  const measure = useCallback(() => {
+    const el = track.current;
+    const first = el?.children[0] as HTMLElement | undefined;
+    if (!el || !first || fade) return;
+    const step = ((el.children[1] as HTMLElement | undefined)?.offsetLeft ?? first.offsetLeft + first.offsetWidth) - first.offsetLeft || first.offsetWidth || 1;
+    const gap = Math.max(0, step - first.offsetWidth);
+    const visible = Math.max(1, Math.min(count, Math.round((el.clientWidth + gap) / step)));
+    setPos((p) => { const index = Math.max(0, Math.min(count - visible, Math.round(el.scrollLeft / step))); return p.index === index && p.visible === visible ? p : { index, visible }; });
+  }, [count, fade]);
+  useEffect(() => {
+    setReady(true);
+    setReduced(typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches);
+    measure();
+    const el = track.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [measure]);
+  // Mờ dần: không cuộn — đổi chỉ số, slide đang hiện nhận class is-active (CSS lo phần mờ)
+  useEffect(() => {
+    if (!fade) return;
+    Array.from(track.current?.children ?? []).forEach((k, i) => { k.classList.toggle("is-active", i === pos.index); k.classList.toggle("is-off", i !== pos.index); k.setAttribute("aria-hidden", i === pos.index ? "false" : "true"); });
+  }, [fade, pos.index, count]);
+  const goTo = useCallback((i: number) => {
+    if (fade) { setPos((p) => ({ ...p, index: Math.max(0, Math.min(count - 1, i)) })); return; }
+    const el = track.current, kid = el?.children[i] as HTMLElement | undefined;
+    if (el && kid) el.scrollTo({ left: kid.offsetLeft - (el.children[0] as HTMLElement).offsetLeft, behavior: reduced ? "auto" : "smooth" });
+  }, [reduced, fade, count]);
+  const last = Math.max(0, count - (fade ? 1 : pos.visible));
+  const next = useCallback(() => { if (pos.index >= last) { if (c.loop) goTo(0); } else goTo(pos.index + 1); }, [pos.index, last, c.loop, goTo]);
+  const prev = useCallback(() => { if (pos.index <= 0) { if (c.loop) goTo(last); } else goTo(pos.index - 1); }, [pos.index, last, c.loop, goTo]);
+  const running = c.autoplay && !reduced && !paused && !held && last > 0;
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(() => { if (document.visibilityState === "visible") next(); }, c.interval * 1000);
+    return () => clearInterval(t);
+  }, [running, next, c.interval]);
+  const chevron = (d: string) => <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
+  const many = last > 0;
+  return (
+    <div className="ecx-carousel" role="region" aria-roledescription="carousel" aria-label={label} style={carouselVars(c) as CSSProperties} {...carouselData(c)} data-ready={ready ? "" : undefined}
+      onMouseEnter={() => c.hoverPause && setHeld(true)} onMouseLeave={() => setHeld(false)} onFocus={() => c.hoverPause && setHeld(true)} onBlur={() => setHeld(false)}>
+      <div className="ecx-carousel-track" ref={track} onScroll={measure} tabIndex={0} aria-live={running ? "off" : "polite"}
+        onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); next(); } else if (e.key === "ArrowLeft") { e.preventDefault(); prev(); } }}>{children}</div>
+      {c.arrows && many && <>
+        <button type="button" className="ecx-carousel-arrow is-prev" aria-label="←" disabled={!c.loop && pos.index <= 0} onClick={prev}>{chevron("m15 18-6-6 6-6")}</button>
+        <button type="button" className="ecx-carousel-arrow is-next" aria-label="→" disabled={!c.loop && pos.index >= last} onClick={next}>{chevron("m9 18 6-6-6-6")}</button>
+      </>}
+      {many && (c.dots || c.autoplay) && (
+        <div className="ecx-carousel-dots">
+          {c.dots && Array.from({ length: last + 1 }, (_, i) => <button key={i} type="button" className="ecx-carousel-dot" aria-label={`${i + 1} / ${last + 1}`} aria-current={i === pos.index ? "true" : undefined} onClick={() => goTo(i)} />)}
+          {c.autoplay && !reduced && <button type="button" className="ecx-carousel-pause" aria-label={paused ? "▶" : "⏸"} aria-pressed={paused} onClick={() => setPaused(!paused)}>{paused ? "▶" : "⏸"}</button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Popup: nút mở + hộp thoại <dialog> gốc của trình duyệt (khoá focus trong hộp, Esc đóng, trả focus về nút) — nội dung nằm sẵn trong HTML.
+ * Bấm nền tối để đóng (khi cho phép), khoá cuộn trang khi mở.
+ */
+export function PopupClient({ trigger, triggerClass, triggerStyle, className, style, label, closeButton, closeOnOverlay, children, popupId, auto, autoDelay = 5, autoScroll = 50, onceDays = 0 }: {
+  popupId?: string; auto?: "none" | "delay" | "scroll" | "exit" | "idle"; autoDelay?: number; autoScroll?: number; onceDays?: number;
+  trigger: ReactNode; triggerClass: string; triggerStyle?: CSSProperties; className: string; style?: CSSProperties; label?: string; closeButton: boolean; closeOnOverlay: boolean; children: ReactNode;
+}) {
+  const dlg = useRef<HTMLDialogElement>(null);
+  const root = typeof document !== "undefined" ? document.documentElement : null;
+  const close = useCallback(() => dlg.current?.close(), []);
+  const onClose = useCallback(() => root?.classList.remove("ecx-popup-open"), [root]);
+  useEffect(() => () => root?.classList.remove("ecx-popup-open"), [root]);
+  const open = useCallback(() => { const d = dlg.current; if (d && !d.open) { d.showModal(); root?.classList.add("ecx-popup-open"); } }, [root]);
+  // Mở bằng liên kết #popup-<id> / phần tử data-popup-open="<id>" ở bất kỳ đâu, và khi địa chỉ trang có #popup-<id>
+  useEffect(() => {
+    if (!popupId) return;
+    const hash = `#popup-${popupId}`;
+    const onClick = (e: MouseEvent) => {
+      const el = (e.target as Element | null)?.closest?.(`a[href="${hash}"], [data-popup-open="${popupId}"]`);
+      if (el) { e.preventDefault(); open(); }
+    };
+    document.addEventListener("click", onClick);
+    if (location.hash === hash) open();
+    return () => document.removeEventListener("click", onClick);
+  }, [popupId, open]);
+  // Tự mở (một lần theo ngày nếu đặt): trễ / cuộn % / thoát trang / không hoạt động
+  useEffect(() => {
+    if (!auto || auto === "none") return;
+    const key = popupId ? `ecx-popup:${popupId}` : "";
+    if (key && onceDays > 0) { try { const t = Number(localStorage.getItem(key)); if (t && Date.now() - t < onceDays * 864e5) return; } catch { /* trình duyệt chặn lưu trữ: coi như chưa hiện */ } }
+    let done = false;
+    const fire = () => { if (done) return; done = true; open(); if (key && onceDays > 0) { try { localStorage.setItem(key, String(Date.now())); } catch { /* bỏ qua */ } } };
+    const off: Array<() => void> = [];
+    if (auto === "delay") { const t = setTimeout(fire, autoDelay * 1000); off.push(() => clearTimeout(t)); }
+    if (auto === "scroll") { const on = () => { const h = document.documentElement; const pct = ((h.scrollTop + window.innerHeight) / Math.max(1, h.scrollHeight)) * 100; if (pct >= autoScroll) fire(); }; window.addEventListener("scroll", on, { passive: true }); on(); off.push(() => window.removeEventListener("scroll", on)); }
+    if (auto === "exit") { const on = (e: MouseEvent) => { if (e.clientY <= 0 && !e.relatedTarget) fire(); }; document.addEventListener("mouseout", on); off.push(() => document.removeEventListener("mouseout", on)); }
+    if (auto === "idle") {
+      let t = setTimeout(fire, autoDelay * 1000);
+      const reset = () => { clearTimeout(t); t = setTimeout(fire, autoDelay * 1000); };
+      for (const ev of ["mousemove", "keydown", "scroll", "touchstart", "click"]) window.addEventListener(ev, reset, { passive: true });
+      off.push(() => { clearTimeout(t); for (const ev of ["mousemove", "keydown", "scroll", "touchstart", "click"]) window.removeEventListener(ev, reset); });
+    }
+    return () => off.forEach((f) => f());
+  }, [auto, autoDelay, autoScroll, onceDays, popupId, open]);
+  return (
+    <div className={className} style={style}>
+      {trigger !== null && trigger !== undefined && trigger !== "" && <button type="button" className={triggerClass} style={triggerStyle} aria-haspopup="dialog" onClick={(e) => { const d = dlg.current; if (d && !d.open) { e.currentTarget.focus(); /* Safari không lấy nét nút khi bấm chuột → đóng popup không có chỗ trả focus */ d.showModal(); root?.classList.add("ecx-popup-open"); } }}>{trigger}</button>}
+      <dialog ref={dlg} id={popupId ? `popup-${popupId}` : undefined} className="ecx-popup-dialog" aria-label={label || undefined} onClose={onClose} onClick={(e) => { if (closeOnOverlay && e.target === dlg.current) close(); }}>
+        {closeButton && <button type="button" className="ecx-popup-close" aria-label="×" onClick={close}><svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg></button>}
+        <div className="ecx-popup-body">{children}</div>
+      </dialog>
+    </div>
+  );
+}
+
+/**
+ * Chữ gõ ở cuối Tiêu đề: gõ từng ký tự, dừng, xoá, sang từ kế (lặp hoặc dừng ở từ cuối). HTML dựng sẵn là từ đầu tiên;
+ * người xem bật giảm chuyển động thì giữ nguyên từ đầu. Trình đọc màn hình đọc cả nhóm từ một lần (aria-label), không đọc từng ký tự.
+ */
+export function TypedText({ words, speed, pause, loop }: { words: string[]; speed: number; pause: number; loop: boolean }) {
+  const [text, setText] = useState(words[0] ?? "");
+  useEffect(() => {
+    if (words.length < 2 || (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+    let i = 0, len = words[0].length, deleting = true, stop = false;
+    let t: ReturnType<typeof setTimeout> = setTimeout(function tick() {
+      if (stop) return;
+      const w = words[i];
+      if (deleting) {
+        len--; setText(w.slice(0, Math.max(0, len)));
+        if (len <= 0) { deleting = false; i = (i + 1) % words.length; if (!loop && i === 0) { setText(words[words.length - 1]); return; } }
+        t = setTimeout(tick, speed / 2);
+      } else {
+        len++; setText(words[i].slice(0, len));
+        if (len >= words[i].length) { deleting = true; if (!loop && i === words.length - 1) return; t = setTimeout(tick, pause); return; }
+        t = setTimeout(tick, speed);
+      }
+    }, pause);
+    return () => { stop = true; clearTimeout(t); };
+  }, [words, speed, pause, loop]);
+  return <span className="ecx-typed" aria-label={words.join(", ")}><span aria-hidden="true">{text}</span></span>;
+}
+
+/** Video nền (Ảnh bìa): tự phát, tắt tiếng, lặp, không có điều khiển; người xem bật "giảm chuyển động" thì dừng và chỉ hiện ảnh (poster). */
+export function BgVideo({ src, poster, className, style }: { src: string; poster?: string; className?: string; style?: CSSProperties }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || typeof matchMedia !== "function") return;
+    const mq = matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => { if (mq.matches) v.pause(); else void v.play().catch(() => { /* trình duyệt chặn tự phát: giữ poster */ }); };
+    apply();
+    mq.addEventListener?.("change", apply);
+    return () => mq.removeEventListener?.("change", apply);
+  }, []);
+  return <video ref={ref} className={className} style={style} src={src} poster={poster} autoPlay muted loop playsInline preload="metadata" aria-hidden="true" tabIndex={-1} />;
+}
 
 /** Hàng cuộn ngang có nút trước / sau (Query dạng carousel): cuộn đúng một "trang" mỗi lần bấm, ẩn nút ở hai đầu. Không có JS vẫn vuốt / cuộn được. */
 export function ScrollRow({ children, arrows = true }: { children: ReactNode; arrows?: boolean }) {
@@ -604,14 +832,18 @@ export function NavDrawer({ label, closeLabel, children }: { label: string; clos
  * Thanh lọc của khối Query (GET): ô tìm, mục phân loại (liên kết tới trang mục / nút lọc / ô chọn), sắp xếp.
  * Giá trị lên URL dạng ?fq_s, ?fq_sort, ?fq_<phân loại>; khối Query bật "Nhận bộ lọc từ thanh lọc" đọc lại. Ô chọn tự gửi khi đổi.
  */
-export function QueryFilterBar({ action, taxonomy, termStyle, terms, currentTerm, values, showSearch, showSort, sorts, labels }: {
-  action: string; taxonomy?: string; termStyle: "none" | "links" | "chips" | "select"; terms: Array<{ slug: string; name: string; link: string }>; currentTerm?: string; values: Record<string, string>;
-  showSearch: boolean; showSort: boolean; sorts: Array<{ value: string; label: string }>; labels: { all: string; search: string; placeholder: string; submit: string; sort: string };
+export function QueryFilterBar({ action, taxonomy, termStyle, terms, currentTerm, values, showSearch, showSort, showYear, showReset, years, sorts, labels, range }: {
+  range?: { param: string; label?: string; max?: number };
+  action: string; taxonomy?: string; termStyle: "none" | "links" | "chips" | "select" | "checks"; terms: Array<{ slug: string; name: string; link: string }>; currentTerm?: string; values: Record<string, string>;
+  showSearch: boolean; showSort: boolean; showYear: boolean; showReset: boolean; years: number[]; sorts: Array<{ value: string; label: string }>; labels: { all: string; search: string; placeholder: string; submit: string; sort: string; year: string; reset: string; from?: string; to?: string };
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const termKey = taxonomy ? `fq_${taxonomy}` : "";
   const picked = termKey ? values[termKey] ?? "" : "";
   const submit = () => formRef.current?.requestSubmit();
+  // Checkbox nhiều lựa chọn: giữ tập đã chọn, gửi dạng ?fq_<phân loại>=a,b,c
+  const [checked, setChecked] = useState<string[]>(() => picked.split(",").map((x) => x.trim()).filter(Boolean));
+  const toggle = (slug: string) => setChecked((c) => (c.includes(slug) ? c.filter((x) => x !== slug) : [...c, slug]));
   return (
     <NextForm ref={formRef as never} action={action} className="ecx-query-filter" role="search">
       {termStyle === "links" && terms.length > 0 && (
@@ -626,12 +858,49 @@ export function QueryFilterBar({ action, taxonomy, termStyle, terms, currentTerm
           {terms.map((t) => <label key={t.slug} className={picked === t.slug ? "is-active" : undefined}><input type="radio" name={termKey} value={t.slug} defaultChecked={picked === t.slug} onChange={submit} />{t.name}</label>)}
         </fieldset>
       )}
+      {termStyle === "checks" && terms.length > 0 && (
+        <fieldset className="ecx-filter-terms is-checks"><legend className="ecx-visually-hidden">{taxonomy}</legend>
+          {terms.map((t) => <label key={t.slug} className={checked.includes(t.slug) ? "is-active" : undefined}><input type="checkbox" checked={checked.includes(t.slug)} onChange={() => { toggle(t.slug); setTimeout(submit, 0); }} />{t.name}</label>)}
+          <input type="hidden" name={termKey} value={checked.join(",")} />
+        </fieldset>
+      )}
+      {range && (
+        <fieldset className="ecx-filter-range"><legend>{range.label ?? ""}</legend>
+          <input type="number" inputMode="numeric" min={0} max={range.max} name={`fq_${range.param}_min`} defaultValue={values[`fq_${range.param}_min`] ?? ""} placeholder={labels.from ?? "Từ"} aria-label={`${range.label ?? range.param}: ${labels.from ?? "Từ"}`} />
+          <span aria-hidden="true">–</span>
+          <input type="number" inputMode="numeric" min={0} max={range.max} name={`fq_${range.param}_max`} defaultValue={values[`fq_${range.param}_max`] ?? ""} placeholder={labels.to ?? "Đến"} aria-label={`${range.label ?? range.param}: ${labels.to ?? "Đến"}`} />
+        </fieldset>
+      )}
       {termStyle === "select" && terms.length > 0 && (
         <select name={termKey} aria-label={taxonomy} defaultValue={picked} onChange={submit}><option value="">{labels.all}</option>{terms.map((t) => <option key={t.slug} value={t.slug}>{t.name}</option>)}</select>
       )}
       {showSearch && <input type="search" name="fq_s" defaultValue={values.fq_s ?? ""} placeholder={labels.placeholder} aria-label={labels.search} />}
       {showSort && sorts.length > 0 && <select name="fq_sort" aria-label={labels.sort} defaultValue={values.fq_sort ?? sorts[0].value} onChange={submit}>{sorts.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select>}
-      {(showSearch || termStyle === "chips") && <button type="submit">{labels.submit}</button>}
+      {showYear && years.length > 0 && <select name="fq_year" aria-label={labels.year} defaultValue={values.fq_year ?? ""} onChange={submit}><option value="">{labels.year}</option>{years.map((y) => <option key={y} value={y}>{y}</option>)}</select>}
+      {(showSearch || termStyle === "chips" || !!range) && <button type="submit">{labels.submit}</button>}
+      {showReset && (Object.keys(values).some((k) => k.startsWith("fq_")) || !!currentTerm) && <NextLink href={action} className="ecx-filter-reset">{labels.reset}</NextLink>}
     </NextForm>
+  );
+}
+
+/** Khối theo nhóm người xem: kiểm ở trình duyệt (trang vẫn cache được). Chưa biết người xem → ẩn; khớp nhóm → hiện. */
+export function AudienceGate({ audience, children }: { audience: "guest" | "user"; children: ReactNode }) {
+  const user = useCurrentUser();
+  const show = user !== undefined && (audience === "user") === !!user;
+  return <div className="ecx-aud" data-aud={audience} hidden={!show}>{children}</div>;
+}
+
+/** Gallery dạng thumbnail slider: ảnh lớn + dải ảnh nhỏ bấm / bàn phím (← → Home End) đổi ảnh lớn. */
+export function GalleryThumbsClient({ mains, thumbs, label }: { mains: ReactNode[]; thumbs: ReactNode[]; label?: string }) {
+  const [active, setActive] = useState(0);
+  const go = (n: number) => setActive(((n % mains.length) + mains.length) % mains.length);
+  return (
+    <div className="ecx-gallery-thumbs" aria-roledescription="carousel" aria-label={label}>
+      <div className="ecx-gt-main" role="tabpanel" aria-live="polite">{mains[active]}</div>
+      <div className="ecx-gt-strip" role="tablist" aria-label={label}
+        onKeyDown={(e) => { const k = e.key; if (k === "ArrowRight" || k === "ArrowDown") { e.preventDefault(); go(active + 1); } else if (k === "ArrowLeft" || k === "ArrowUp") { e.preventDefault(); go(active - 1); } else if (k === "Home") { e.preventDefault(); go(0); } else if (k === "End") { e.preventDefault(); go(mains.length - 1); } }}>
+        {thumbs.map((t, i) => <button key={i} type="button" role="tab" className="ecx-gt-thumb" aria-selected={i === active} tabIndex={i === active ? 0 : -1} aria-label={`${i + 1} / ${thumbs.length}`} onClick={() => setActive(i)}>{t}</button>)}
+      </div>
+    </div>
   );
 }

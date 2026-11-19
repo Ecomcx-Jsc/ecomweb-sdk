@@ -56,3 +56,20 @@ test("?fq_… còn lại chuyển cho plugin (extra), khoá lạ bị bỏ", () 
   assert.deepEqual(buildPostQuery({ urlFilters: true }, { data }).extra, { fq_price_min: "100000", fq_sale: "1" });
   assert.equal(buildPostQuery({}, { data }).extra, undefined);
 });
+
+test("thanh lọc: ?fq_year / ?fq_month thành year / month; năm sai bị bỏ; không rò sang extra", () => {
+  const b = (query: Record<string, string>) => buildPostQuery({ urlFilters: true }, { data: { query } as never });
+  const q = b({ fq_year: "2024", fq_month: "5" });
+  assert.deepEqual([q.year, q.month, q.extra], [2024, 5, undefined]);
+  const bad = b({ fq_year: "abc", fq_month: "13" });
+  assert.deepEqual([bad.year, bad.month], [undefined, undefined]);
+  assert.equal(b({ fq_year: "2024", fq_month: "13" }).month, undefined);
+});
+
+test("thanh lọc: ?fq_<phân loại>=a,b,c thành lọc nhiều mục (IN), mục hỏng bị bỏ, tối đa 10", () => {
+  const b = (query: Record<string, string>) => buildPostQuery({ urlFilters: true, taxonomy: "product_cat" }, { data: { query } as never });
+  const q = b({ fq_product_cat: "giay, dep ,<x>,tui" });
+  assert.deepEqual(q.taxQuery, [{ taxonomy: "product_cat", terms: ["giay", "dep", "tui"] }]);
+  assert.equal(b({ fq_product_cat: Array.from({ length: 15 }, (_, i) => `m${i}`).join(",") }).taxQuery?.[0].terms.length, 10);
+  assert.equal(b({ fq_product_cat: "<bad>" }).taxQuery, undefined);
+});

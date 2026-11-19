@@ -71,13 +71,17 @@ export function buildPostQuery(a: Attrs, env: { post?: Post | null; data?: Resol
   if (a.urlFilters === true) {
     if (url.fq_s?.trim()) q.search = url.fq_s.trim().slice(0, 100);
     if (SORTS[url.fq_sort]) { delete q.order; Object.assign(q, SORTS[url.fq_sort]); }
+    const yr = Math.floor(Number(url.fq_year)), mo = Math.floor(Number(url.fq_month));
+    if (yr >= 1990 && yr <= 2100) { q.year = yr; if (mo >= 1 && mo <= 12) q.month = mo; }
     const tn = taxonomy;
-    if (tn && SLUG.test(url[`fq_${tn}`] ?? "")) tax.push({ taxonomy: tn, terms: [url[`fq_${tn}`]] });
+    // ?fq_<phân loại>=a hoặc a,b,c (checkbox nhiều lựa chọn = bất kỳ mục nào)
+    const picked = tn ? slugs(url[`fq_${tn}`]).slice(0, 10) : [];
+    if (tn && picked.length) tax.push({ taxonomy: tn, terms: picked });
   }
   if (tax.length) q.taxQuery = tax;
   // Mọi ?fq_… còn lại chuyển cho plugin đọc (vd giá, giảm giá, còn hàng của plugin bán hàng)
   if (a.urlFilters === true) {
-    const extra = Object.fromEntries(Object.entries(url).filter(([k, v]) => /^fq_[a-z0-9_-]{1,40}$/i.test(k) && typeof v === "string" && v.length <= 100 && k !== "fq_s"));
+    const extra = Object.fromEntries(Object.entries(url).filter(([k, v]) => /^fq_[a-z0-9_-]{1,40}$/i.test(k) && typeof v === "string" && v.length <= 100 && k !== "fq_s" && k !== "fq_year" && k !== "fq_month"));
     if (Object.keys(extra).length) q.extra = extra;
   }
   return q;

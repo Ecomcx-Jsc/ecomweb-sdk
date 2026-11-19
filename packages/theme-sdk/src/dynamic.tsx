@@ -225,12 +225,12 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
     }
     case "queryFilter": {
       const taxonomy = /^[a-z0-9_-]{1,64}$/i.test(String(a.taxonomy ?? "")) ? String(a.taxonomy) : undefined;
-      const style = ["none", "links", "chips", "select"].includes(a.termStyle) ? a.termStyle : "links";
+      const style = ["none", "links", "chips", "select", "checks"].includes(a.termStyle) ? a.termStyle : "links";
       const [t, terms] = await Promise.all([getT(), taxonomy && style !== "none" ? getTerms({ taxonomy, hideEmpty: true }).catch(() => []) : Promise.resolve([])]);
       const sorts = String(a.sortOptions ?? "date_desc,date_asc,title_asc,title_desc").split(",").map((x) => x.trim()).filter((x) => SORTS[x]);
       return <QueryFilterBar key={key} action={String(a.action || ctx.data?.basePath || "/")} taxonomy={taxonomy} termStyle={style} terms={terms.map((x) => ({ slug: x.slug, name: x.name, link: x.link }))}
-        currentTerm={ctx.data?.term?.slug} values={ctx.data?.query ?? {}} showSearch={a.showSearch === true} showSort={a.showSort === true} sorts={sorts.map((x) => ({ value: x, label: t(`filter.sort.${x}`) }))}
-        labels={{ all: String(a.allLabel || t("filter.all")), search: t("search.label"), placeholder: String(a.placeholder || t("filter.search")), submit: String(a.submitText || t("filter.apply")), sort: t("filter.sort") }} />;
+        currentTerm={ctx.data?.term?.slug} values={ctx.data?.query ?? {}} showSearch={a.showSearch === true} showSort={a.showSort === true} range={a.showRange === true && /^[a-z][a-z0-9_]{0,30}$/.test(String(a.rangeParam ?? "")) ? { param: String(a.rangeParam), label: a.rangeLabel ? String(a.rangeLabel) : undefined, max: Number(a.rangeMax) > 0 ? Number(a.rangeMax) : undefined } : undefined} showYear={a.showYear === true} showReset={a.showReset === true} years={a.showYear === true ? Array.from({ length: 8 }, (_, i) => new Date().getUTCFullYear() - i) : []} sorts={sorts.map((x) => ({ value: x, label: t(`filter.sort.${x}`) }))}
+        labels={{ all: String(a.allLabel || t("filter.all")), search: t("search.label"), placeholder: String(a.placeholder || t("filter.search")), submit: String(a.submitText || t("filter.apply")), sort: t("filter.sort"), year: t("filter.year"), reset: t("filter.reset"), from: t("filter.from"), to: t("filter.to") }} />;
     }
     case "postTemplate": {
       const posts = ctx.query?.posts ?? [];

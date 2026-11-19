@@ -364,8 +364,13 @@ test("tabs: mọi panel có trong HTML (SEO), tab đầu hiện; carousel snap; 
   assert.match(tabs, /nội dung 1/); assert.match(tabs, /nội dung 2/);
   assert.equal((tabs.match(/<div[^>]*role="tabpanel"[^>]*hidden/g) ?? []).length, 1);
   const car = await html({ type: "doc", content: [{ type: "carousel", attrs: { slidesPerView: 2 }, content: [para("a"), para("b"), para("c")] }] });
-  assert.match(car, /scroll-snap-type:x mandatory/);
+  assert.match(car, /class="ecx-carousel-track"/); // cuộn bám mép: CSS của style.css (.ecx-carousel-track)
+  assert.match(car, /--ecx-per:2;--ecx-per-t:2;--ecx-per-m:1/); // 2 slide máy tính, tablet 2, điện thoại 1
   assert.equal((car.match(/ecx-carousel-slide/g) ?? []).length, 3);
+  assert.equal((car.match(/ecx-carousel-arrow/g) ?? []).length, 2); // nút trước / sau
+  assert.equal((car.match(/class="ecx-carousel-dot"/g) ?? []).length, 2); // 3 slide, thấy 2 → 2 vị trí
+  const plain = await html({ type: "doc", content: [{ type: "carousel", attrs: { arrows: false, dots: false }, content: [para("a"), para("b")] }] });
+  assert.doesNotMatch(plain, /ecx-carousel-arrow|ecx-carousel-dot/);
   const sc = await html({ type: "doc", content: [{ type: "shortcode", attrs: { name: "hello", args: { name: "A" } } }] });
   assert.match(sc, /hello A/);
   assert.equal(await html({ type: "doc", content: [{ type: "shortcode", attrs: { name: "x<script>" } }] }), "");
@@ -585,7 +590,7 @@ test("khối icon: độ dày nét, khung tròn có đệm theo cỡ, liên kế
   const icon = (attrs: Record<string, unknown>) => ({ type: "doc", content: [{ type: "icon", attrs }] });
   const out = await html(icon({ name: "heart", size: 40, stroke: 1.5, iconStyle: "circle", href: "/lien-he", linkTarget: "_blank" }), ctx());
   assert.match(out, /<a[^>]*class="ecx-icon-shape is-circle"[^>]*>/, out);
-  assert.ok(out.includes('href="/lien-he"') && out.includes('rel="noopener noreferrer"') && out.includes("padding:16px") && out.includes('stroke-width="1.5"'), out);
+  assert.ok(out.includes('href="/lien-he"') && out.includes('rel="noopener noreferrer"') && out.includes("--ecx-icon-pad-auto:16px") && out.includes('stroke-width="1.5"'), out);
   const bad = await html(icon({ name: "star", href: "javascript:alert(1)" }), ctx());
   assert.ok(!bad.includes("<a") && bad.includes('<span class="ecx-icon-shape"') && bad.includes('stroke-width="2"'), bad);
 });
@@ -743,10 +748,191 @@ test("icon cạnh chữ: tiêu đề / đoạn ra class + biến mặt nạ + ti
   const doc = { type: "doc", content: [
     { type: "tableOfContents", attrs: {} },
     { type: "heading", attrs: { level: 2, icon: "star", iconPosition: "right", iconTitle: "Nổi bật", tocTitle: "Mục nổi bật" }, content: [{ type: "text", text: "Tiêu đề dài" }] },
-    { type: "paragraph", attrs: { icon: "rocket" }, content: [{ type: "text", text: "Đoạn" }] }] };
+    { type: "paragraph", attrs: { icon: "khong-co-icon-nay" }, content: [{ type: "text", text: "Đoạn" }] }] };
   const out = await html(doc, ctx());
   assert.match(out, /<h2[^>]*class="ecx-has-icon ecx-icon-right"[^>]*title="Nổi bật"/);
   assert.ok(out.includes("--ecx-text-icon:url(") || out.includes("--ecx-text-icon: url("), out);
   assert.ok(out.includes("Mục nổi bật"), out);
   assert.ok(!/<p[^>]*ecx-has-icon/.test(out), out);
+});
+
+test("ảnh phủ chữ: lớp màu, chữ trượt lên, liên kết phủ cả khối (không lồng <a>), tab mới có rel an toàn", async () => {
+  const out = await html({ type: "doc", content: [{ type: "imageOverlay", attrs: { src: "https://x.test/a.jpg", alt: "A", title: "Bộ sưu tập", subtitle: "Xem ngay", href: "/shop", linkTarget: "_blank", imageEffect: "grayscale", ratio: "16/9", overlayColor: "#1a597b" } }] });
+  assert.match(out, /class="ecx-image-overlay is-fx-grayscale has-ratio has-frame is-h-center is-v-center"/, out);
+  assert.ok(out.includes("--ecx-ov-ratio:16/9") && out.includes("--ecx-ov-hover:0.6"), out);
+  assert.ok(out.includes('<span aria-hidden="true" class="ecx-image-overlay-tint"></span>'), out);
+  assert.match(out, /<h3 class="ecx-image-overlay-title"><span>Bộ sưu tập<\/span><\/h3>/, out);
+  assert.match(out, /<a href="\/shop" class="ecx-image-overlay-link" target="_blank" rel="noopener noreferrer" aria-label="Bộ sưu tập"><\/a>/, out);
+  assert.equal(out.match(/<a /g)?.length, 1, out);
+  const bad = await html({ type: "doc", content: [{ type: "imageOverlay", attrs: { title: "T", href: "javascript:alert(1)" } }] });
+  assert.ok(!bad.includes("javascript:") && !bad.includes("ecx-image-overlay-link"), bad);
+});
+
+test("testimonials: lưới có biến cột từng khổ; dạng slider có vùng slide + nút; rỗng thì không vẽ", async () => {
+  const items = [{ type: "testimonial", attrs: { quote: "Tốt", name: "Lan" } }, { type: "testimonial", attrs: { quote: "Rất tốt", name: "Hà" } }];
+  const grid = await html({ type: "doc", content: [{ type: "testimonials", attrs: { columns: 2 }, content: items }] });
+  assert.match(grid, /<div class="ecx-testimonials" style="--ecx-per:2;--ecx-per-t:2;--ecx-per-m:1;--ecx-gap:1.5rem">/, grid);
+  assert.equal(grid.match(/<figure class="ecx-testimonial"/g)?.length, 2, grid);
+  const car = await html({ type: "doc", content: [{ type: "testimonials", attrs: { layout: "carousel", columns: 1, autoplay: true }, content: items }] });
+  assert.ok(car.includes("ecx-carousel") && car.includes('aria-label="1 / 2"') && car.includes("ecx-carousel-arrow") && !car.includes("ecx-testimonials\""), car);
+  assert.equal((await html({ type: "doc", content: [{ type: "testimonials", attrs: {} }] })).includes("ecx-testimonials"), false);
+});
+
+test("popup: nút mở + hộp thoại chứa nội dung sẵn trong HTML, nút đóng có nhãn, giá trị lạ về mặc định", async () => {
+  const out = await html({ type: "doc", content: [{ type: "popup", attrs: { triggerText: "Xem chi tiết", size: "lg", anim: "zoom", overlayOpacity: 40 }, content: [{ type: "heading", attrs: { level: 3 }, content: [{ type: "text", text: "Tiêu đề popup" }] }] }] });
+  assert.match(out, /class="ecx-popup is-size-lg is-anim-zoom is-valign-center is-align-left"/, out);
+  assert.ok(out.includes("--ecx-popup-dim:0.4"), out);
+  assert.match(out, /<button type="button" class="ecx-popup-trigger ecx-button[^"]*"[^>]*aria-haspopup="dialog">Xem chi tiết<\/button>/, out);
+  assert.match(out, /<dialog class="ecx-popup-dialog" aria-label="Xem chi tiết">/, out);
+  assert.match(out, /<button type="button" class="ecx-popup-close" aria-label="×">/, out);
+  assert.ok(out.includes("Tiêu đề popup"), out); // nội dung nằm sẵn trong HTML (SEO), ẩn bằng <dialog> tới khi mở
+  const link = await html({ type: "doc", content: [{ type: "popup", attrs: { triggerText: "Mở", triggerStyle: "link", size: "evil;x", closeButton: false } }] });
+  assert.match(link, /class="ecx-popup-trigger is-link"/, link); assert.ok(link.includes("is-size-md") && !link.includes("ecx-popup-close"), link);
+  assert.equal((await html({ type: "doc", content: [{ type: "popup", attrs: {} }] })).includes("ecx-popup"), false); // không có chữ nút thì không vẽ (không có cách mở)
+});
+
+test("gallery dạng slider: mỗi ảnh một slide, số ảnh thấy cùng lúc theo cột, có nút + chấm; một ảnh thì vẫn là lưới", async () => {
+  const images = [1, 2, 3].map((n) => ({ src: `https://x.test/${n}.jpg`, alt: `Ảnh ${n}` }));
+  const out = await html({ type: "doc", content: [{ type: "gallery", attrs: { layout: "slider", columns: 2, images, autoplay: true } }] });
+  assert.ok(out.includes("ecx-gallery cms-gallery is-slider") && out.includes("ecx-carousel") && out.includes("--ecx-per:2") && out.includes('aria-label="3 / 3"') && out.includes("ecx-carousel-arrow"), out);
+  assert.equal(out.match(/<img /g)?.length, 3, out);
+  const one = await html({ type: "doc", content: [{ type: "gallery", attrs: { layout: "slider", images: images.slice(0, 1) } }] });
+  assert.ok(!one.includes("ecx-carousel") && one.includes("ecx-gallery"), one);
+});
+
+test("đếm ngược evergreen: HTML dựng sẵn hiện đủ thời lượng (không phụ thuộc ngày); hành động hết giờ 'hide' / 'redirect' hợp lệ", async () => {
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = (async (u: RequestInfo | URL) => new Response(JSON.stringify(/\/site\b/.test(String(u)) ? { title: "Test", language: "vi", locale: "vi", url: "https://example.com", activePlugins: [], activeTheme: null } : { items: [], total: 0 }), { headers: { "content-type": "application/json" } })) as typeof fetch;
+  try {
+  const ev = await html({ type: "doc", content: [{ type: "countdown", attrs: { mode: "evergreen", evergreenHours: 2, evergreenMinutes: 30, label: "Ưu đãi" } }] });
+  assert.ok(ev.includes("ecx-countdown") && ev.includes("<strong>00</strong>") && ev.includes("<strong>02</strong>") && ev.includes("<strong>30</strong>"), ev); // 0 ngày 02 giờ 30 phút
+  const none = await html({ type: "doc", content: [{ type: "countdown", attrs: { mode: "evergreen" } }] });
+  assert.equal(none.includes("ecx-countdown"), false, none); // evergreen không có thời lượng và không có ngày → không vẽ
+  const future = new Date(Date.now() + 5 * 864e5).toISOString().slice(0, 16);
+  const pause = await html({ type: "doc", content: [{ type: "countdown", attrs: { target: future, pauseButton: true, expireAction: "redirect", redirectUrl: "javascript:alert(1)" } }] });
+  assert.ok(pause.includes("ecx-countdown") && !pause.includes("javascript:"), pause);
+  } finally { globalThis.fetch = origFetch; }
+});
+
+test("thanh tiến độ tròn / bán nguyệt: SVG có nét theo phần trăm, aria progressbar, không dùng thanh", async () => {
+  const c = await html({ type: "doc", content: [{ type: "progressBar", attrs: { shape: "circle", label: "Kỹ năng", value: 72 } }] });
+  assert.ok(c.includes("ecx-progress ecx-in is-circle") || /class="ecx-progress is-circle[^"]*"/.test(c), c);
+  assert.ok(c.includes('role="progressbar"') && c.includes('aria-valuenow="72"') && c.includes('pathLength="100"') && c.includes('stroke-dasharray="72 100"') && c.includes("72%") && !c.includes("ecx-progress-track"), c);
+  const h = await html({ type: "doc", content: [{ type: "progressBar", attrs: { shape: "half", value: 40 } }] });
+  assert.ok(h.includes('viewBox="0 0 100 55"') && h.includes('stroke-dasharray="40 100"'), h);
+});
+
+test("ảnh: tỉ lệ khung đặt class + biến CSS lên chính thẻ <img>; không đặt thì không thêm", async () => {
+  const fx = await html({ type: "doc", content: [{ type: "image", attrs: { src: "https://x.test/a.jpg", alt: "A", ratio: "16/9" } }] });
+  assert.ok(fx.includes('class="has-ratio"') && fx.includes("--ecx-img-ratio:16/9"), fx);
+  const plain = await html({ type: "doc", content: [{ type: "image", attrs: { src: "https://x.test/a.jpg", alt: "A" } }] });
+  assert.ok(!plain.includes("class=") && !plain.includes("--ecx-img-ratio"), plain);
+});
+
+test("CSS riêng của khối: ra <style> trong phạm vi class của khối; mã nguy hiểm và bộ chọn ngoài khối bị bỏ", async () => {
+  const out = await html({ type: "doc", content: [{ type: "paragraph", attrs: { style: { customCss: "selector:hover { opacity: .8 } body { display:none } selector { width: expression(alert(1)); color: red }" } }, content: [{ type: "text", text: "Chữ" }] }] });
+  assert.match(out, /\.ecx-s-[a-z0-9]+\.ecx-s-[a-z0-9]+:hover\{opacity:\.8\}/, out);
+  assert.match(out, /\{color:red\}/, out);
+  assert.ok(!out.includes("expression") && !out.includes("display:none"), out);
+});
+
+test("lịch hiển thị: khối ngoài [from, until) không được vẽ; trong lịch hoặc không đặt thì vẽ; khối con theo khối cha", async () => {
+  const p = (style: unknown) => ({ type: "paragraph", attrs: style ? { style } : {}, content: [{ type: "text", text: "Khuyến mãi" }] });
+  const past = new Date(Date.now() - 864e5).toISOString(), future = new Date(Date.now() + 864e5).toISOString(), far = new Date(Date.now() + 3 * 864e5).toISOString();
+  assert.ok((await html({ type: "doc", content: [p(undefined)] })).includes("Khuyến mãi"));
+  assert.ok((await html({ type: "doc", content: [p({ schedule: { from: past, until: future } })] })).includes("Khuyến mãi"));
+  assert.ok(!(await html({ type: "doc", content: [p({ schedule: { from: future, until: far } })] })).includes("Khuyến mãi")); // chưa tới
+  assert.ok(!(await html({ type: "doc", content: [p({ schedule: { until: past } })] })).includes("Khuyến mãi")); // đã hết hạn
+  const grp = await html({ type: "doc", content: [{ type: "group", attrs: { style: { schedule: { until: past } } }, content: [p(undefined)] }, p(undefined)] });
+  assert.equal(grp.match(/Khuyến mãi/g)?.length, 1, grp); // nhóm hết hạn kéo theo con; đoạn ngoài vẫn hiện
+});
+
+test("nhóm người xem: khối được bọc cổng ẩn sẵn (hiện sau khi biết người xem), khối thường không bọc", async () => {
+  const p = (style: unknown) => ({ type: "paragraph", attrs: style ? { style } : {}, content: [{ type: "text", text: "Ưu đãi" }] });
+  const g = await html({ type: "doc", content: [p({ audience: "user" })] });
+  assert.match(g, /class="ecx-aud"[^>]*data-aud="user"|data-aud="user"[^>]*class="ecx-aud"/, g);
+  assert.ok(g.includes("hidden") && g.includes("Ưu đãi"), g); // nội dung vẫn trong HTML (chỉ ẩn ở trình duyệt)
+  assert.ok(!(await html({ type: "doc", content: [p({ color: "red" })] })).includes("ecx-aud"));
+});
+
+test("Ảnh bìa có video nền: <video> tự phát tắt tiếng lặp, ảnh làm poster; địa chỉ lạ không ra video và vẫn dùng ảnh", async () => {
+  const ok = await html({ type: "doc", content: [{ type: "cover", attrs: { src: "/uploads/poster.jpg", videoSrc: "/uploads/hero.mp4" }, content: [{ type: "paragraph", content: [{ type: "text", text: "Chào" }] }] }] });
+  assert.ok(ok.includes('<video class="ecx-cover-video"') && ok.includes('src="/uploads/hero.mp4"') && ok.includes('poster="/uploads/poster.jpg"') && /autoPlay|autoplay/i.test(ok) && ok.includes("muted") && ok.includes("loop") && /playsinline/i.test(ok) && !ok.includes("ecx-cover-img"), ok);
+  const bad = await html({ type: "doc", content: [{ type: "cover", attrs: { src: "/uploads/poster.jpg", videoSrc: "javascript:alert(1)" }, content: [] }] });
+  assert.ok(!bad.includes("<video") && bad.includes("ecx-cover-img") && !bad.includes("javascript:"), bad);
+});
+
+test("nút: tooltip thành thuộc tính title của liên kết; không đặt thì không có title", async () => {
+  const withTip = await html({ type: "doc", content: [{ type: "button", attrs: { text: "Mua", href: "/mua", tooltip: "Giao trong 24 giờ" } }] });
+  assert.ok(/<a [^>]*title="Giao trong 24 giờ"/.test(withTip), withTip);
+  const without = await html({ type: "doc", content: [{ type: "button", attrs: { text: "Mua", href: "/mua" } }] });
+  assert.ok(!without.includes("title="), without);
+});
+
+test("tiêu đề có chữ gõ: HTML dựng sẵn có từ đầu tiên + nhãn đọc màn hình đủ các từ; không đặt thì không có", async () => {
+  const out = await html({ type: "doc", content: [{ type: "heading", attrs: { level: 2, typedWords: "website | ứng dụng | thương hiệu" }, content: [{ type: "text", text: "Chúng tôi làm" }] }] });
+  assert.match(out, /Chúng tôi làm <span class="ecx-typed" aria-label="website, ứng dụng, thương hiệu"><span aria-hidden="true">website<\/span><\/span>/, out);
+  const plain = await html({ type: "doc", content: [{ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Chúng tôi làm" }] }] });
+  assert.ok(!plain.includes("ecx-typed"), plain);
+});
+
+test("nhóm / Section có liên kết cả khối: liên kết phủ (không lồng <a>), tab mới có rel an toàn, địa chỉ nguy hiểm bị bỏ", async () => {
+  const kids = [{ type: "paragraph", content: [{ type: "text", text: "Thẻ" }] }];
+  const out = await html({ type: "doc", content: [{ type: "group", attrs: { href: "/bo-suu-tap", linkTarget: "_blank", linkLabel: "Xem bộ sưu tập" }, content: kids }] }, ctx());
+  assert.ok(/position:relative/.test(out) && out.includes('class="ecx-overlay-link"') && out.includes('href="/bo-suu-tap"') && out.includes('rel="noopener noreferrer"') && out.includes('aria-label="Xem bộ sưu tập"'), out);
+  const bad = await html({ type: "doc", content: [{ type: "group", attrs: { href: "javascript:alert(1)" }, content: kids }] }, ctx());
+  assert.ok(!bad.includes("javascript:") && !bad.includes("ecx-overlay-link") && !bad.includes("position:relative"), bad);
+});
+
+test("Xem thêm: Section có collapseHeight hợp lệ được bọc ô tick + nút; giá trị lạ bị bỏ; không đặt thì không bọc", async () => {
+  const g = (a: object) => ({ type: "doc", content: [{ type: "group", attrs: a, content: [{ type: "paragraph", content: [{ type: "text", text: "Nội dung dài" }] }] }] });
+  const ok = await html(g({ collapseHeight: "10rem", moreText: "Đọc tiếp", lessText: "Ẩn bớt" }));
+  assert.ok(ok.includes("ecx-sm-in") && ok.includes("--ecx-sm-h:10rem") && ok.includes("Đọc tiếp") && ok.includes("Ẩn bớt") && ok.includes("Nội dung dài"), ok);
+  assert.ok(!(await html(g({ collapseHeight: "url(x)" }))).includes("ecx-sm"));
+  assert.ok(!(await html(g({}))).includes("ecx-sm"));
+});
+
+test("Video Popup: popup kiểu play vẽ nút khung 16:9 có ảnh bìa và chữ ẩn cho trình đọc màn hình; ảnh lạ bị bỏ", async () => {
+  const pop = (a: object) => ({ type: "doc", content: [{ type: "popup", attrs: { triggerText: "Xem video", triggerStyle: "play", ...a }, content: [{ type: "paragraph", content: [{ type: "text", text: "Video ở đây" }] }] }] });
+  const ok = await html(pop({ triggerImage: "/uploads/cover.jpg" }));
+  assert.ok(ok.includes("is-play") && ok.includes("cover.jpg") && ok.includes("ecx-visually-hidden") && ok.includes("Xem video"), ok);
+  assert.ok(!(await html(pop({ triggerImage: "javascript:alert(1)" }))).includes("javascript:"));
+});
+
+test("icon: tên trong thư viện lớn và SVG riêng đều vẽ được; SVG giả mạo bị lọc; tab nhận icon SVG riêng", async () => {
+  const doc = (n: unknown) => ({ type: "doc", content: [n] });
+  const lib = await html(doc({ type: "icon", attrs: { name: "shopping-cart", size: 32 } }));
+  assert.ok(lib.includes("<svg") && lib.includes('width="32"') && lib.includes("<path"), lib);
+  const custom = await html(doc({ type: "icon", attrs: { name: 'svg:<svg viewBox="0 0 512 512"><path fill="red" d="M0 0L512 512"/><script>alert(1)</script></svg>' } }));
+  assert.ok(custom.includes('viewBox="0 0 512 512"') && custom.includes('fill="currentColor"') && !custom.includes("script") && !custom.includes("red"), custom);
+  assert.equal(await html(doc({ type: "icon", attrs: { name: "khong-ton-tai" } })), "");
+  const tabs = await html(doc({ type: "tabs", content: [{ type: "tab", attrs: { title: "A", icon: "rocket" }, content: [{ type: "paragraph" }] }, { type: "tab", attrs: { title: "B", icon: 'svg:<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>' }, content: [{ type: "paragraph" }] }] }));
+  assert.equal((tabs.match(/class="ecx-tab-icon"/g) ?? []).length, 2, tabs);
+});
+
+test("gallery: thumbs = ảnh lớn + dải ảnh nhỏ (tablist); tiles có class; chú thích rê chuột có class", async () => {
+  const imgs = [1, 2, 3].map((i) => ({ src: `/uploads/${i}.jpg`, alt: `Ảnh ${i}`, caption: `Chú thích ${i}` }));
+  const doc = (a: object) => ({ type: "doc", content: [{ type: "gallery", attrs: { images: imgs, ...a } }] });
+  const th = await html(doc({ layout: "thumbs" }));
+  assert.ok(th.includes("ecx-gallery-thumbs") && th.includes('role="tablist"') && (th.match(/role="tab"/g) ?? []).length === 3, th);
+  assert.ok(th.includes("Chú thích 1") && !th.includes("Chú thích 2"), th); // chỉ ảnh lớn đang chọn hiện đầy đủ
+  const ti = await html(doc({ layout: "tiles", columns: 4, captionStyle: "hover" }));
+  assert.ok(ti.includes("is-tiles") && ti.includes("is-cap-hover"), ti);
+});
+
+test("video nền của Section / Row / Column: <video> tự phát tắt tiếng lặp nằm dưới nội dung; địa chỉ lạ không ra video", async () => {
+  const v = (url: string) => ({ type: "doc", content: [{ type: "group", attrs: { style: { background: { video: url } } }, content: [{ type: "columns", attrs: { style: { background: { video: "/uploads/r.webm" } } }, content: [{ type: "column", attrs: { style: { background: { video: "/uploads/c.mp4" } } }, content: [{ type: "paragraph", content: [{ type: "text", text: "Nội dung" }] }] }] }] }] });
+  const ok = await html(v("/uploads/g.mp4"));
+  assert.equal((ok.match(/class="ecx-bg-video"/g) ?? []).length, 3, ok);
+  assert.ok(ok.includes("/uploads/g.mp4") && ok.includes("Nội dung") && /autoPlay|autoplay/i.test(ok) && ok.includes("muted") && ok.includes("loop"), ok);
+  assert.equal((await html(v("javascript:alert(1)"))).match(/class="ecx-bg-video"/g)?.length, 2); // chỉ Row + Column hợp lệ
+});
+
+test("Show More: tuỳ chọn tắt mờ dần / ẩn nút sau khi mở thành class; heading dùng thẻ khác ra đúng thẻ", async () => {
+  const g = (a: object) => ({ type: "doc", content: [{ type: "group", attrs: { collapseHeight: "8rem", ...a }, content: [{ type: "paragraph", content: [{ type: "text", text: "Dài" }] }] }] });
+  const out = await html(g({ collapseFade: false, collapseOnce: true }));
+  assert.ok(out.includes("ecx-sm is-nofade is-once"), out);
+  assert.ok(!(await html(g({}))).includes("is-nofade"));
+  const h = await html({ type: "doc", content: [{ type: "heading", attrs: { level: 2, htmlTag: "p" }, content: [{ type: "text", text: "Không phải h2" }] }] });
+  assert.ok(h.includes("<p") && !h.includes("<h2") && h.includes("Không phải h2"), h);
 });
