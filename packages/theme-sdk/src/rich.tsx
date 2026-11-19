@@ -1,11 +1,11 @@
 import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { ICON_LIBRARY } from "@ecomcx/ecomweb-content/icon-library";
 import { iconSvg } from "./icon-svg";
-import { BINDING_URL_ATTRS, CORE_BINDABLE, registerIconLibrary, tableClass, blockBgVideo, typedConfig, coverVideo, scheduleVisible, normalizeStyle, imageFx, countdownRules, testimonialsConfig, testimonialsVars, popupClass, popupConfig, popupPlayStyle, popupVars, carouselConfig, DYNAMIC_NODES, countdownTarget, nodeText, buttonIcon, widgetMarkup, tabsClass, formSizeClass, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { lottieConfig, BINDING_URL_ATTRS, CORE_BINDABLE, registerIconLibrary, tableClass, blockBgVideo, typedConfig, coverVideo, scheduleVisible, normalizeStyle, imageFx, countdownRules, testimonialsConfig, testimonialsVars, popupClass, popupConfig, popupPlayStyle, popupVars, carouselConfig, DYNAMIC_NODES, countdownTarget, nodeText, buttonIcon, widgetMarkup, tabsClass, formSizeClass, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site, BlockAsset } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
-import { GalleryThumbsClient, AudienceGate, TypedText, BgVideo, PopupClient, CarouselClient, CountdownClient, FormBlockClient, LightboxClient, Link, TabsClient, TocSpy } from "./client";
+import { GalleryThumbsClient, AudienceGate, TypedText, BgVideo, PopupClient, LottieClient, CarouselClient, CountdownClient, FormBlockClient, LightboxClient, Link, TabsClient, TocSpy } from "./client";
 import { CounterClient } from "./counter-client";
 import { AssetScript } from "./browser";
 import { getT } from "./i18n";
@@ -600,6 +600,18 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
         return <CarouselClient key={key} count={items.length} config={c.carousel}>{slides}</CarouselClient>;
       }
       return <div key={key} className="ecx-testimonials" style={testimonialsVars(c) as CSSProperties}>{await children()}</div>;
+    }
+    case "lottie": {
+      // Hoạt ảnh Lottie: poster hiện ngay từ máy chủ; thư viện (tuỳ chọn) nạp phía trình duyệt — thiếu thư viện / tệp lỗi thì chỉ hiện poster
+      const c = lottieConfig(a);
+      const src = c.kind ? safeUrl(c.src, "") : "";
+      const poster = safeUrl(c.poster, "");
+      if (!src && !poster) return null;
+      const style: Record<string, string> = {};
+      if (c.height) style.height = `${c.height}px`;
+      if (c.maxWidth) style.maxWidth = `${c.maxWidth}px`;
+      return <LottieClient key={key} src={src} poster={poster || undefined} label={c.label} loop={c.loop} autoplay={c.autoplay} speed={c.speed} trigger={c.trigger}
+        className={cx("ecx-lottie", `is-align-${c.align}`)} style={style as CSSProperties} />;
     }
     case "popup": {
       // Nút mở (kiểu như khối Nút) + hộp thoại; không có chữ nút thì không vẽ gì (không có cách mở)

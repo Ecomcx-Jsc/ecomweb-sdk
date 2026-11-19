@@ -965,3 +965,17 @@ test("1.32 mẫu đồng bộ sửa riêng vài ô: khối có overrideKey đổ
   assert.match(custom, /Tiêu đề riêng/); assert.doesNotMatch(custom, /Tiêu đề mẫu/); assert.match(custom, /Đoạn của mẫu/);
   assert.match(await html(use({ "tieu-de": { content: "<script>x</script>" } }), c), /&lt;script&gt;/); // chữ thường, không HTML
 });
+
+test("lottie: poster có sẵn trong HTML, canvas cho thư viện; thiếu poster + tệp lạ thì không vẽ gì; URL nguy hiểm bị bỏ", async () => {
+  const out = await html({ type: "doc", content: [{ type: "lottie", attrs: { src: "/uploads/a.lottie", poster: "/uploads/a.png", label: "Xe tải chạy", trigger: "hover", height: 200, maxWidth: 400, align: "left" } }] });
+  assert.match(out, /class="ecx-lottie is-align-left"/, out);
+  assert.match(out, /data-trigger="hover"/, out);
+  assert.match(out, /role="img" aria-label="Xe tải chạy"/, out);
+  assert.ok(out.includes('<img class="ecx-lottie-poster" src="/uploads/a.png"'), out);
+  assert.ok(out.includes("<canvas") && out.includes("height:200px") && out.includes("max-width:400px"), out);
+  // đuôi lạ + không poster → không có gì để hiện
+  assert.equal(await html({ type: "doc", content: [{ type: "lottie", attrs: { src: "/a.gif" } }] }), "");
+  // src nguy hiểm không lọt vào HTML (không .lottie / .json → chỉ còn poster)
+  const bad = await html({ type: "doc", content: [{ type: "lottie", attrs: { src: "javascript:alert(1).json", poster: "/p.png" } }] });
+  assert.ok(!bad.includes("javascript:"), bad);
+});

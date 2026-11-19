@@ -904,3 +904,80 @@ export function GalleryThumbsClient({ mains, thumbs, label }: { mains: ReactNode
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Lottie (khối "lottie", content ≥ 1.29): thư viện @lottiefiles/dotlottie-web là TUỲ CHỌN
+// ---------------------------------------------------------------------------
+
+/** Nơi website phục vụ thư viện (route /ecx-lottie của core); không có thư viện → 404 → khối chỉ hiện poster. */
+export const LOTTIE_BASE = "/ecx-lottie";
+type DotLottieCtor = new (cfg: Record<string, unknown>) => { play(): void; pause(): void; destroy(): void; addEventListener(ev: string, fn: () => void): void; isPlaying?: boolean };
+type DotLottieModule = { DotLottie: DotLottieCtor & { setWasmUrl?(url: string): void } };
+
+/**
+ * Nạp thư viện một lần cho cả trang, từ cùng nguồn (CSP 'self') chứ không gộp vào gói của website — nên gỡ thư viện đi thì
+ * website vẫn build và chạy bình thường. Lỗi ở bất kỳ bước nào (404, wasm bị chặn, trình duyệt cũ) → null.
+ */
+export function loadDotLottie(base = LOTTIE_BASE): Promise<DotLottieModule | null> {
+  const g = globalThis as { __ecxLottie?: Promise<DotLottieModule | null> };
+  g.__ecxLottie ??= (async () => {
+    try {
+      const mod = (await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ `${base}/index.js`)) as DotLottieModule;
+      mod.DotLottie.setWasmUrl?.(`${base}/player.wasm`);
+      return mod;
+    } catch { return null; }
+  })();
+  return g.__ecxLottie;
+}
+
+/**
+ * Hoạt ảnh Lottie: poster (ảnh tĩnh) hiện sẵn từ máy chủ; thư viện chỉ nạp khi khối gần vào màn hình; chạy theo `trigger`
+ * (auto / hover / click / scroll). Tôn trọng "giảm chuyển động" (không tự chạy). Mọi lỗi → giữ poster, trang không hỏng.
+ */
+export function LottieClient({ src, poster, label, loop, autoplay, speed, trigger, className, style }: {
+  src: string; poster?: string; label?: string; loop: boolean; autoplay: boolean; speed: number; trigger: "auto" | "hover" | "click" | "scroll";
+  className: string; style?: CSSProperties;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const el = box.current, cv = canvas.current;
+    if (!src || !el || !cv) return;
+    let dead = false;
+    let player: InstanceType<DotLottieCtor> | undefined;
+    const reduce = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const visible = { now: false };
+    const io = typeof IntersectionObserver === "function" ? new IntersectionObserver(([e]) => {
+      visible.now = e.isIntersecting;
+      if (e.isIntersecting && !player) void start();
+      if (player) { if (e.isIntersecting && (trigger === "scroll" || (trigger === "auto" && autoplay && !reduce))) player.play(); else if (!e.isIntersecting) player.pause(); }
+    }, { rootMargin: "200px" }) : null;
+    async function start() {
+      const mod = await loadDotLottie();
+      if (dead || !mod || player) return;
+      try {
+        const p = new mod.DotLottie({ canvas: cv, src, loop, speed, autoplay: !reduce && visible.now && (trigger === "scroll" || (trigger === "auto" && autoplay)) });
+        player = p;
+        p.addEventListener("load", () => { if (!dead) setReady(true); });
+        p.addEventListener("loadError", () => { if (!dead) setReady(false); });
+      } catch { /* giữ poster */ }
+    }
+    if (io) io.observe(el); else void start();
+    const on = () => player?.play(), off = () => player?.pause();
+    const toggle = () => (player?.isPlaying ? player.pause() : player?.play());
+    if (trigger === "hover") { el.addEventListener("mouseenter", on); el.addEventListener("mouseleave", off); }
+    if (trigger === "click") el.addEventListener("click", toggle);
+    return () => {
+      dead = true; io?.disconnect();
+      el.removeEventListener("mouseenter", on); el.removeEventListener("mouseleave", off); el.removeEventListener("click", toggle);
+      try { player?.destroy(); } catch { /* bỏ qua */ }
+    };
+  }, [src, loop, autoplay, speed, trigger]);
+  return (
+    <div ref={box} className={cx(className, ready && "is-ready")} style={style} data-trigger={trigger} role="img" aria-label={label || undefined} aria-hidden={label ? undefined : true}>
+      {poster && <img className="ecx-lottie-poster" src={poster} alt="" loading="lazy" decoding="async" />}
+      <canvas ref={canvas} className="ecx-lottie-canvas" />
+    </div>
+  );
+}
