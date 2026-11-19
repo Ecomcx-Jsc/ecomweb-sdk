@@ -347,6 +347,19 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     case "blockquote": return shelled("blockquote", a, key, <>{await children()}{blockCitation(a) && <cite>{blockCitation(a)}</cite>}</>);
     case "codeBlock": return <pre key={key}><code className={a.language ? `language-${a.language}` : undefined}>{plainText(node)}</code></pre>;
     case "hardBreak": return <br key={key} />;
+    case "inlineImage": {
+      // Ảnh trong dòng chữ: src qua safeUrl; width / height / radius đã được lược đồ chặn dạng lạ; có liên kết thì bọc <a>
+      const src = safeUrl(a.src, "");
+      if (!src) return null;
+      const style: Record<string, string> = {};
+      if (typeof a.width === "string") style.width = a.width;
+      if (typeof a.height === "string") style.height = a.height;
+      if (typeof a.radius === "string") style.borderRadius = a.radius;
+      if (typeof a.valign === "string" && a.valign !== "middle") style.verticalAlign = a.valign;
+      const img = <img className="ecx-inline-image" src={src} alt={typeof a.alt === "string" ? a.alt : ""} loading="lazy" decoding="async" style={Object.keys(style).length ? (style as CSSProperties) : undefined} />;
+      const href = safeUrl(a.href, "");
+      return href ? <a key={key} href={href} target={a.target === "_blank" ? "_blank" : undefined} rel={a.target === "_blank" ? "noopener noreferrer" : undefined}>{img}</a> : <span key={key} className="ecx-inline-image-wrap">{img}</span>;
+    }
 
     case "icon": {
       const size = Math.min(128, Math.max(12, Number(a.size) || 24));

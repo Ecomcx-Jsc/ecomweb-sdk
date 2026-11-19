@@ -979,3 +979,13 @@ test("lottie: poster có sẵn trong HTML, canvas cho thư viện; thiếu poste
   const bad = await html({ type: "doc", content: [{ type: "lottie", attrs: { src: "javascript:alert(1).json", poster: "/p.png" } }] });
   assert.ok(!bad.includes("javascript:"), bad);
 });
+
+test("inlineImage: ảnh nằm trong dòng chữ tiêu đề; kích thước / bo góc qua style; liên kết bọc <a>; src nguy hiểm bị bỏ", async () => {
+  const out = await html({ type: "doc", content: [{ type: "heading", attrs: { level: 2 }, content: [
+    { type: "text", text: "Chào " }, { type: "inlineImage", attrs: { src: "/u/logo.png", alt: "Logo", width: "1.4em", radius: "50%", valign: "top" } },
+    { type: "inlineImage", attrs: { src: "/u/x.png", href: "https://example.com", target: "_blank" } }, { type: "inlineImage", attrs: { src: "javascript:alert(1)" } },
+  ] }] });
+  assert.match(out, /<h2[^>]*>Chào <span class="ecx-inline-image-wrap"><img class="ecx-inline-image" src="\/u\/logo.png" alt="Logo" loading="lazy" decoding="async" style="width:1.4em;border-radius:50%;vertical-align:top"\/><\/span>/, out);
+  assert.ok(out.includes('<a href="https://example.com" target="_blank" rel="noopener noreferrer"><img class="ecx-inline-image" src="/u/x.png"'), out);
+  assert.ok(!out.includes("javascript:"), out);
+});
