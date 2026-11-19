@@ -1407,6 +1407,14 @@ Phóng to ảnh: bấm ảnh mở lớp phủ (Esc hoặc bấm nền để đó
 LightboxClient({ src, alt, children }: { src: string; alt: string; children: ReactNode; }): JSX.Element
 ```
 
+#### `LottieClient`
+
+Hoạt ảnh Lottie: poster (ảnh tĩnh) hiện sẵn từ máy chủ; thư viện chỉ nạp khi khối gần vào màn hình; chạy theo `trigger` (auto / hover / click / scroll). Tôn trọng "giảm chuyển động" (không tự chạy). Mọi lỗi → giữ poster, trang không hỏng.
+
+```ts
+LottieClient({ src, poster, label, loop, autoplay, speed, trigger, className, style }: { src: string; poster?: string; label?: string; loop: boolean; autoplay: boolean; speed: number; trigger: "auto" | "hover" | "click" | "scroll"; className: string; style?: CSSProperties; }): JSX.Element
+```
+
 #### `NavDrawer`
 
 Menu di động của khối Menu: nút burger mở ngăn trượt từ trái (nền mờ, nút đóng, khoá cuộn trang, Esc / bấm nền / bấm liên kết để đóng, trả focus về nút). Menu con hiện thụt vào ngay dưới mục cha. Khác NavToggle (giữ nguyên cho theme cũ dùng <details>).
@@ -1513,6 +1521,14 @@ Khách đã cho phép nhóm cookie này chưa (gọi trong useEffect / handler �
 hasConsent(category: ConsentCategory): boolean
 ```
 
+#### `loadDotLottie`
+
+Nạp thư viện một lần cho cả trang, từ cùng nguồn (CSP 'self') chứ không gộp vào gói của website — nên gỡ thư viện đi thì website vẫn build và chạy bình thường. Lỗi ở bất kỳ bước nào (404, wasm bị chặn, trình duyệt cũ) → null.
+
+```ts
+loadDotLottie(base?: string): Promise<DotLottieModule | null>
+```
+
 #### `on`
 
 Nghe sự kiện; trả hàm huỷ. Nhận cả sự kiện từ tab khác nếu bên phát dùng crossTab.
@@ -1587,6 +1603,14 @@ Client phía trình duyệt: gọi các route proxy /api/cms/* của frontend.
 
 ```ts
 const browserApi: FetchKitInstance
+```
+
+#### `LOTTIE_BASE`
+
+Nơi website phục vụ thư viện (route /ecx-lottie của core); không có thư viện → 404 → khối chỉ hiện poster.
+
+```ts
+const LOTTIE_BASE: "/ecx-lottie"
 ```
 
 ### Kiểu
