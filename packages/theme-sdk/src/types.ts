@@ -13,15 +13,13 @@ export interface Author {
   extra?: JsonObject;
 }
 
-export interface MediaSize { url: string; width: number; height: number; webpUrl?: string | null; /** Bản AVIF (CMS ≥ 1.37; tạo nền nên có thể chưa có). */ avifUrl?: string | null }
+export interface MediaSize { url: string; width: number; height: number; webpUrl?: string | null }
 export interface Media {
   id: number; url: string; fileName: string; mimeType: string; size: number;
   width?: number | null; height?: number | null; alt: string; caption: string;
   sizes: Record<string, MediaSize>;
   /** Bản WebP của ảnh gốc. */
   webpUrl?: string | null;
-  /** Bản AVIF của ảnh gốc (CMS ≥ 1.37; có thể chưa có). */
-  avifUrl?: string | null;
   /** Video: ảnh poster (CMS ≥ 1.37). */
   posterUrl?: string | null;
   /** Video: thời lượng (giây). */

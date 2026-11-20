@@ -990,23 +990,7 @@ test("inlineImage: ảnh nằm trong dòng chữ tiêu đề; kích thước / b
   assert.ok(!out.includes("javascript:"), out);
 });
 
-test("ảnh: AVIF đứng trước WebP trong <picture>; video có width/height (không nhảy layout) và poster", async () => {
-  const out = await html({ type: "doc", content: [
-    { type: "image", attrs: { src: "/u/a.webp", width: 800, height: 600, srcset: "/u/a-300x225.webp 300w, /u/a.webp 800w", webpSrcset: "/u/a-300x225.webp 300w", avifSrcset: "/u/a-300x225.avif 300w, /u/a.avif 800w" } },
-    { type: "gallery", attrs: { images: [{ src: "/u/g.webp", srcset: "/u/g.webp 800w", avifSrcset: "/u/g.avif 800w" }] } },
-    { type: "video", attrs: { src: "/u/v.mp4", poster: "/u/v-poster-ab12cd.webp", width: 1920, height: 1080 } },
-  ] });
-  assert.ok(out.indexOf('type="image/avif"') > 0 && out.indexOf('type="image/avif"') < out.indexOf('type="image/webp"'), out);
-  assert.ok(out.includes('srcSet="/u/g.avif 800w"') || out.includes('srcset="/u/g.avif 800w"'), out);
+test("video có width/height (không nhảy layout) và poster", async () => {
+  const out = await html({ type: "doc", content: [{ type: "video", attrs: { src: "/u/v.mp4", poster: "/u/v-poster-ab12cd.webp", width: 1920, height: 1080 } }] });
   assert.match(out, /<video[^>]*poster="\/u\/v-poster-ab12cd.webp"[^>]*width="1920" height="1080"/, out);
-});
-
-test("Img: ảnh gốc WebP vẫn có nguồn AVIF; chưa đủ AVIF thì không in nguồn AVIF", async () => {
-  const { Img } = await import("../src/image");
-  const media = { id: 1, url: "/u/a.webp", mimeType: "image/webp", width: 1200, height: 800, alt: "", avifUrl: "/u/a.avif",
-    sizes: { large: { url: "/u/a-1024x683.webp", width: 1024, height: 683, avifUrl: "/u/a-1024x683.avif" } } } as never;
-  const out = renderToStaticMarkup(<Img media={media} />);
-  assert.ok(out.includes('type="image/avif"') && !out.includes('type="image/webp"'), out);
-  const partial = { ...(media as object), sizes: { large: { url: "/u/a-1024x683.webp", width: 1024, height: 683 } } } as never;
-  assert.ok(!renderToStaticMarkup(<Img media={partial} />).includes("image/avif"));
 });
