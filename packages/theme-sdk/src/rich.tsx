@@ -422,8 +422,13 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       }
       return <figure key={key} className={blockShell("gallery", a)!.className} style={blockShell("gallery", a)!.style as CSSProperties}>{items.map((im, i) => galleryItem(im, i))}{caption}</figure>;
     }
-    case "video":
+    case "video": {
+      // Link YouTube / Vimeo… dán vào khối Video → khung nhúng (thẻ <video> không phát được trang web)
+      const embed = embedInfo(a.src);
+      if (embed) return <figure key={key} className="ecx-video cms-video"><div style={embed.aspect ? { position: "relative", aspectRatio: String(embed.aspect) } : { position: "relative", height: embed.height }}>
+        <iframe src={embed.src} title={a.caption || embed.title} loading="lazy" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0, borderRadius: 8 }} /></div>{a.caption && <figcaption>{a.caption}</figcaption>}</figure>;
       return <figure key={key} className="ecx-video cms-video"><video src={safeUrl(a.src, "")} poster={a.poster ? safeUrl(a.poster, "") : undefined} controls={a.controls !== false} autoPlay={a.autoplay === true} loop={a.loop === true} muted={a.muted === true || a.autoplay === true} preload={["none", "metadata", "auto"].includes(a.preload) ? a.preload : "metadata"} playsInline={a.playsInline !== false} width={Number(a.width) || undefined} height={Number(a.height) || undefined} style={{ width: "100%", height: "auto" }} />{a.caption && <figcaption>{a.caption}</figcaption>}</figure>;
+    }
     case "audio":
       return <figure key={key} className="ecx-audio cms-audio"><audio src={safeUrl(a.src, "")} controls autoPlay={a.autoplay === true} loop={a.loop === true} preload={["none", "metadata", "auto"].includes(a.preload) ? a.preload : "metadata"} style={{ width: "100%" }} />{a.caption && <figcaption>{a.caption}</figcaption>}</figure>;
     case "file": {
