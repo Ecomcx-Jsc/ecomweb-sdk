@@ -302,6 +302,8 @@ async function renderNode(node: Node, key: string, ctx: RenderContext): Promise<
 const emptyAttr = (v: unknown) => v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length);
 
 /** Nút không chọn riêng được trong khung soạn (hoặc bọc thêm thẻ sẽ sai cấu trúc HTML: li trong ul, ô trong bảng). */
+/** Độ rộng cột đã kéo trong trình soạn (attrs.colwidth = [px]). */
+const cellWidth = (a: Record<string, any>): CSSProperties | undefined => (Array.isArray(a.colwidth) && Number(a.colwidth[0]) > 0 ? { width: Number(a.colwidth[0]), minWidth: Number(a.colwidth[0]) } : undefined);
 const UNMARKED = new Set(["text", "hardBreak", "listItem", "tableRow", "tableCell", "tableHeader"]);
 
 /** Gắn vị trí khối: thẻ HTML thì thêm thuộc tính, component thì bọc thẻ display:contents (không đổi bố cục). */
@@ -450,9 +452,9 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const body = rows.slice(head ? 1 : 0, foot ? -1 : undefined);
       return <div key={key} className={tableClass(a)}><table className={a.fixed ? "is-fixed" : undefined}>{typeof a.caption === "string" && a.caption.trim() && <caption>{a.caption}</caption>}{head && <thead>{rows[0]}</thead>}<tbody>{body}</tbody>{foot && <tfoot>{rows.at(-1)}</tfoot>}</table></div>;
     }
-    case "tableRow": return <tr key={key}>{await children()}</tr>;
-    case "tableHeader": return <th key={key} colSpan={a.colspan > 1 ? a.colspan : undefined} rowSpan={a.rowspan > 1 ? a.rowspan : undefined}>{await children()}</th>;
-    case "tableCell": return <td key={key} colSpan={a.colspan > 1 ? a.colspan : undefined} rowSpan={a.rowspan > 1 ? a.rowspan : undefined}>{await children()}</td>;
+    case "tableRow": return <tr key={key} style={Number(a.height) > 0 ? { height: Number(a.height) } : undefined}>{await children()}</tr>;
+    case "tableHeader": return <th key={key} colSpan={a.colspan > 1 ? a.colspan : undefined} rowSpan={a.rowspan > 1 ? a.rowspan : undefined} style={cellWidth(a)}>{await children()}</th>;
+    case "tableCell": return <td key={key} colSpan={a.colspan > 1 ? a.colspan : undefined} rowSpan={a.rowspan > 1 ? a.rowspan : undefined} style={cellWidth(a)}>{await children()}</td>;
     // Bố cục (@ecomcx/ecomweb-content 1.2). Cấu trúc dùng style trực tiếp → mọi theme hiển thị đúng; class `ecx-*` để theme tạo kiểu thêm (`cms-*` giữ tới 2.0).
     case "columns": {
       const cols = await Promise.all((node.content ?? []).map(async (c, i) => {
