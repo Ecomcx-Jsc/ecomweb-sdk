@@ -69,6 +69,16 @@ test("plugin đã tắt: nút giữ phần chữ bên trong, khối cấp cao nh
   assert.equal(out, "<p>Vẫn đọc được</p>");
 });
 
+test("ảnh: cỡ Vừa dùng bản 300px và hiện đúng cỡ đó; Lớn / chưa chọn giữ ảnh gốc; kéo tay bề rộng thì tôn trọng", async () => {
+  const srcset = "/u/a-150x150.webp 150w, /u/a-300x188.webp 300w, /u/a.webp 800w";
+  const img = (attrs: Record<string, unknown>) => html({ type: "doc", content: [{ type: "image", attrs: { src: "/u/a.webp", srcset, width: 800, height: 500, alt: "a", ...attrs } }] });
+  const med = await img({ size: "medium" });
+  assert.match(med, /src="\/u\/a-300x188\.webp"/, med); assert.match(med, /width="300"/, med); assert.match(med, /height="188"/, med); assert.match(med, /sizes="300px"/, med);
+  assert.match(await img({ size: "thumbnail" }), /src="\/u\/a-150x150\.webp"[^>]*width="150"[^>]*height="150"/);
+  const large = await img({ size: "large" }); assert.match(large, /src="\/u\/a\.webp"/, large); assert.match(large, /width="800"/, large);
+  assert.match(await img({ size: "medium", width: 420 }), /src="\/u\/a\.webp"[^>]*width="420"/);
+});
+
 test("shortcode trong đoạn văn", async () => {
   assert.equal(await html({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: '[hello name="An"]' }] }] }), "<b>hello An</b>");
 });

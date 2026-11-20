@@ -1,7 +1,7 @@
 import { Fragment, cloneElement, createElement, isValidElement, type ComponentType, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { ICON_LIBRARY } from "@ecomcx/ecomweb-content/icon-library";
 import { iconSvg } from "./icon-svg";
-import { lottieConfig, BINDING_URL_ATTRS, CORE_BINDABLE, registerIconLibrary, tableClass, blockBgVideo, typedConfig, coverVideo, scheduleVisible, normalizeStyle, imageFx, countdownRules, testimonialsConfig, testimonialsVars, popupClass, popupConfig, popupPlayStyle, popupVars, carouselConfig, DYNAMIC_NODES, countdownTarget, nodeText, buttonIcon, widgetMarkup, tabsClass, formSizeClass, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
+import { sizedImage, lottieConfig, BINDING_URL_ATTRS, CORE_BINDABLE, registerIconLibrary, tableClass, blockBgVideo, typedConfig, coverVideo, scheduleVisible, normalizeStyle, imageFx, countdownRules, testimonialsConfig, testimonialsVars, popupClass, popupConfig, popupPlayStyle, popupVars, carouselConfig, DYNAMIC_NODES, countdownTarget, nodeText, buttonIcon, widgetMarkup, tabsClass, formSizeClass, type WidgetEl, widthClass, blockCitation, blockShell, buttonWrapShell, coverParts, linkRel, colorCss, embedInfo, motionClasses, normalizeContent, safeUrl, spacingValue, styleClass, styleCss, controlsCss, CORE_CONTROLS, type BlockControls, type BlockStyle, type Block, type BlockDefinition, type ContentDoc, type RichNode } from "@ecomcx/ecomweb-content";
 import type { BlockProps, Post, ResolveResult, ShortcodeProps, Site, BlockAsset } from "./types";
 import { cx } from "./utils";
 import { SOCIAL_ICONS } from "./social-icons";
@@ -379,12 +379,14 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
     case "image": {
       // Ảnh chèn từ thư viện mang sẵn srcset (JPEG + WebP) và kích thước → responsive, không nhảy layout
       // Bề rộng hiển thị = cỡ người viết kéo trong trình soạn → trình duyệt chọn file vừa đúng
-      const sizes = a.width ? `(max-width: ${a.width}px) 100vw, ${a.width}px` : (a.sizes || "(max-width: 1024px) 100vw, 1024px");
-      const imgSrc = safeUrl(a.src, "");
+      // Cỡ Nhỏ / Vừa (thumbnail / medium): dùng bản thu nhỏ và hiện đúng cỡ đó — chỉ khi người viết chưa kéo tay bề rộng
+      const sz = sizedImage(a);
+      const sizes = sz ? `${sz.width}px` : a.width ? `(max-width: ${a.width}px) 100vw, ${a.width}px` : (a.sizes || "(max-width: 1024px) 100vw, 1024px");
+      const imgSrc = safeUrl(sz?.src ?? a.src, "");
       if (!imgSrc) return null; // chưa chọn ảnh: không in <img> không có địa chỉ (hiện icon ảnh hỏng)
       const fx = imageFx(a);
       const img = <img src={imgSrc} srcSet={a.srcset || undefined} sizes={a.srcset ? sizes : undefined}
-        alt={a.alt ?? ""} title={a.title ?? undefined} width={a.width ?? undefined} height={a.height ?? undefined} loading="lazy" decoding="async" className={fx.className || undefined} style={fx.style as CSSProperties | undefined} />;
+        alt={a.alt ?? ""} title={a.title ?? undefined} width={sz?.width ?? a.width ?? undefined} height={sz?.height ?? a.height ?? undefined} loading="lazy" decoding="async" className={fx.className || undefined} style={fx.style as CSSProperties | undefined} />;
       const bare = a.webpSrcset ? <picture><source type="image/webp" srcSet={a.webpSrcset} sizes={sizes} />{img}</picture> : img;
       // next: ảnh có liên kết (href qua safeUrl; mở tab mới thì noopener)
       const pic = a.lightbox === true && !a.href ? <LightboxClient src={safeUrl(a.src, "")} alt={a.alt ?? ""}>{bare}</LightboxClient> : a.href ? <Link href={safeUrl(a.href)} target={a.linkTarget === "_blank" ? "_blank" : undefined} rel={a.linkTarget === "_blank" ? "noopener noreferrer" : undefined}>{bare}</Link> : bare;
