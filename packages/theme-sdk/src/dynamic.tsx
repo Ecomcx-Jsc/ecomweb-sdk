@@ -9,7 +9,7 @@ import { localeHref } from "./locale";
 import { renderContent, type RenderContext, type RenderNode } from "./rich";
 import type { Post, ResolveResult, Term } from "./types";
 import { cx } from "./utils";
-import { applyPatternOverrides, spacingValue } from "@ecomcx/ecomweb-content";
+import { applyPatternOverrides, clipExcerpt, spacingValue } from "@ecomcx/ecomweb-content";
 
 type Children = (ctx: RenderContext, nodes?: RenderNode[]) => Promise<ReactNode[]>;
 
@@ -73,7 +73,7 @@ export async function renderDynamic(node: RenderNode, key: string, ctx: RenderCo
     }
     case "postExcerpt":
       if (!post?.excerpt) return null;
-      return <p key={key} className="ecx-post-excerpt">{post.excerpt}{a.moreText && <> <Link href={post.link} className="ecx-more-link">{a.moreText}</Link></>}</p>;
+      return <p key={key} className="ecx-post-excerpt">{clipExcerpt(post.excerpt, a.length)}{a.moreText && <> <Link href={post.link} className="ecx-more-link">{a.moreText}</Link></>}</p>;
     case "featuredImage": {
       if (!post?.featuredMedia) return null;
       const ratio = ASPECT[a.aspect as string];
