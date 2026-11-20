@@ -383,20 +383,21 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       const fx = imageFx(a);
       const img = <img src={imgSrc} srcSet={a.srcset || undefined} sizes={a.srcset ? sizes : undefined}
         alt={a.alt ?? ""} title={a.title ?? undefined} width={a.width ?? undefined} height={a.height ?? undefined} loading="lazy" decoding="async" className={fx.className || undefined} style={fx.style as CSSProperties | undefined} />;
-      const bare = a.webpSrcset ? <picture><source type="image/webp" srcSet={a.webpSrcset} sizes={sizes} />{img}</picture> : img;
+      const bare = a.avifSrcset || a.webpSrcset ? <picture>{a.avifSrcset && <source type="image/avif" srcSet={a.avifSrcset} sizes={sizes} />}{a.webpSrcset && <source type="image/webp" srcSet={a.webpSrcset} sizes={sizes} />}{img}</picture> : img;
       // next: ảnh có liên kết (href qua safeUrl; mở tab mới thì noopener)
       const pic = a.lightbox === true && !a.href ? <LightboxClient src={safeUrl(a.src, "")} alt={a.alt ?? ""}>{bare}</LightboxClient> : a.href ? <Link href={safeUrl(a.href)} target={a.linkTarget === "_blank" ? "_blank" : undefined} rel={a.linkTarget === "_blank" ? "noopener noreferrer" : undefined}>{bare}</Link> : bare;
       const cls = blockShell("image", a)!.className;
       return a.caption || a.align ? <figure key={key} className={cls}>{pic}{a.caption && <figcaption>{a.caption}</figcaption>}</figure> : <Fragment key={key}>{pic}</Fragment>;
     }
     case "gallery": {
-      const items = ((a.images ?? []) as Array<{ src: string; srcset?: string; webpSrcset?: string; alt?: string; caption?: string; width?: number; height?: number; full?: string; href?: string }>).filter((im) => !!im?.src); // ảnh chưa chọn (không src) không vẽ <img> hỏng
+      const items = ((a.images ?? []) as Array<{ src: string; srcset?: string; webpSrcset?: string; avifSrcset?: string; alt?: string; caption?: string; width?: number; height?: number; full?: string; href?: string }>).filter((im) => !!im?.src); // ảnh chưa chọn (không src) không vẽ <img> hỏng
       const cols = Math.min(6, Math.max(1, Number(a.columns) || 3));
       const crop = a.imageCrop !== false && a.layout !== "masonry"; // next: imageCrop=false giữ nguyên tỉ lệ ảnh; masonry luôn giữ tỉ lệ
       // Một ảnh (có srcset / WebP / lightbox) — dùng cho cả lưới lẫn slide
       const galleryItem = (im: (typeof items)[number], i: number) => {
             const el = <img src={safeUrl(im.src, "")} srcSet={im.srcset || undefined} sizes={`(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`} alt={im.alt ?? ""} width={im.width} height={im.height} loading="lazy" decoding="async" style={crop ? { width: "100%", height: "100%", objectFit: "cover", aspectRatio: "1" } : { width: "100%", height: "auto" }} />;
-            const pic = im.webpSrcset ? <picture><source type="image/webp" srcSet={im.webpSrcset} sizes={`(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`} />{el}</picture> : el;
+            const gsz = `(max-width: 768px) 50vw, ${Math.round(100 / cols)}vw`;
+            const pic = im.avifSrcset || im.webpSrcset ? <picture>{im.avifSrcset && <source type="image/avif" srcSet={im.avifSrcset} sizes={gsz} />}{im.webpSrcset && <source type="image/webp" srcSet={im.webpSrcset} sizes={gsz} />}{el}</picture> : el;
             return <figure key={i} className="ecx-gallery-item cms-gallery-item" style={{ margin: 0 }}>{a.lightbox === true ? <LightboxClient src={safeUrl(im.full || im.src, "")} alt={im.alt ?? ""}>{pic}</LightboxClient> : im.href && safeUrl(im.href, "") ? <a href={safeUrl(im.href)}>{pic}</a> : im.full && a.linkTo !== "none" ? <a href={safeUrl(im.full)}>{pic}</a> : pic}{im.caption && <figcaption>{im.caption}</figcaption>}</figure>;
       };
       const caption = a.caption && <figcaption className="ecx-gallery-caption cms-gallery-caption" style={{ gridColumn: "1 / -1" }}>{a.caption}</figcaption>;
@@ -423,7 +424,7 @@ async function renderNodeInner(node: Node, key: string, ctx: RenderContext): Pro
       return <figure key={key} className={blockShell("gallery", a)!.className} style={blockShell("gallery", a)!.style as CSSProperties}>{items.map((im, i) => galleryItem(im, i))}{caption}</figure>;
     }
     case "video":
-      return <figure key={key} className="ecx-video cms-video"><video src={safeUrl(a.src, "")} poster={a.poster ? safeUrl(a.poster, "") : undefined} controls={a.controls !== false} autoPlay={a.autoplay === true} loop={a.loop === true} muted={a.muted === true || a.autoplay === true} preload={["none", "metadata", "auto"].includes(a.preload) ? a.preload : "metadata"} playsInline={a.playsInline !== false} style={{ width: "100%", height: "auto" }} />{a.caption && <figcaption>{a.caption}</figcaption>}</figure>;
+      return <figure key={key} className="ecx-video cms-video"><video src={safeUrl(a.src, "")} poster={a.poster ? safeUrl(a.poster, "") : undefined} controls={a.controls !== false} autoPlay={a.autoplay === true} loop={a.loop === true} muted={a.muted === true || a.autoplay === true} preload={["none", "metadata", "auto"].includes(a.preload) ? a.preload : "metadata"} playsInline={a.playsInline !== false} width={Number(a.width) || undefined} height={Number(a.height) || undefined} style={{ width: "100%", height: "auto" }} />{a.caption && <figcaption>{a.caption}</figcaption>}</figure>;
     case "audio":
       return <figure key={key} className="ecx-audio cms-audio"><audio src={safeUrl(a.src, "")} controls autoPlay={a.autoplay === true} loop={a.loop === true} preload={["none", "metadata", "auto"].includes(a.preload) ? a.preload : "metadata"} style={{ width: "100%" }} />{a.caption && <figcaption>{a.caption}</figcaption>}</figure>;
     case "file": {

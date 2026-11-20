@@ -80,7 +80,7 @@ ForgotPasswordForm({ labels, paths, fields }: { labels?: Partial<AuthLabels>; pa
 
 #### `Img`
 
-Ảnh responsive: &lt;picture&gt; với WebP + ảnh gốc, srcset nhiều cỡ, width/height chống nhảy layout, object-position theo điểm lấy nét chọn trong thư viện media.
+Ảnh responsive: &lt;picture&gt; với AVIF + WebP + ảnh gốc, srcset nhiều cỡ, width/height chống nhảy layout, object-position theo điểm lấy nét chọn trong thư viện media.
 
 ```ts
 Img({ media, size, sizes, className, alt, priority, style }: ImgProps): JSX.Element | null
@@ -1068,7 +1068,7 @@ interface ListPage<T> { items: T[]; total: number; page: number; totalPages: num
 #### `Media`
 
 ```ts
-interface Media { id: number; url: string; fileName: string; mimeType: string; size: number; width?: number | null; height?: number | null; alt: string; caption: string; sizes: Record<string, MediaSize>; /** Bản WebP của ảnh gốc. */ webpUrl?: string | null; /** Điểm lấy nét 0–1 (object-position). */ focalX?: number | null; focalY?: number | null; title?: string; createdAt?: string; }
+interface Media { id: number; url: string; fileName: string; mimeType: string; size: number; width?: number | null; height?: number | null; alt: string; caption: string; sizes: Record<string, MediaSize>; /** Bản WebP của ảnh gốc. */ webpUrl?: string | null; /** Bản AVIF của ảnh gốc (CMS ≥ 1.37; có thể chưa có). */ avifUrl?: string | null; /** Video: ảnh poster (CMS ≥ 1.37). */ posterUrl?: string | null; /** Video: thời lượng (giây). */ duration?: number | null; /** Điểm lấy nét 0–1 (object-position). */ focalX?: number | null; focalY?: number | null; title?: string; createdAt?: string; }
 ```
 
 #### `MediaQuery`
@@ -1080,7 +1080,7 @@ interface MediaQuery { /** Tìm theo tiêu đề, alt, chú thích, tên file �
 #### `MediaSize`
 
 ```ts
-interface MediaSize { url: string; width: number; height: number; webpUrl?: string | null }
+interface MediaSize { url: string; width: number; height: number; webpUrl?: string | null; /** Bản AVIF (CMS ≥ 1.37; tạo nền nên có thể chưa có). */ avifUrl?: string | null }
 ```
 
 #### `MenuItem`

@@ -10,7 +10,7 @@ const ratio = (w?: number | null, h?: number | null) => (w && h ? w / h : 0);
  */
 export function imageCandidates(media: Media, size = "large"): MediaSize[] {
   const chosen = media.sizes[size];
-  const full: MediaSize = { url: media.url, width: media.width ?? 0, height: media.height ?? 0, webpUrl: media.webpUrl ?? undefined };
+  const full: MediaSize = { url: media.url, width: media.width ?? 0, height: media.height ?? 0, webpUrl: media.webpUrl ?? undefined, avifUrl: media.avifUrl ?? undefined };
   const target = chosen ?? full;
   const r = ratio(target.width, target.height);
   const all = [...Object.values(media.sizes), ...(chosen ? [] : [full])];
@@ -33,7 +33,7 @@ export interface ImgProps {
 }
 
 /**
- * Ảnh responsive: &lt;picture&gt; với WebP + ảnh gốc, srcset nhiều cỡ, width/height chống nhảy layout,
+ * Ảnh responsive: &lt;picture&gt; với AVIF + WebP + ảnh gốc, srcset nhiều cỡ, width/height chống nhảy layout,
  * object-position theo điểm lấy nét chọn trong thư viện media.
  */
 export function Img({ media, size = "large", sizes, className, alt, priority, style }: ImgProps) {
@@ -41,7 +41,8 @@ export function Img({ media, size = "large", sizes, className, alt, priority, st
   const list = imageCandidates(media, size);
   const main = list[list.length - 1] ?? { url: media.url, width: media.width ?? 0, height: media.height ?? 0 };
   const srcSet = list.map((s) => `${s.url} ${s.width}w`).join(", ");
-  const webp = list.every((s) => s.webpUrl) ? list.map((s) => `${s.webpUrl} ${s.width}w`).join(", ") : null;
+  const webp = media.mimeType !== "image/webp" && list.every((s) => s.webpUrl) ? list.map((s) => `${s.webpUrl} ${s.width}w`).join(", ") : null;
+  const avif = list.every((s) => s.avifUrl) ? list.map((s) => `${s.avifUrl} ${s.width}w`).join(", ") : null;
   const sz = sizes ?? (main.width ? `(max-width: ${main.width}px) 100vw, ${main.width}px` : undefined);
   const focal: CSSProperties | undefined = media.focalX != null && media.focalY != null
     ? { objectPosition: `${Math.round(media.focalX * 100)}% ${Math.round(media.focalY * 100)}%` } : undefined;
@@ -51,6 +52,7 @@ export function Img({ media, size = "large", sizes, className, alt, priority, st
       loading={priority ? "eager" : "lazy"} decoding="async" fetchPriority={priority ? "high" : undefined}
       className={className} style={{ ...focal, ...style }} />
   );
-  if (!webp || media.mimeType === "image/webp") return img;
-  return <picture className={cx("cms-picture")}><source type="image/webp" srcSet={webp} sizes={sz} />{img}</picture>;
+  if (!webp && !avif) return img;
+  // AVIF (nhẹ nhất) trước, rồi WebP, cuối cùng ảnh gốc — trình duyệt lấy định dạng đầu tiên nó đọc được
+  return <picture className={cx("cms-picture")}>{avif && <source type="image/avif" srcSet={avif} sizes={sz} />}{webp && <source type="image/webp" srcSet={webp} sizes={sz} />}{img}</picture>;
 }
