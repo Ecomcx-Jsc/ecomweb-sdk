@@ -271,6 +271,36 @@ export const TreeView = ui("TreeView");
 export const Pagination = ui("Pagination");
 export const TableSettingsMenu = ui("TableSettingsMenu", () => null);
 
+// ----- Bộ component bán hàng / quản trị (CMS ≥ 1.39; CMS cũ dùng bản thay thế đơn giản hoặc không vẽ gì) -----
+export const MoneyInput = ui("MoneyInput", (p) => h(host().ui.Input, {
+  value: p.value ?? "", disabled: p.disabled, "aria-label": p.ariaLabel, inputMode: "numeric",
+  onChange: (e: any) => { const n = Number(String(e.target.value).replace(/[^\d-]/g, "")); p.onChange(e.target.value === "" || !Number.isSafeInteger(n) ? null : n); },
+}));
+export const NumberInput = ui("NumberInput", (p) => h(host().ui.Input, {
+  value: p.value ?? "", disabled: p.disabled, "aria-label": p.ariaLabel, inputMode: "decimal",
+  onChange: (e: any) => { const n = Number(String(e.target.value).replace(",", ".")); p.onChange(e.target.value === "" || !Number.isFinite(n) ? null : n); },
+}));
+export const FilterChips = ui("FilterChips", () => null);
+export const StickyActionBar = ui("StickyActionBar", (p) => h("div", { style: { display: "flex", gap: 8, justifyContent: "space-between", flexWrap: "wrap" } },
+  h("span", null, p.title), h("span", null, p.children,
+    h(host().ui.Button, { onClick: p.onSave, loading: p.saving, variant: "primary" }, p.saveLabel ?? "Save"))));
+export const ResourceList = ui("ResourceList", (p) => h(host().ui.Table, { columns: p.columns, rows: p.rows, rowKey: p.rowKey, loading: p.loading, empty: p.empty, onRowClick: p.onRowClick }));
+export const MediaGallery = ui("MediaGallery", () => null);
+export const TreeSelect = ui("TreeSelect", () => null);
+export const ActivityLog = ui("ActivityLog", () => null);
+/** Cảnh báo khi đóng tab / bấm link nội bộ lúc `dirty`. CMS cũ: chỉ cảnh báo khi đóng tab. */
+export function useUnsavedGuard(dirty: boolean) {
+  const fn = host().ui.useUnsavedGuard;
+  if (fn) { fn(dirty); return; }
+  const R = host().React as any;
+  R.useEffect(() => {
+    if (!dirty) return;
+    const before = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", before);
+    return () => window.removeEventListener("beforeunload", before);
+  }, [dirty]);
+}
+
 /** Cột ẩn + mật độ của một bảng, nhớ theo `key` (vd "my-plugin:orders"). CMS cũ: không lưu, mọi cột hiện. */
 export function useTableSettings(key: string, defaults?: { hidden?: string[]; density?: Density }): TableSettings {
   const fn = host().ui.useTableSettings;

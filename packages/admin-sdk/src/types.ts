@@ -499,6 +499,32 @@ export interface UiKit {
   TreeView?: ComponentType<{ nodes: TreeNode[]; ariaLabel: string; checkable?: boolean; checked?: Array<string | number>; onCheck?(id: string | number, value: boolean): void; selected?: string | number | null; onSelect?(id: string | number): void; defaultExpanded?: "all" | "none" | Array<string | number>; className?: string }>;
   Pagination?: ComponentType<{ page: number; totalPages: number; onPage(p: number): void; total?: number; pageSize?: number; onPageSize?(n: number): void; pageSizes?: number[] }>;
   TableSettingsMenu?: ComponentType<{ columns: Array<{ key: string; title: ReactNode }>; settings: TableSettings }>;
+  // ----- Bộ component bán hàng / quản trị (CMS ≥ 1.39) -----
+  /** Ô nhập tiền: `value` là số nguyên theo đơn vị nhỏ nhất của `currency` (null = trống). Phân cách hàng nghìn, không dạng mũ, báo lỗi tại ô (số quá lớn, âm, chữ lạ) và không gọi `onChange` khi sai. */
+  MoneyInput?: ComponentType<{ value: number | null | undefined; onChange(v: number | null): void; currency: string; max?: number; allowNegative?: boolean; placeholder?: string; disabled?: boolean; invalid?: boolean; error?: string; ariaLabel?: string; id?: string; className?: string; onBlur?(): void }>;
+  /** Ô nhập số lượng cho phép số lẻ (kg, mét): `step` là bước nhỏ nhất, `stepper` hiện nút −/+ cao 44px. */
+  NumberInput?: ComponentType<{ value: number | null | undefined; onChange(v: number | null): void; step?: number; min?: number; max?: number; unit?: string; stepper?: boolean; placeholder?: string; disabled?: boolean; invalid?: boolean; error?: string; ariaLabel?: string; id?: string; className?: string }>;
+  /** Bộ lọc dạng chip, chọn một hoặc nhiều. */
+  FilterChips?: ComponentType<{ items: Array<{ value: string; label: ReactNode; count?: number }>; value: string[]; onChange(v: string[]): void; multiple?: boolean; label?: string }>;
+  /** Thanh lưu của trang sửa: `position="top"` dính đầu trang; `"bottom"` nổi dưới, chỉ hiện khi có thay đổi. Tự cảnh báo khi rời trang chưa lưu. */
+  StickyActionBar?: ComponentType<{ dirty: boolean; saving?: boolean; onSave(): void; onDiscard?(): void; title?: ReactNode; status?: ReactNode; children?: ReactNode; position?: "top" | "bottom"; saveLabel?: string; discardLabel?: string; changesLabel?: ReactNode }>;
+  /** Cảnh báo khi đóng tab / bấm link nội bộ lúc `dirty` (hook). */
+  useUnsavedGuard?: (dirty: boolean) => void;
+  /** Danh sách quản trị đầy đủ: tab, tìm, bộ lọc, chọn nhiều + thao tác hàng loạt, bảng, phân trang, trạng thái rỗng. */
+  ResourceList?: ComponentType<{
+    columns: any[]; rows: any[]; rowKey: (r: any) => string | number; loading?: boolean;
+    tabs?: Array<{ value: string; label: ReactNode; count?: number }>; tab?: string; onTab?(v: string): void;
+    search?: { value: string; onChange(v: string): void; placeholder?: string }; filters?: ReactNode; actions?: ReactNode;
+    bulkActions?: Array<{ key: string; label: ReactNode; danger?: boolean; onRun(keys: Array<string | number>): void | Promise<void> }>;
+    page?: { page: number; totalPages: number; total?: number; pageSize?: number; onPage(p: number): void; onPageSize?(n: number): void };
+    empty?: ReactNode; onRowClick?(r: any): void; sort?: { key: string; dir: "asc" | "desc" } | null; onSort?(s: { key: string; dir: "asc" | "desc" } | null): void; ariaLabel?: string;
+  }>;
+  /** Nhiều ảnh, kéo thả (hoặc nút ←/→) để sắp xếp; ảnh đầu là ảnh đại diện. */
+  MediaGallery?: ComponentType<{ items: Array<{ id: number; url: string }>; onChange(items: Array<{ id: number; url: string }>): void; max?: number; accept?: string; disabled?: boolean }>;
+  /** Chọn nhiều trong cây (danh mục), có ô tìm. */
+  TreeSelect?: ComponentType<{ nodes: Array<{ id: number | string; label: string; children?: any[] }>; value: Array<number | string>; onChange(v: Array<number | string>): void; searchable?: boolean; placeholder?: string; maxHeight?: number }>;
+  /** Nhật ký hoạt động của một đối tượng ở cuối trang: loại lõi ("post", "media", "user") hoặc loại plugin đã đăng ký (`objectType` "{slug}/{tên}", cần quyền sửa của loại đó). Plugin ghi dòng bằng IAuditLog (C#). */
+  ActivityLog?: ComponentType<{ objectType: string; objectId: string | number; pageSize?: number; title?: ReactNode; onUndo?(row: any): Promise<void> | void; className?: string }>;
   useTableSettings?: (key: string, defaults?: Partial<Pick<TableSettings, "hidden" | "density">>) => TableSettings;
   isoToLocal?: (iso?: string | null) => string | null;
   localToIso?: (value: string | null) => string | null;
