@@ -141,3 +141,18 @@ test("file \"use client\" import giá trị từ entry chính của theme SDK �
   assert.equal(w.length, 1, w.join("\n"));
   assert.match(w[0]!, /^components\/Bad\.tsx:3: .*import Link từ/);
 });
+
+test("frontend plugin khai báo kiểu toàn cục (declare global) → cảnh báo; ép kiểu cục bộ / comment → không", async () => {
+  const { globalAugmentations } = await import("../lib/validate.mjs");
+  const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = mkdtempSync(join(tmpdir(), "aug-"));
+  mkdirSync(join(dir, "frontend"));
+  writeFileSync(join(dir, "frontend", "ok.tsx"), "// không declare global ở đây\nconst t = () => (window as unknown as { turnstile?: unknown }).turnstile;\n");
+  assert.deepEqual(globalAugmentations(dir, "frontend/index.tsx"), []);
+  writeFileSync(join(dir, "frontend", "bad.tsx"), "type T = {};\ndeclare global { interface Window { turnstile?: T } }\n");
+  const w = globalAugmentations(dir, "frontend/index.tsx");
+  assert.equal(w.length, 1);
+  assert.match(w[0], /bad\.tsx:2/);
+});

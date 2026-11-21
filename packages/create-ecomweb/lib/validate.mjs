@@ -165,6 +165,7 @@ export function validate(dir) {
     if (manifest.admin && !fs.existsSync(path.join(dir, "admin", "src")) && !fs.existsSync(path.join(dir, manifest.admin.entry)))
       errors.push("Không thấy admin/src/index.tsx (source) hoặc bundle admin đã build");
     for (const w of checkSources(dir, manifest)) warnings.push(w);
+    if (manifest.frontend) warnings.push(...globalAugmentations(dir, manifest.frontend.entry));
     const legacy = findLegacyCalls(path.join(dir, "admin", "src"));
     if (legacy.length) warnings.push(`__("…") kiểu cũ ở ${legacy.slice(0, 3).join(", ")}${legacy.length > 3 ? ` (+${legacy.length - 3})` : ""} — dùng createT("${manifest.slug}") với locales/*.json`);
     if (manifest.backend && !sources && !(fs.existsSync(path.join(dir, "backend")) && fs.readdirSync(path.join(dir, "backend")).some((f) => f.endsWith(".csproj"))) && !fs.existsSync(path.join(dir, manifest.backend.assembly)))
@@ -314,6 +315,23 @@ function checkSources(dir, manifest) {
       if (!m[1].startsWith(`${manifest.slug}/`)) warnings.push(`${at(m.index)}: tên khối "${m[1]}" nên là "${manifest.slug}/${m[1].split("/").pop()}" — tên không có "/" dành cho khối lõi của CMS (vd callout, columns), dễ trùng ở bản sau`);
   }
   return warnings;
+}
+
+/**
+ * Phần website của mọi plugin được CMS dựng chung thành MỘT app Next.js và chạy một lần tsc. Plugin khai báo kiểu toàn cục
+ * (`declare global { interface Window { x } }`, `declare module "…"`) dễ xung đột với plugin khác dùng cùng tên (vd window.turnstile)
+ * → cả lượt build thất bại, lỗi hiện ở plugin vừa cập nhật. Chỉ cảnh báo: khai báo tên riêng của plugin thì vô hại.
+ */
+export function globalAugmentations(dir, entry) {
+  const root = path.join(dir, path.dirname(entry ?? "frontend/index.tsx"));
+  if (!fs.existsSync(root)) return [];
+  const hits = [];
+  for (const file of sourceFiles(root)) {
+    const code = fs.readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\/|(^|[^:])\/\/.*$/gm, "$1");
+    const m = code.match(/\bdeclare\s+(?:global|module)\b/);
+    if (m) hits.push(`${path.relative(dir, file)}:${code.slice(0, m.index).split("\n").length}`);
+  }
+  return hits.length ? [`${hits.slice(0, 3).join(", ")}${hits.length > 3 ? ` (+${hits.length - 3})` : ""}: khai báo kiểu toàn cục (declare global / declare module) trong phần website — plugin khác khai báo cùng tên (vd window.turnstile) sẽ làm hỏng build chung của cả website. Dùng ép kiểu cục bộ: (window as unknown as { x?: T }).x`] : [];
 }
 
 function findLegacyCalls(srcDir) {
