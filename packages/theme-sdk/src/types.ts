@@ -79,6 +79,8 @@ export interface Site {
   indexable?: boolean;
   /** Website chưa qua màn hình cài đặt lần đầu. */
   setupRequired?: boolean;
+  /** Logo website (URL ảnh) đặt ở Cài đặt › Chung; trống = theme tự dùng tên website. */
+  logo?: string | null;
 }
 
 export interface MenuItem {
