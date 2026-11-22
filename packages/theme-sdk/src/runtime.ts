@@ -140,7 +140,8 @@ const BUILTIN_SHORTCODES: Record<string, () => Promise<ComponentType<ShortcodePr
 
 /** @internal Component của shortcode theo tên (core dùng khi vẽ nội dung). */
 export async function findShortcode(name: string, site?: Site) {
-  for (const d of await getActiveExtensions(site)) if (d.shortcodes?.[name]) return d.shortcodes[name];
+  // Phần extend của theme nằm cuối danh sách → duyệt ngược để shortcode của theme ghi đè shortcode cùng tên của plugin
+  for (const d of (await getActiveExtensions(site)).slice().reverse()) if (d.shortcodes?.[name]) return d.shortcodes[name];
   return BUILTIN_SHORTCODES[name] ? await BUILTIN_SHORTCODES[name]() : null;
 }
 /** @internal Component của widget theo loại. */
