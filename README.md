@@ -22,23 +22,36 @@ sdk/
 
 ## Dùng CLI
 
-```bash
-# Plugin: plugin.json + một file C# (Ecomweb tự biên dịch, tạo bảng, trang quản trị, form)
-npm create @ecomcx/ecomweb plugin "Tên plugin"
-npm create @ecomcx/ecomweb plugin "Tên plugin" --admin --frontend   # thêm giao diện React riêng
-npm create @ecomcx/ecomweb plugin "Tên plugin" --project            # dự án csproj khi cần thư viện NuGet
+Tài liệu đầy đủ từng lệnh, tham số, quy trình và xử lý lỗi: [packages/create-ecomweb/README.md](packages/create-ecomweb/README.md).
 
-# Theme
-npm create @ecomcx/ecomweb theme "Tên theme"
+```bash
+# Tạo mới
+npm create @ecomcx/ecomweb theme "Tên theme"                    # --blocks: dựng bằng khối · --parent <slug>: child theme
+npm create @ecomcx/ecomweb plugin "Tên plugin"                  # plugin.json + một file C# (Ecomweb tự biên dịch)
+npm create @ecomcx/ecomweb plugin "Tên plugin" --admin --frontend --tests   # thêm giao diện React riêng, test xUnit
+npm create @ecomcx/ecomweb plugin "Tên plugin" --project        # dự án csproj khi cần thư viện NuGet
 
 # Trong thư mục theme / plugin
-npx @ecomcx/create-ecomweb validate     # kiểm tra
-npx @ecomcx/create-ecomweb dev          # chạy thử trên Ecomweb dev
-npx @ecomcx/create-ecomweb upgrade      # lên SDK mới nhất
-npx @ecomcx/create-ecomweb pack .       # đóng gói .zip để nộp Store / cài
+npx @ecomcx/create-ecomweb validate        # kiểm tra (không cần mạng)
+npx @ecomcx/create-ecomweb check           # chạy thử quy trình cài + quét bảo mật trên CMS, không cài (plugin)
+npx @ecomcx/create-ecomweb test            # chạy test xUnit trong tests/ (plugin)
+npx @ecomcx/create-ecomweb pack            # đóng gói dist/<slug>-<version>.zip để nộp Store / cài tay
+npx @ecomcx/create-ecomweb deploy          # đóng gói + cài lên CMS (--activate để bật luôn)
+npx @ecomcx/create-ecomweb dev             # tự đóng gói + cài lại mỗi khi lưu file
+npx @ecomcx/create-ecomweb upgrade         # lên SDK mới nhất rồi kiểm tra lại
+
+# CMS thử bằng Docker, không cần mã nguồn CMS
+npx @ecomcx/create-ecomweb env up --dev    # sửa theme / plugin là thấy; env status | logs | down [--purge]
+
+# Làm việc với theme đang chạy trên một site (CMS 1.35+, dùng token API, không vướng 2FA)
+npx @ecomcx/create-ecomweb login --url https://site.com --token cmsp_…
+npx @ecomcx/create-ecomweb clone ten-theme                      # mã nguồn theme đang chạy về máy
+npx @ecomcx/create-ecomweb dev --data https://site.com          # xem thử trên máy bằng dữ liệu thật (chỉ đọc)
+npx @ecomcx/create-ecomweb pull                                 # lấy thay đổi của server, file bạn sửa được giữ
+npx @ecomcx/create-ecomweb push                                 # đưa lên site, từ chối nếu server đã đổi (--force để ghi đè)
 ```
 
-Chi tiết: `docs/theme-guide.md`, `docs/plugin-guide.md` trong repo core `Ecomcx-Jsc/ecomweb`.
+Hướng dẫn viết theme và plugin: `docs/theme-guide.md`, `docs/plugin-guide.md` trong repo core `Ecomcx-Jsc/ecomweb`. Tra cứu API theme SDK: [packages/theme-sdk/API.md](packages/theme-sdk/API.md).
 
 ## Phát triển
 
