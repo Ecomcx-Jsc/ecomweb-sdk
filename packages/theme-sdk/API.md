@@ -1054,7 +1054,7 @@ interface LayoutProps { site: Site; settings: JsonObject; children: ReactNode; /
 #### `LinkProps`
 
 ```ts
-type LinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & { href: string; children?: ReactNode; /** * Prefetch của Next.js. Mặc định false: mọi trang của CMS là trang động, mỗi lần prefetch là một lần render trên server * (trang chủ báo có thể có cả trăm link). Bật cho vài link quan trọng nếu muốn chuyển trang tức thì. */ prefetch?: boolean | null; /** Đặt aria-current và class này khi URL hiện tại khớp href (dùng cho menu). */ activeClassName?: string; /** Khớp cả trang con (vd /category/a/page/2 vẫn active cho /category/a). Mặc định true, trừ trang chủ. */ matchNested?: boolea
+type LinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & { href: string; children?: ReactNode; /** * Prefetch của Next.js. Mặc định false: mọi trang của CMS là trang động, mỗi lần prefetch là một lần render trên server * (trang chủ báo có thể có cả trăm link). Bật cho vài link quan trọng nếu muốn chuyển trang tức thì. */ prefetch?: boolean | null; /** Cuộn lên đầu trang sau khi chuyển (mặc định của Next: true). `false` cho bộ lọc / phân trang bằng URL để giữ vị trí đang xem. */ scroll?: boolean; /** Đặt aria-current và class này khi URL hiện tại khớp href (dùng cho menu). */ ac
 ```
 
 #### `ListPage`
