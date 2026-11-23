@@ -21,6 +21,7 @@ import { env, findEnv } from "../lib/env.mjs";
 import { connect, saveToken, verify } from "../lib/auth.mjs";
 import { afterPush, clone, pull, pushGuard } from "../lib/remote.mjs";
 import { devData } from "../lib/site.mjs";
+import { requireTypecheck } from "../lib/typecheck.mjs";
 
 const HELP = `${c.bold("create-ecomweb")} — công cụ viết theme/plugin cho Ecomweb
 
@@ -31,6 +32,7 @@ const HELP = `${c.bold("create-ecomweb")} — công cụ viết theme/plugin cho
   ${c.cyan("upgrade")} [thư-mục]                   đưa project theme/plugin lên SDK mới nhất (@ecomcx/ecomweb-theme-sdk, @ecomcx/ecomweb-admin-sdk) rồi kiểm tra lại
   ${c.cyan("test")} [thư-mục]                      đóng gói + chạy test xUnit trong tests/ trên CMS thử (Cms.Plugin.Testing)
   ${c.cyan("check")} [thư-mục]                     chạy thử trên CMS: manifest, biên dịch, quét bảo mật (như khi cài / nộp Store)
+  ${c.cyan("typecheck")} [thư-mục]                 kiểm tra kiểu TypeScript (deploy / push tự chạy; --skip-check để bỏ qua)
   ${c.cyan("pack")} [thư-mục] [--out dist]         đóng gói → dist/<slug>-<version>.zip
   ${c.cyan("deploy")} [thư-mục] [--activate]       đóng gói + cài lên CMS (--url, --user, --password; --accept-permissions, --accept-risk)
   ${c.cyan("dev")} [thư-mục]                       tự đóng gói + cài lại mỗi khi sửa file
@@ -125,10 +127,19 @@ try {
       await upgrade(dir);
       if (fs.existsSync(path.join(dir, "theme.json")) || fs.existsSync(path.join(dir, "plugin.json"))) report(validate(dir), dir);
       break;
+    case "typecheck": {
+      const { typecheck } = await import("../lib/typecheck.mjs");
+      const r = typecheck(dir);
+      if (r.status === "failed") { console.error(r.output); process.exit(1); }
+      console.log(r.status === "ok" ? c.green("✓ kiểu TypeScript hợp lệ") : c.yellow(`• không kiểm được: ${r.reason}`));
+      if (r.status === "missing") process.exit(1);
+      break;
+    }
     case "pack":
       await packAndReport(dir);
       break;
     case "deploy":
+      requireTypecheck(dir, { skip: !!args["skip-check"] });
       await deploy(await packAndReport(dir), connection());
       break;
     case "login": {
@@ -148,6 +159,7 @@ try {
       await pull(dir, { force: !!args.force, ...connection() });
       break;
     case "push": {
+      requireTypecheck(dir, { skip: !!args["skip-check"] });
       const conn = connection();
       const g = await pushGuard(dir, { force: !!args.force, ...conn });
       await deploy(await packAndReport(dir), { ...conn, url: conn.url ?? g.url, baseHash: g.baseHash, force: !!args.force });
