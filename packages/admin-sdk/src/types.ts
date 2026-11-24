@@ -20,6 +20,8 @@ export interface MetaBoxProps {
   meta: Record<string, any>;
   /** Đặt meta — được lưu cùng bài viết khi bấm Lưu/Đăng. silent: không đánh dấu bài "Chưa lưu" (giá trị tự tính). */
   setMeta(key: string, value: any, opts?: { silent?: boolean }): void;
+  /** Đổi đường dẫn (slug) của bài — như ô "Đường dẫn" ở thẻ Cài đặt; hộp SEO dùng để sửa slug ngay trong bản xem trước. CMS ≥ 1.40.1. */
+  setSlug?(slug: string): void;
   /** Nội dung đang soạn ({ version, blocks }) — cập nhật khi gõ (trễ ~0,4 giây), dùng để phân tích nội dung. */
   content?: { version?: number; blocks: Array<{ type: string; data?: any }> };
   excerpt?: string;
@@ -396,6 +398,7 @@ export interface MetaBoxesProps {
   post: { id?: number; title: string; slug: string; status: string; meta: Record<string, any>; [k: string]: any };
   meta: Record<string, any>;
   setMeta(key: string, value: any, opts?: { silent?: boolean }): void;
+  setSlug?(slug: string): void;
   content?: any;
   excerpt?: string;
   link?: string;
