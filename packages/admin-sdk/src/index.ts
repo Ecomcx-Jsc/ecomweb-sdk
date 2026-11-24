@@ -291,6 +291,7 @@ export const SortableBoard = ui("SortableBoard", () => null);
 export const SortableHandle = ui("SortableHandle", () => null);
 export const DropZone = ui("DropZone", () => null);
 export const Lightbox = ui("Lightbox", () => null);
+export const ContentEditor = ui("ContentEditor", () => null);
 export const TreeSelect = ui("TreeSelect", () => null);
 export const ActivityLog = ui("ActivityLog", () => null);
 /** Cảnh báo khi đóng tab / bấm link nội bộ lúc `dirty`. CMS cũ: chỉ cảnh báo khi đóng tab. */
@@ -331,3 +332,42 @@ export const promptDialog = (message: string, opts?: AskOptions & { defaultValue
 /** Báo một thông điệp, chờ người dùng bấm OK (CMS cũ: window.alert). */
 export const alertDialog = (message: string, opts?: AskOptions): Promise<void> =>
   host().ui.alertDialog ? host().ui.alertDialog!(message, opts) : Promise.resolve(window.alert(message));
+
+// ---------------------------------------------------------------------------------------------
+// Tuỳ chọn giao diện theo tài khoản (CMS ≥ 1.40: lưu phía máy chủ, đổi máy vẫn còn; CMS cũ: lưu trên trình duyệt)
+// ---------------------------------------------------------------------------------------------
+let prefsLoad: Promise<Record<string, unknown>> | null = null;
+const prefsMem: Record<string, unknown> = {};
+const prefsSubs = new Set<() => void>();
+const localKey = (k: string) => `ecx-prefs:${currentUser()?.id ?? 0}:${k}`;
+const readLocal = (k: string): unknown => { try { const v = localStorage.getItem(localKey(k)); return v === null ? undefined : JSON.parse(v); } catch { return undefined; } };
+
+function loadPrefs(): Promise<Record<string, unknown>> {
+  if (!prefsLoad) prefsLoad = api.get<Record<string, unknown>>("/auth/prefs").then((r) => { Object.assign(prefsMem, r ?? {}); return prefsMem; }).catch(() => prefsMem);
+  return prefsLoad;
+}
+
+/**
+ * Giá trị tuỳ chọn của người dùng hiện tại theo khoá (bố cục khối, cột bảng, bộ lọc đã chọn…). `set(undefined)` / `reset()` xoá.
+ * Giá trị JSON, tối đa 32KB mỗi khoá. Tên khoá nên có tiền tố của plugin, vd "ecomcx-ecommerce.product-layout".
+ */
+export function useUserPrefs<T>(key: string, initial: T): { value: T; set(v: T | undefined): void; reset(): void; loaded: boolean } {
+  const R = host().React;
+  const [, tick] = R.useState(0);
+  const [loaded, setLoaded] = R.useState(false);
+  R.useEffect(() => {
+    const sub = () => tick((n: number) => n + 1);
+    prefsSubs.add(sub);
+    let alive = true;
+    void loadPrefs().then(() => { if (alive) setLoaded(true); });
+    return () => { alive = false; prefsSubs.delete(sub); };
+  }, []);
+  const stored = key in prefsMem ? prefsMem[key] : readLocal(key);
+  const set = (v: T | undefined) => {
+    if (v === undefined) { delete prefsMem[key]; try { localStorage.removeItem(localKey(key)); } catch { /* bỏ qua */ } }
+    else { prefsMem[key] = v; try { localStorage.setItem(localKey(key), JSON.stringify(v)); } catch { /* bỏ qua */ } }
+    prefsSubs.forEach((f) => f());
+    void api.put(`/auth/prefs/${encodeURIComponent(key)}`, v === undefined ? null : v).catch(() => { /* CMS cũ: giữ ở trình duyệt */ });
+  };
+  return { value: (stored === undefined ? initial : stored) as T, set, reset: () => set(undefined), loaded };
+}
