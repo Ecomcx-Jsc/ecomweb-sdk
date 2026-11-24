@@ -155,6 +155,8 @@ export interface AdminPage {
   title?: string;
   /** Toàn màn hình: không thanh bên, không khung trang của admin (vd trình dựng trang kéo thả). Plugin tự vẽ nút quay lại. */
   fullscreen?: boolean;
+  /** Độ rộng khung trang (CMS ≥ 1.40): mặc định 1152px; "wide" 1600px; "fluid" gần hết chiều ngang (trang nhiều cột, bảng rộng). */
+  width?: "wide" | "fluid";
   component: ComponentType<{ path: string }>;
 }
 
@@ -422,6 +424,22 @@ type Placement = "top" | "bottom" | "left" | "right" | "top-start" | "top-end" |
  * Bộ component UI của admin — plugin dùng để giao diện đồng bộ với admin. Xem trực tiếp mọi component tại trang /ui-kit trong admin.
  * Mục đánh dấu "UI kit v2" chỉ có trên CMS mới (từ 22/10/2026); SDK tự thay bằng bản đơn giản khi CMS cũ chưa có.
  */
+export interface GalleryItem { id: number; url: string; /** "video": hiện nút phát, xem trong Lightbox */ type?: "image" | "video"; alt?: string; posterUrl?: string | null }
+export interface LightboxItem { url: string; type?: "image" | "video"; alt?: string; posterUrl?: string | null }
+/** Thuộc tính tay nắm kéo — chỉ truyền nguyên cho `SortableHandle`, không đọc bên trong. */
+export type SortableHandleProps = { attributes: unknown; listeners: unknown; setActivatorNodeRef(el: HTMLElement | null): void };
+export interface SortableRenderState { handle: SortableHandleProps; dragging: boolean; index: number; /** true khi đang vẽ bản đang kéo (không đặt nút bên trong) */ overlay: boolean }
+export interface SortableListProps<T> {
+  items: T[]; getId(item: T): string | number; onChange(items: T[]): void; render(item: T, state: SortableRenderState): ReactNode;
+  layout?: "list" | "grid"; className?: string; itemClassName?(item: T, index: number): string | undefined; disabled?: boolean; label?: string; children?: ReactNode;
+}
+export type BoardColumns = Record<string, string[]>;
+export interface SortableBoardProps {
+  /** Thứ tự id khối của từng cột, vd { main: ["info","images"], side: ["status"] } */
+  columns: BoardColumns; onChange(next: BoardColumns): void; render(id: string, state: SortableRenderState): ReactNode;
+  columnClassName?(col: string): string | undefined; className?: string; /** id khối không kéo được */ fixed?: string[];
+}
+
 export interface UiKit {
   Button: ComponentType<{ variant?: "primary" | "secondary" | "danger" | "ghost"; size?: "sm" | "md"; loading?: boolean; icon?: ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>>;
   Input: ComponentType<React.InputHTMLAttributes<HTMLInputElement> & { ref?: React.Ref<HTMLInputElement> }>;
@@ -520,7 +538,21 @@ export interface UiKit {
     empty?: ReactNode; onRowClick?(r: any): void; sort?: { key: string; dir: "asc" | "desc" } | null; onSort?(s: { key: string; dir: "asc" | "desc" } | null): void; ariaLabel?: string;
   }>;
   /** Nhiều ảnh, kéo thả (hoặc nút ←/→) để sắp xếp; ảnh đầu là ảnh đại diện. */
-  MediaGallery?: ComponentType<{ items: Array<{ id: number; url: string }>; onChange(items: Array<{ id: number; url: string }>): void; max?: number; accept?: string; disabled?: boolean }>;
+  /**
+   * Thư viện ảnh / video: kéo sắp xếp (chuột, cảm ứng, bàn phím), thả tệp từ máy vào để tải lên, bấm xem phóng to, sửa mô tả ảnh (alt).
+   * Mục đầu là ảnh đại diện. `accept` mặc định "image/"; truyền "image/,video/" để nhận video. CMS ≥ 1.40 (bản cũ chỉ có ảnh và kéo bằng chuột).
+   */
+  MediaGallery?: ComponentType<{ items: GalleryItem[]; onChange(items: GalleryItem[]): void; max?: number; accept?: string; disabled?: boolean; onAltChange?(id: number, alt: string): void }>;
+  /** Danh sách kéo đổi thứ tự (dnd-kit của lõi — plugin không cần cài thêm). CMS ≥ 1.40. */
+  SortableList?: <T>(props: SortableListProps<T>) => ReactNode;
+  /** Bảng khối nhiều cột, kéo khối trong cột hoặc sang cột khác; cột trống vẫn thả được. CMS ≥ 1.40. */
+  SortableBoard?: ComponentType<SortableBoardProps>;
+  /** Tay nắm kéo ⋮⋮ có nhãn và dùng được bằng bàn phím; nhận `state.handle` từ render của SortableList / SortableBoard. */
+  SortableHandle?: ComponentType<{ handle: SortableHandleProps; label?: string; className?: string }>;
+  /** Vùng thả tệp từ máy (hoặc bấm để chọn); lọc theo `accept` ("image/*", ".csv"). CMS ≥ 1.40. */
+  DropZone?: ComponentType<{ onFiles(files: File[]): void; accept?: string; multiple?: boolean; disabled?: boolean; className?: string; children?: ReactNode; label?: string }>;
+  /** Hộp xem ảnh / phát video phóng to: ← → chuyển, Esc đóng. CMS ≥ 1.40. */
+  Lightbox?: ComponentType<{ items: LightboxItem[]; index: number; onClose(): void; onIndex(i: number): void }>;
   /** Chọn nhiều trong cây (danh mục), có ô tìm. */
   TreeSelect?: ComponentType<{ nodes: Array<{ id: number | string; label: string; children?: any[] }>; value: Array<number | string>; onChange(v: Array<number | string>): void; searchable?: boolean; placeholder?: string; maxHeight?: number }>;
   /** Nhật ký hoạt động của một đối tượng ở cuối trang: loại lõi ("post", "media", "user") hoặc loại plugin đã đăng ký (`objectType` "{slug}/{tên}", cần quyền sửa của loại đó). Plugin ghi dòng bằng IAuditLog (C#). */

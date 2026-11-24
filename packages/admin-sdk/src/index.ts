@@ -286,6 +286,11 @@ export const StickyActionBar = ui("StickyActionBar", (p) => h("div", { style: { 
     h(host().ui.Button, { onClick: p.onSave, loading: p.saving, variant: "primary" }, p.saveLabel ?? "Save"))));
 export const ResourceList = ui("ResourceList", (p) => h(host().ui.Table, { columns: p.columns, rows: p.rows, rowKey: p.rowKey, loading: p.loading, empty: p.empty, onRowClick: p.onRowClick }));
 export const MediaGallery = ui("MediaGallery", () => null);
+export const SortableList = ui("SortableList", () => null) as NonNullable<import("./types").UiKit["SortableList"]>;
+export const SortableBoard = ui("SortableBoard", () => null);
+export const SortableHandle = ui("SortableHandle", () => null);
+export const DropZone = ui("DropZone", () => null);
+export const Lightbox = ui("Lightbox", () => null);
 export const TreeSelect = ui("TreeSelect", () => null);
 export const ActivityLog = ui("ActivityLog", () => null);
 /** Cảnh báo khi đóng tab / bấm link nội bộ lúc `dirty`. CMS cũ: chỉ cảnh báo khi đóng tab. */
