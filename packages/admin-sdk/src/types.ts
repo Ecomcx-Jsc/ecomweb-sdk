@@ -551,6 +551,12 @@ export interface UiKit {
   SortableHandle?: ComponentType<{ handle: SortableHandleProps; label?: string; className?: string }>;
   /** Vùng thả tệp từ máy (hoặc bấm để chọn); lọc theo `accept` ("image/*", ".csv"). CMS ≥ 1.40. */
   DropZone?: ComponentType<{ onFiles(files: File[]): void; accept?: string; multiple?: boolean; disabled?: boolean; className?: string; children?: ReactNode; label?: string }>;
+  /**
+   * Trình soạn nội dung dạng khối của CMS nhúng trong form (mô tả sản phẩm…): định dạng chữ, ảnh, bảng, nút, khối của theme / plugin.
+   * `value` là nội dung dạng khối (`{ version, blocks }`, như `post.content`), chỉ đọc lúc mở — đổi `id` để nạp lại; `onChange` nhận nội dung mới.
+   * CMS ≥ 1.40.
+   */
+  ContentEditor?: ComponentType<{ id: string | number; value: unknown; onChange(content: unknown): void; height?: number; kind?: string; className?: string }>;
   /** Hộp xem ảnh / phát video phóng to: ← → chuyển, Esc đóng. CMS ≥ 1.40. */
   Lightbox?: ComponentType<{ items: LightboxItem[]; index: number; onClose(): void; onIndex(i: number): void }>;
   /** Chọn nhiều trong cây (danh mục), có ô tìm. */
