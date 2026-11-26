@@ -1,0 +1,13 @@
+{
+  "name": "ecomweb-theme-port-tools",
+  "private": true,
+  "type": "module",
+  "description": "Script đo đạc cho skill ecomweb-theme-port: chụp trang, gom CSS, kiểm theme, so sánh bản gốc với bản chuyển.",
+  "scripts": {
+    "setup": "npx playwright install chromium",
+    "test": "node selftest.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.65.0"
+  }
+}
