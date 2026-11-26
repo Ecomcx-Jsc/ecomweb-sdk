@@ -18,13 +18,18 @@ const warn = (f, msg) => warns.push(`${f}: ${msg}`);
 
 function walk(d, out = []) {
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {
-    if (["node_modules", "dist", ".git", ".next"].includes(e.name)) continue;
+    if (["node_modules", "dist", ".git", ".next", "port", "tools"].includes(e.name) && d === root) continue;
+    if (["node_modules", ".git", ".next"].includes(e.name)) continue;
     const p = path.join(d, e.name);
     e.isDirectory() ? walk(p, out) : out.push(p);
   }
   return out;
 }
 const rel = (p) => path.relative(root, p);
+
+// --- file làm việc không được lọt vào gói theme
+const ign = fs.existsSync(path.join(root, ".ecomwebignore")) ? fs.readFileSync(path.join(root, ".ecomwebignore"), "utf8") : "";
+for (const d of ["port", "tools"]) if (fs.existsSync(path.join(root, d)) && !new RegExp(`^/?${d}/?\\s*$`, "m").test(ign)) err(".ecomwebignore", `thư mục ${d}/ (ảnh chụp, báo cáo, script) sẽ bị đóng gói vào theme: thêm dòng "${d}/" vào .ecomwebignore`);
 
 // --- theme.json
 const tj = path.join(root, "theme.json");
@@ -59,6 +64,13 @@ if (fs.existsSync(layout)) {
   if (!/EditableRegion[^>]*name=["']header["']/.test(s)) warn("layout.tsx", 'header chưa bọc <EditableRegion name="header">');
   if (!/EditableRegion[^>]*name=["']footer["']/.test(s)) warn("layout.tsx", 'footer chưa bọc <EditableRegion name="footer">');
   if (!/import\s+["'][^"']+\.css["']/.test(s)) warn("layout.tsx", "không import file CSS nào");
+  // Thứ tự cascade: CSS gốc (assets/css/…) trước, styles.css (phần bổ sung) sau cùng
+  const imps = [...s.matchAll(/import\s+["']([^"']+\.css)["']/g)].map((m) => m[1]);
+  const iStyles = imps.findIndex((x) => /(^|\/)styles\.css$/.test(x));
+  const lastSrc = imps.map((x, i) => (/assets\/css\//.test(x) ? i : -1)).filter((i) => i >= 0).pop() ?? -1;
+  if (iStyles >= 0 && lastSrc > iStyles) err("layout.tsx", `styles.css import TRƯỚC CSS gốc (${imps[lastSrc]}): CSS gốc sẽ đè phần bổ sung. Đặt styles.css sau cùng`);
+  if (/dangerouslySetInnerHTML[^]*?classList|classList[^]*?dangerouslySetInnerHTML/.test(s) || /<script[^>]*>[^<]*classList/.test(s))
+    err("layout.tsx", "gắn class trang bằng script inline: trang nháy sai kiểu. Class cố định → filters[\"body.class\"] trong extend.tsx; class theo trang → className của khung bao trong layout.tsx (render server), CSS gốc đã được css-port đổi body.x → .body-wrapper.x");
 }
 
 // --- mã nguồn
@@ -82,6 +94,33 @@ for (const f of code) {
     if (/(^|[\s(>])<[a-z][\w-]*\s[^>]*\bclass=["']/.test(ln) && !/HTML|["'`]</.test(ln)) warn(at, "JSX dùng class= thay vì className=");
     if (/>\s*(Add to cart|Read more|Shop now|Thêm vào giỏ|Xem thêm|Mua ngay)\s*</i.test(ln)) warn(at, "chữ giao diện gõ cứng: đưa vào locales/*.json và dùng getT()/useT()");
   });
+}
+
+// --- Hành vi tự chế thay vì kit, chữ gõ cứng, dấu KIT chưa xử lý
+const kitDir = fs.existsSync(path.join(root, "components", "kit")) ? "components/kit" : null;
+for (const f of code) {
+  const s = fs.readFileSync(f, "utf8");
+  const r = rel(f);
+  if (r.startsWith("components/kit/")) continue;
+  if (/\{\/\* KIT:/.test(s)) err(r, "còn dấu {/* KIT: … */} của html2jsx: bọc khối đó bằng <OwlCarousel>/<SlickCarousel> của kit");
+  const timers = /set(Interval|Timeout)\s*\(/.test(s), moves = /translate(3d|X)\(|scrollLeft|scrollTo\(|\.scrollBy\(/.test(s);
+  if (timers && moves && !/from\s+["'][^"']*kit\/Carousel["']/.test(s)) warn(r, "tự viết carousel/slider (timer + translate). Dùng kit/Carousel (OwlCarousel/SlickCarousel) để giữ đúng cây thẻ + class + thời gian của bản gốc");
+  if (/className=\{?["'`][^"'`]*\becx-(carousel|slider|slide|fade|active|track|item)\b/.test(s)) warn(r, "class tự chế ecx-carousel/ecx-slide…: CSS gốc không biết class này; dùng class gốc + kit");
+  for (const m of s.matchAll(/const\s+([A-Z][A-Z0-9_]*)\s*(?::[^=]+)?=\s*\[\s*(["'`][^\]]{0,400})\]/g)) {
+    // chỉ tính chuỗi giống chữ hiển thị (≥ 2 từ), bỏ hằng kỹ thuật (khoá, selector, tên tham số)
+    const n = (m[2].match(/["'`][^"'`]{3,}["'`]/g) || []).filter((x) => /[\p{L}]{2,}\s+[\p{L}]{2,}/u.test(x) && !/[.#\[\]>=]/.test(x)).length;
+    if (n >= 3) warn(`${r}`, `mảng chữ gõ cứng ${m[1]} (${n} mục): nội dung chủ shop phải sửa được → ACF repeater, mặc định = chữ gốc`);
+  }
+}
+if (!kitDir && code.some((f) => /from\s+["'][^"']*\/kit\/[A-Z]/.test(fs.readFileSync(f, "utf8")))) warn("components/kit/", "dùng kit nhưng chưa chép kit vào components/kit/");
+
+// --- CSS tự viết hiệu ứng (keyframes) ngoài CSS gốc
+for (const f of css) {
+  const r = rel(f);
+  if (/assets\/css\/(source|page-|vendor)/.test(r)) continue;
+  const s = fs.readFileSync(f, "utf8");
+  const kf = [...s.matchAll(/@keyframes\s+([\w-]+)/g)].map((m) => m[1]);
+  if (kf.length) warn(r, `tự viết @keyframes ${kf.slice(0, 5).join(", ")}: hiệu ứng phải là CSS gốc (đã có trong source.css). Chỉ viết khi motion.json của bản gốc có animation đó mà CSS gốc không có`);
 }
 
 // --- CSS: url() phải trỏ tới file có thật

@@ -2,12 +2,22 @@
   "name": "ecomweb-theme-port-tools",
   "private": true,
   "type": "module",
-  "description": "Script đo đạc cho skill ecomweb-theme-port: chụp trang, gom CSS, kiểm theme, so sánh bản gốc với bản chuyển.",
+  "description": "Công cụ của skill ecomweb-theme-port: chụp trang, đo chuyển động, đổi HTML sang JSX, gom CSS, đề xuất plugin, kiểm theme, so sánh.",
   "scripts": {
     "setup": "npx playwright install chromium",
-    "test": "node selftest.mjs"
+    "test": "node selftest.mjs && node kit-test.mjs && node html2jsx-test.mjs && node motion-test.mjs"
   },
   "dependencies": {
     "playwright": "1.65.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "0.25.12",
+    "jquery": "3.7.1",
+    "owl.carousel": "2.3.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "5.9.3"
   }
 }

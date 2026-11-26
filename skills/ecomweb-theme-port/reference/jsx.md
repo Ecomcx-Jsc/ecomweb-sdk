@@ -1,6 +1,16 @@
-# HTML sang JSX và làm lại hành vi JS
+# HTML sang JSX và thay nội dung demo
 
-## Đổi HTML sang JSX (làm máy móc, không sáng tạo)
+**Không đổi tay.** `scripts/html2jsx.mjs` làm hết bảng dưới (kèm tải ảnh, gỡ khung carousel). Bảng này để hiểu file sinh ra và sửa chỗ nhỏ.
+
+```bash
+node $SKILL/scripts/html2jsx.mjs port/orig/home/dom-1920.html --select "<phần tử ngoài cùng của khối>" --out components/<nhóm>/<Tên>.tsx --name <Tên>
+```
+- `--all`: mọi phần tử khớp (vd mọi `.elementor-section` của trang). Không có `--all` thì lấy phần tử đầu tiên.
+- Ảnh (`src`, `srcset` của `<source>`, `poster`, `url()` trong style) tải về `assets/media/`, dùng qua `M.mN` của `<Tên>.media.ts`.
+- Thuộc tính lạ (`valign`, `bgcolor`…) giữ trong `{...{ "valign": "top" }}`.
+- Carousel Owl/Slick: khung thư viện bị gỡ, có dấu `{/* KIT: … */}` (xem `kit.md`).
+
+## Quy tắc đổi (html2jsx đã làm)
 
 | HTML | JSX |
 |---|---|
@@ -40,85 +50,6 @@ Sau:
 - Chữ giao diện cố định (nút, nhãn) → `locales`.
 - Danh sách lặp lại N lần giống nhau → `.map()` trên repeater ACF hoặc trên dữ liệu (sản phẩm, bài, danh mục). Giữ markup **một** phần tử mẫu, xoá các bản lặp còn lại.
 
-## Làm lại hành vi JS
+## Hành vi JS
 
-Nguyên tắc:
-- Hành vi chỉ **thêm/bớt class và style** đúng như JS gốc làm, để CSS gốc lo phần hình. Mở DevTools ở bản gốc, xem class nào đổi khi bấm/cuộn (`active`, `open`, `show`, `is-sticky`, `slick-active`).
-- Một hành vi gắn vào một khối thì làm component `"use client"` bọc khối đó. Hành vi toàn trang (hiệu ứng cuộn, nút lên đầu, header dính, modal) làm một `Behavior.tsx` gắn ở `layout.tsx`.
-- Chạy lại khi chuyển trang (Next không tải lại trang): `useEffect(…, [pathname])` với `usePathname()` từ `next/navigation`, hoặc `MutationObserver` trên `document.body`.
-- Dọn dẹp trong hàm trả về của `useEffect` (gỡ listener, `observer.disconnect()`).
-- Tôn trọng `matchMedia("(prefers-reduced-motion: reduce)")`.
-
-### Header dính
-
-```tsx
-"use client";
-import { useEffect } from "react";
-export default function Sticky({ selector = "#header", offset = 200, cls = "is-sticky" }: { selector?: string; offset?: number; cls?: string }) {
-  useEffect(() => {
-    const el = document.querySelector(selector);
-    if (!el) return;
-    const on = () => el.classList.toggle(cls, window.scrollY > offset);
-    on(); window.addEventListener("scroll", on, { passive: true });
-    return () => window.removeEventListener("scroll", on);
-  }, [selector, offset, cls]);
-  return null;
-}
-```
-
-### Hiệu ứng xuất hiện khi cuộn (WOW, AOS, Elementor `elementor-invisible`)
-
-```tsx
-"use client";
-import { useEffect } from "react";
-import { usePathname } from "next/navigation";
-export default function Reveal() {
-  const pathname = usePathname();
-  useEffect(() => {
-    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const io = new IntersectionObserver((es) => es.forEach((e) => {
-      if (!e.isIntersecting) return;
-      const el = e.target as HTMLElement; io.unobserve(el);
-      let s: Record<string, string> = {};
-      try { s = JSON.parse(el.dataset.settings || "{}"); } catch {}
-      const name = (innerWidth <= 767 && s._animation_mobile) || (innerWidth <= 1024 && s._animation_tablet) || s._animation || s.animation;
-      el.classList.remove("elementor-invisible");
-      if (name && name !== "none" && !reduce) el.classList.add("animated", name);
-    }));
-    document.querySelectorAll(".elementor-invisible").forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, [pathname]);
-  return null;
-}
-```
-Với AOS: phần tử `[data-aos]`, thêm class `aos-animate` (và `aos-init` lúc đầu). Với WOW: `.wow`, thêm `animated` + đặt `visibility: visible`.
-
-### Slider (slick, owl, swiper, flexslider của bản gốc)
-
-Chọn một trong hai cách, dùng **một cách cho cả theme**:
-1. **Gói `swiper` (khuyên dùng khi bản gốc là swiper):** `npm i swiper@11.2.6` (ghi đúng phiên bản trong package.json). Khởi tạo trên markup gốc trong `useEffect`. CSS swiper gốc đã có trong `source.css`.
-2. **Component slider tự viết** (khi bản gốc là slick/owl, để giữ đúng markup `slick-list`/`slick-track`/`owl-stage`): tạo đúng cây thẻ mà plugin gốc sinh ra **sau khi khởi tạo**. Lấy cây này từ `dom-1920.html`, không lấy từ HTML nguồn. Sau đó tính `transform: translate3d(-Xpx,0,0)` theo slide hiện tại, gắn `slick-active`/`slick-current`, và đọc số cột từng thiết bị từ `data-*` của bản gốc.
-
-Dù cách nào, slider phải:
-- có class "đã khởi tạo" (`slick-initialized`, `swiper-initialized`, `owl-loaded`) ngay khi render;
-- có đúng số slide hiện ở 1920/1440/390;
-- vuốt được trên mobile;
-- không tạo thanh cuộn ngang.
-
-### Tab, accordion, toggle
-
-`useState` chỉ số đang mở. Gắn đúng class gốc (`active`, `show`, `elementor-active`, `is-open`) lên tiêu đề và nội dung đang mở. Nội dung tab vẫn render hết (CSS gốc ẩn bằng class), để giống bản gốc và tốt cho SEO.
-
-### Menu mobile, mega menu, dropdown
-
-- Nút mở menu: toggle class gốc (`menu-open` trên khung bao hoặc `active` trên menu). Đóng khi chuyển trang (`useEffect` theo `pathname`).
-- Mega menu định vị bằng JS ở bản gốc: tính `left`/`width` như JS gốc khi hover. Đọc hàm gốc trong file JS của bản gốc (có trong thư mục HTTrack, tra bằng `map.json`).
-- Menu từ `getMenu()` có `children`. Vẽ đệ quy với đúng `ul.sub-menu`/`li.menu-item-has-children` của bản gốc. `cssClass` của mục menu gắn vào `li`.
-
-### Đếm ngược, đếm số, lightbox, modal, nút lên đầu, quick view
-
-- Đếm ngược: ngày kết thúc từ ACF hoặc `extra.commerce.saleEndsAt`. Tính ở client (`useEffect`) để tránh lỗi hydration.
-- Đếm số (counter): `IntersectionObserver` rồi tăng từ 0 tới đích trong khoảng thời gian `data-duration` gốc.
-- Lightbox video/ảnh: modal tự viết với class gốc. `iframe` YouTube cần `csp.frame-src`.
-- Modal kiểu Bootstrap (`data-toggle="modal"`): gắn `show`/`in` + `display:block` lên modal và `modal-open` lên body (class trạng thái, được phép).
-- Quick view: đặt sẵn dữ liệu cần hiện trên thẻ sản phẩm lúc render server (`data-product-id`, `-title`, `-img`, `-price`, `-link`), rồi client đọc và vẽ vào khung quick view gốc. Không gọi API của CMS từ trình duyệt.
+Làm bằng kit (`reference/kit.md`). Chỉ viết component riêng cho thứ kit không có, theo quy tắc cuối `kit.md`.
