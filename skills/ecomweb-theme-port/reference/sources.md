@@ -8,7 +8,8 @@ Phần chung cho mọi loại đã nằm trong SKILL.md. Mục dưới đây ch�
 ## WordPress (mọi kiểu)
 
 - Mã PHP và file `.php` vô dụng. Chỉ dùng DOM đã render.
-- Class `<body>` mang thông tin trang: `home`, `page-template-*`, `single-product`, `archive`, `tax-product_cat`, `woocommerce`, `woocommerce-page`, `elementor-page-<id>`, `elementor-kit-<n>`. Tính lại theo `data` của CMS trong `layout.tsx`:
+- **JS bị hoãn:** WP Rocket, Perfmatters, LiteSpeed, FlyingPress và nhiều theme bán sẵn chỉ chạy JS sau lần rê chuột/chạm/cuộn đầu tiên (`ideapark_require`, `rocket-delay-js`, `data-rocket-src`, `type="rocketlazyloadscript"`). `snapshot.mjs`/`motion.mjs` đã thao tác thật; nếu `carousel đã khởi tạo: 0` mà trang có slider → `--wait 5000`.
+- Class `<body>`: dùng `meta.json › bodyClasses.keep`, chia hai loại theo `cms.md › Khung trang`. Thông tin trang nằm trong class: `home`, `page-template-*`, `single-product`, `archive`, `tax-product_cat`, `woocommerce`, `woocommerce-page`, `elementor-page-<id>`, `elementor-kit-<n>`. Tính lại theo `data` của CMS trong `layout.tsx`:
   - trang chủ: `home`;
   - chi tiết sản phẩm: `single-product woocommerce woocommerce-page`;
   - danh sách sản phẩm: `archive post-type-archive-product woocommerce woocommerce-page`;
@@ -34,13 +35,13 @@ Phần chung cho mọi loại đã nằm trong SKILL.md. Mục dưới đây ch�
   - `"background_slideshow_gallery"`: nền trình chiếu;
   - `"motion_fx_*"`: hiệu ứng chuyển động khi cuộn.
 
-  Viết lại trong `Behavior.tsx`: đọc `data-settings`, `IntersectionObserver` gỡ `elementor-invisible`, thêm `animated <animation>`. Phải tính cả `_tablet`/`_mobile`.
+  Hiệu ứng xuất hiện: `kit/Reveal` (đọc `data-settings`, gỡ `elementor-invisible`, thêm `animated <tên>`, theo `_tablet`/`_mobile`). Header dính: `kit/ScrollClass`. Nền trình chiếu: `kit/Carousel` hoặc component riêng.
 - Widget và JS thường gặp:
   - carousel dùng swiper: cần class `swiper-initialized`;
   - tab (`elementor-tab-title`/`elementor-tab-content`, `e-n-tabs`): gắn `elementor-active`;
   - accordion, toggle, counter (`data-to-value`), countdown (`data-date`), video lightbox, popup Pro.
 - Breakpoint mặc định: mobile ≤ 767px, tablet ≤ 1024px. CSS trang đã có `@media` sẵn, đừng tự viết.
-- Theme kit bán sẵn (ThemeForest, wpthemego…) hay có widget riêng (`sw-*`, `bwp-*`, `jws-*`) chạy bằng slick hoặc owl. Đọc `data-*` của widget để biết số cột từng thiết bị (`data-slides_to_show`, `_tablet`, `_mobile`, `data-autoplay`…).
+- Theme bán sẵn (ThemeForest, wpthemego, parkofideas…) hay có widget riêng (`sw-*`, `bwp-*`, `jws-*`, `ideapark-*`) chạy bằng Owl hoặc Slick → `kit/Carousel`. Thông số: `data-*` của widget (`data-slides_to_show`, `_tablet`, `_mobile`, `data-autoplay`, `data-animation`, `data-animation-timeout`…) + cấu hình `owlCarousel({…})`/`slick({…})` trong JS của theme (thường là một file gộp `uploads/<theme>/min*.js`).
 
 ## WPBakery (Visual Composer) / Divi / Avada / Beaver
 
@@ -77,10 +78,16 @@ Phần chung cho mọi loại đã nằm trong SKILL.md. Mục dưới đây ch�
 - Ảnh, chữ và link từng slide là repeater ACF.
 - Đây là chỗ được phép viết CSS mới (trong `styles.css`) vì không có CSS gốc dùng được. So bằng `compare` như mọi khối khác.
 
+## Bản HTTrack
+
+- `httrack-map.mjs` → `map.json` (file ↔ URL gốc, file thiếu). HTTrack đổi tên file có query (`style.css?ver=6.1` → `style6a3f.css`).
+- Thường thiếu: CSS Google Fonts, chunk JS của Elementor (`chunks/*.min.js`), file do JS gọi. Site gốc còn sống → chụp site gốc làm chuẩn, chỉ dùng HTTrack để lấy file.
+- Phục vụ bằng `serve.mjs` (không `file://`).
+
 ## HTML tĩnh (template mua ở ThemeForest, bản tải về)
 
 - Có sẵn HTML thật: vẫn chụp bằng `serve.mjs` + `snapshot.mjs` để lấy DOM sau JS và CSS đúng thứ tự.
-- Bootstrap, slick, owl, swiper, AOS, WOW, isotope, magnific-popup: không chép JS, làm lại hành vi (`reference/jsx.md`). Class mà plugin JS gắn sau khi khởi tạo (`owl-loaded`, `slick-initialized`, `aos-animate`) phải được gắn bởi hành vi của bạn.
+- Bootstrap, slick, owl, swiper, AOS, WOW, isotope, magnific-popup: không chép JS, dùng kit (`reference/kit.md`). Kit gắn đúng class sau khởi tạo (`owl-loaded`, `slick-initialized`, `aos-animate`).
 
 ## React / Next.js / Vue / Nuxt / Astro / Svelte
 

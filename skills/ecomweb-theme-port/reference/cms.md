@@ -90,38 +90,70 @@ export default async function Single({ data, site }: TemplateProps) {
 Ở danh sách, `posts[].content` không gửi kèm (dùng `excerpt`).
 Template không cần header/footer: `export const layout = false;`.
 
-## Khung trang (layout.tsx)
+## Khung trang (layout.tsx) và class của `<body>`
+
+CSS gốc của WordPress bám vào class của `<body>` (hàng nghìn selector `.h-ltr …`, `body.single-product …`, `.elementor-kit-37 …`, `.woocommerce …`). Thiếu một class là cả mảng giao diện sai. `snapshot.mjs` ghi sẵn danh sách phải giữ: `meta.json › bodyClasses.keep` (của từng trang).
+
+Core render `<body>` (theme không viết thẻ body). Có hai đường, dùng CẢ HAI:
+1. **Class cố định của site** (giống nhau ở mọi trang: `wp-theme-x`, `h-ltr`, `h-header-type-1`, `elementor-kit-37`, `woocommerce-js`…) → filter `body.class` trong `extend.tsx`. Filter chỉ nhận `{ site }`, không biết trang hiện tại.
+2. **Class theo loại trang** (`home`, `page`, `single`, `single-product`, `archive`, `tax-product_cat`, `woocommerce`, `woocommerce-page`, `elementor-page-<id>`…) → `className` của khung bao `.body-wrapper` trong `layout.tsx`, tính từ `data`, render từ server. Khung bao mang **cả** class cố định nữa, vì `css-port` đã đổi mọi selector `body.<class>` thành `.body-wrapper.<class>`.
+
+KHÔNG gắn class bằng `<script>` inline hay `useEffect` (trang vẽ sai kiểu rồi mới đúng).
 
 ```tsx
-import "./assets/css/source.css";
-import "./styles.css";
+// extend.tsx
+import { definePlugin } from "@ecomcx/ecomweb-theme-sdk";
+export const SITE_BODY = ["wp-theme-luchiana", "theme-luchiana", "woocommerce-js", "h-ltr", "h-header-type-1", "elementor-default", "elementor-kit-37"];
+export default definePlugin({
+  filters: { "body.class": (classes: string[]) => [...new Set([...classes, ...SITE_BODY])] },
+});
+```
+```tsx
+// layout.tsx
+import "./assets/css/source.css";      // CSS gốc trước
+import "./styles.css";                 // phần bổ sung SAU CÙNG
 import { EditableRegion, getMenu, getClientMessages, type LayoutProps } from "@ecomcx/ecomweb-theme-sdk";
 import { TranslationsProvider } from "@ecomcx/ecomweb-theme-sdk/client";
+import { SITE_BODY } from "./extend";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
-import Behavior from "./components/layout/Behavior";
+import Reveal from "./components/kit/Reveal";
+
+/** Class <body> theo loại trang, lấy từ bodyClasses.keep của trang gốc tương ứng (port/orig/<trang>/meta.json). */
+function pageClasses(data: LayoutProps["data"]): string[] {
+  if (!data) return [];
+  const type = data.post?.type;
+  switch (data.kind) {
+    case "front-page": return ["home", "page", "page-template-elementor_header_footer", "elementor-page", "elementor-template-full-width"];
+    case "single": return type === "product" ? ["single", "single-product", "woocommerce", "woocommerce-page"] : ["single", `single-${type}`];
+    case "archive": return type === "product" ? ["archive", "post-type-archive-product", "woocommerce", "woocommerce-page"] : ["archive"];
+    case "taxonomy": return data.term?.taxonomy === "product_cat" ? ["archive", "tax-product_cat", "woocommerce", "woocommerce-page"] : ["archive"];
+    case "search": return ["search", "search-results"];
+    case "404": return ["error404"];
+    default: return ["page"];
+  }
+}
 
 export default async function Layout({ site, data, children }: LayoutProps) {
   const menu = await getMenu("primary").catch(() => null);
   const messages = await getClientMessages(["ui.", "shop.", "cart."]);   // khóa dịch gửi xuống client
-  const single = data?.kind === "single" ? ` single single-${data.post?.type}` : "";
   return (
     <TranslationsProvider value={messages}>
-      {/* class của <body> gốc, render từ server */}
-      <div className={`body-wrapper home page-template elementor-kit-5${single}`}>
+      <div className={["body-wrapper", ...SITE_BODY, ...pageClasses(data)].join(" ")}>
         <EditableRegion name="header" data={data}><Header menu={menu} site={site} /></EditableRegion>
         <main id="main">{children}</main>
         <EditableRegion name="footer" data={data}><Footer site={site} /></EditableRegion>
-        <a id="back-to-top" href="#" />
-        <Behavior />
       </div>
+      <Reveal />
     </TranslationsProvider>
   );
 }
 ```
-- Class của body gốc thay đổi theo loại trang (`home`, `single-product`, `archive`, `woocommerce-page`…). Tính từ `data`, đừng chép cứng một bộ cho mọi trang.
-- CSS theme được core bọc trong `:where(html[data-theme~="<slug>"])`, không tăng độ ưu tiên. Selector `html`, `body`, `:root` vẫn dùng được. Riêng `body.<class>` không khớp vì body không có class của bạn, nên `css-port` đã đổi sang `.body-wrapper.<class>`.
+- Bản gốc có lớp bao riêng (`.l-wrap`, `#page`, `.site`): giữ lớp đó **bên trong** `.body-wrapper`, đúng như cây thẻ gốc.
+- `data.kind`: `front-page`, `home`, `page`, `single`, `archive`, `taxonomy`, `category`, `tag`, `author`, `date`, `search`, `route` (trang ảo /login, /account…), `404`.
+- CSS theme được core bọc trong `:where(html[data-theme~="<slug>"])` (không tăng độ ưu tiên). `:root` và `html` được thay bằng chính phạm vi đó nên biến CSS ở `:root` vẫn chạy. Selector `body` vẫn khớp.
 - Thanh admin (32px) hiện khi đăng nhập: `<html>` có `margin-top: 32px` và biến `--cms-admin-bar`. Header dính dùng `top: var(--cms-admin-bar, 0px)`.
+- Script inline vẫn chạy (CSP website có `'unsafe-inline'`), nhưng hành vi phải nằm trong component `.tsx`.
 
 ## SDK hay dùng (`@ecomcx/ecomweb-theme-sdk`)
 

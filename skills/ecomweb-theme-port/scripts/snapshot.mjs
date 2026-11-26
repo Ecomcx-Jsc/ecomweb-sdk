@@ -8,10 +8,14 @@
 //   dom-<w>.html      DOM sau khi render (dùng làm mẫu markup, KHÔNG phải mã PHP)
 //   css/NN-*.css      từng stylesheet theo đúng thứ tự trên trang + css/order.json
 //   meta.json         class/thuộc tính của <html>/<body>, loại nguồn (Elementor, Woo, Next…), font đã nạp,
-//                     request lỗi, lỗi console, script, link nội bộ, hộp + style của phần tử chính theo từng độ rộng
+//                     request lỗi, lỗi console, script, link nội bộ, hộp + style của phần tử chính theo từng độ rộng,
+//                     bodyClasses: class <body> do server in ra / do JS thêm / được CSS dùng (cái nào phải giữ)
+//
+// Trước khi chụp: rê chuột + lăn chuột thật (theme hoãn JS tới lần thao tác đầu), đợi carousel khởi tạo, cuộn hết trang,
+// rồi đưa mọi carousel về slide đầu + dừng autoplay (bản theme dùng kit nhận sự kiện "ecx:freeze") để hai bên so được.
 import fs from "node:fs";
 import path from "node:path";
-import { args, browser, die, FREEZE_CSS, mkdir, scrollThrough, widths, writeJson } from "./lib.mjs";
+import { args, browser, die, FREEZE_CSS, freezeCarousels, interact, mkdir, scrollThrough, waitCarousels, widths, writeJson } from "./lib.mjs";
 
 const a = args();
 const [url, out] = a._;
@@ -34,7 +38,9 @@ const b = await browser();
 const meta = { url, takenAt: new Date().toISOString(), widths: {}, failed: [], console: [] };
 
 for (const [i, w] of widths(a.widths).entries()) {
-  const ctx = await b.newContext({ viewport: { width: w, height: 900 }, deviceScaleFactor: 1, ignoreHTTPSErrors: true });
+  const phone = w <= 480;
+  const ctx = await b.newContext({ viewport: { width: w, height: phone ? 844 : 900 }, deviceScaleFactor: 1, ignoreHTTPSErrors: true, isMobile: phone, hasTouch: phone,
+    userAgent: phone ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1" : undefined });
   const page = await ctx.newPage();
   if (i === 0) {
     page.on("response", (r) => { if (r.status() >= 400) meta.failed.push({ status: r.status(), url: r.url() }); });
@@ -44,6 +50,8 @@ for (const [i, w] of widths(a.widths).entries()) {
   }
   try { await page.goto(url, { waitUntil: "networkidle", timeout: 60000 }); }
   catch { await page.goto(url, { waitUntil: "load", timeout: 60000 }).catch((e) => die(`không mở được ${url}: ${e.message}`)); }
+  await interact(page);
+  const carousels = await waitCarousels(page);
   await scrollThrough(page);
   await page.waitForTimeout(Number(a.wait) || 1500);
   await page.evaluate(() => document.fonts?.ready);
@@ -65,7 +73,7 @@ for (const [i, w] of widths(a.widths).entries()) {
         woocommerce: has(/woocommerce/),
         wooBlocks: has(/wp-block-woocommerce-(cart|checkout)/),
         revslider: has(/rev_slider|rs-module/),
-        next: has(/__next|_next\/static/),
+        next: has(/_next\/static\/|id="__next"/),
         react: has(/data-reactroot|__REACT_DEVTOOLS|_reactListening/),
         nuxt: has(/__nuxt|_nuxt\//),
         shopify: has(/cdn\.shopify\.com|Shopify\.theme/),
@@ -80,14 +88,32 @@ for (const [i, w] of widths(a.widths).entries()) {
       const fonts = [...(document.fonts || [])].filter((f) => f.status === "loaded").map((f) => `${f.family} ${f.weight} ${f.style}`);
       const links = [...new Set([...document.querySelectorAll("a[href]")].map((x) => x.href.split("#")[0]).filter((h) => h.startsWith(location.origin)))];
       const lazy = document.querySelectorAll("img[data-src]:not([src]), img[data-lazy-src], img[src^='data:image']").length;
-      return { html: attrs(document.documentElement), body: attrs(document.body), source, sheets, scripts, fonts, links, lazyImagesLeft: lazy, title: document.title };
+      // Class nào của <body>/<html> được CSS dùng: những class đó BẮT BUỘC phải có ở bản theme.
+      const cssText = [];
+      for (const sh of document.styleSheets) { try { for (const r of sh.cssRules) cssText.push(r.cssText); } catch {} }
+      const all = cssText.join("\n");
+      const usedByCss = (c) => new RegExp(`\\.${c.replace(/[^\w-]/g, "\\$&")}(?![\\w-])`).test(all);
+      const bodyLive = document.body.className.split(/\s+/).filter(Boolean);
+      const htmlLive = document.documentElement.className.split(/\s+/).filter(Boolean);
+      return { html: attrs(document.documentElement), body: attrs(document.body), source, sheets, scripts, fonts, links, lazyImagesLeft: lazy, title: document.title,
+        bodyUsed: bodyLive.filter(usedByCss), htmlUsed: htmlLive.filter(usedByCss) };
     }));
+    // Class <body> server in ra (HTML thô) so với sau khi JS chạy.
+    const raw = await ctx.request.get(url).then((r) => r.text()).catch(() => "");
+    const server = ((raw.match(/<body[^>]*\sclass=["']([^"']*)["']/i) || [])[1] || "").split(/\s+/).filter(Boolean);
+    const live = (meta.body.class || "").split(/\s+/).filter(Boolean);
+    meta.bodyClasses = {
+      server, addedByJs: live.filter((c) => !server.includes(c)), removedByJs: server.filter((c) => !live.includes(c)),
+      usedByCss: meta.bodyUsed, keep: live.filter((c) => meta.bodyUsed.includes(c) || server.includes(c)).filter((c) => !/^(e--ua-|rs-|no-js$)/.test(c)),
+    };
+    delete meta.bodyUsed;
+    meta.carousels = carousels;
     // Lưu nội dung từng stylesheet theo thứ tự trên trang.
     const order = [];
     for (const [n, s] of meta.sheets.entries()) {
-      const name = `${String(n).padStart(2, "0")}-${s.type === "inline" ? `inline${s.id ? "-" + s.id : ""}` : path.basename(new URL(s.href).pathname).replace(/\.css$/, "") || "sheet"}.css`.replace(/[^a-z0-9._-]+/gi, "_");
+      const name = `${String(n).padStart(2, "0")}-${s.type === "inline" ? `inline${s.id ? "-" + s.id : ""}` : (s.href ? path.basename(new URL(s.href).pathname).replace(/\.css$/, "") : "nohref") || "sheet"}.css`.replace(/[^a-z0-9._-]+/gi, "_");
       let text = s.text ?? "";
-      if (s.type === "link") {
+      if (s.type === "link" && s.href) {
         const r = await ctx.request.get(s.href).catch(() => null);
         text = r && r.ok() ? await r.text() : `/* KHÔNG TẢI ĐƯỢC: ${s.href} */`;
       }
@@ -99,6 +125,7 @@ for (const [i, w] of widths(a.widths).entries()) {
   }
 
   fs.writeFileSync(path.join(out, `dom-${w}.html`), await page.content());
+  await freezeCarousels(page);
   await page.addStyleTag({ content: FREEZE_CSS });
   await page.waitForTimeout(200);
   meta.widths[w] = await page.evaluate(({ selectors, keys }) => {
@@ -126,7 +153,9 @@ writeJson(path.join(out, "meta.json"), meta);
 
 const src = Object.entries(meta.source).filter(([, v]) => v === true).map(([k]) => k);
 console.log(`nguồn: ${src.join(", ") || "HTML thường"}${meta.source.generator ? ` (generator: ${meta.source.generator})` : ""}`);
-console.log(`class <body>: ${meta.body.class || "(không có)"}`);
+console.log(`class <body> phải giữ: ${meta.bodyClasses.keep.join(" ") || "(không có)"}`);
+if (meta.bodyClasses.addedByJs.length) console.log(`  JS gốc thêm: ${meta.bodyClasses.addedByJs.join(" ")} (render sẵn từ server nếu nằm trong danh sách phải giữ)`);
+console.log(`carousel đã khởi tạo: ${meta.carousels}`);
 console.log(`stylesheet: ${meta.sheets.length}, font đã nạp: ${meta.fonts.length}, request lỗi: ${meta.failed.length}, lỗi console: ${meta.console.length}`);
 if (meta.lazyImagesLeft) console.log(`CẢNH BÁO: còn ${meta.lazyImagesLeft} ảnh lazyload chưa có src thật`);
 console.log(`xong: ${path.resolve(out)}`);
