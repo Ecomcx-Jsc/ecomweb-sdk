@@ -205,6 +205,10 @@ export interface Column<T> {
   key: string; title: ReactNode; render?: (row: T) => ReactNode; width?: number | string; align?: "left" | "right" | "center"; className?: string;
   /** Bấm tiêu đề để sắp xếp: bảng gọi `onSort`, plugin tự sắp xếp / gửi lên máy chủ (CMS có UI kit v2). */
   sortable?: boolean;
+  /** Ghim khi cuộn ngang: `"left"` chỉ cho cột đầu, `"right"` chỉ cho cột cuối. CMS mới. */
+  pin?: "left" | "right";
+  /** Ô tổng ở chân bảng: có ít nhất một cột có `footer` thì bảng hiện hàng chân. CMS mới. */
+  footer?: ReactNode;
 }
 export type SortState = { key: string; dir: "asc" | "desc" } | null;
 export interface UiOption { value: string; label: string; description?: string; disabled?: boolean }
@@ -473,6 +477,16 @@ export interface UiKit {
     columns: Column<any>[]; rows: any[]; rowKey?: (row: any) => string | number; empty?: ReactNode; loading?: boolean;
     selectable?: boolean; selected?: Set<string | number>; onSelect?(s: Set<string | number>): void; onRowClick?(row: any): void;
     sort?: SortState; onSort?(s: SortState): void; hiddenColumns?: string[]; density?: Density; ariaLabel?: string; labels?: Partial<UiLabels>;
+    /** Bảng cao tối đa, cuộn dọc bên trong và tiêu đề dính. CMS mới. */
+    maxHeight?: number | string; showHeader?: boolean;
+    /** Dòng mở rộng: `expandable` thêm cột mũi tên; `renderExpanded(row)` là nội dung; điều khiển từ ngoài bằng `expanded` + `onExpand`. */
+    expandable?: boolean; expanded?: Set<string | number>; onExpand?(s: Set<string | number>): void; renderExpanded?: (row: any) => ReactNode;
+    /** Chèn dòng phân nhóm trước một dòng dữ liệu (trả `null` thì không chèn). */
+    renderGroupHeader?: (row: any, index: number, prev: any | undefined) => ReactNode;
+    /** Thuộc tính theo dòng (kéo thả, `data-*`) và lớp riêng. */
+    rowProps?: (row: any) => React.HTMLAttributes<HTMLTableRowElement> & Record<`data-${string}`, string | undefined>; rowClassName?: (row: any) => string | undefined;
+    /** Khung chứa hẹp hơn 512px: mỗi dòng thành một thẻ (nhãn cột – giá trị) thay vì cuộn ngang. */
+    cards?: boolean;
   }>;
   /** CMS mới: `variant` soft · solid · outline, `size` sm · md · lg, `onRemove` (chip có nút gỡ). */
   Badge: ComponentType<{ tone?: "gray" | "green" | "yellow" | "red" | "blue" | "purple"; children: ReactNode; dot?: boolean; variant?: "soft" | "solid" | "outline"; size?: "sm" | "md" | "lg"; onRemove?(): void; labels?: Partial<UiLabels> }>;

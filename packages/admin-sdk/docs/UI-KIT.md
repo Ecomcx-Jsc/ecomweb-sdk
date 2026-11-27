@@ -85,6 +85,19 @@ import { Button, Input, Pagination, UiLabelsProvider } from "@ecomcx/ecomweb-adm
 - **Không** dùng `registerMessages("core", …)` để đổi chữ: lõi bỏ qua (kèm cảnh báo) vì nó đổi chữ của cả admin. Dùng `labels` / `UiLabelsProvider`.
 - CMS cũ: `UiLabelsProvider` chỉ hiện nội dung bên trong, `labels` không có tác dụng (dùng `hasUi("UiLabelsProvider")` để biết).
 
+## Bảng nâng cao (CMS ≥ 1.42)
+```tsx
+<Table columns={cols} rows={rows} rowKey={(r) => r.id} ariaLabel="Sản phẩm"
+  maxHeight={420}                                   // cuộn dọc bên trong, tiêu đề (và hàng chân) dính
+  expandable renderExpanded={(r) => <Chi tiết={r} />}   // cột mũi tên mở / thu gọn từng dòng
+  renderGroupHeader={(r, i, prev) => (r.group !== prev?.group ? r.group : null)}   // dòng phân nhóm
+  cards />                                          // khung hẹp < 512px: mỗi dòng thành một thẻ
+// cột: { key: "name", title: "Tên", pin: "left", footer: "Tổng" }  — `pin` ghim cột đầu / cuối khi cuộn ngang; `footer` là ô ở chân bảng
+// khác: showHeader={false} (danh sách không tiêu đề), rowProps={(r) => ({ draggable: true, "data-id": r.id })}, rowClassName
+```
+- Tiêu đề dính **cần `maxHeight`** (bảng phải là vùng cuộn thì mới có cái để dính).
+- `cards` dùng tiêu đề cột dạng chuỗi làm nhãn từng dòng; tiêu đề là `ReactNode` thì dòng đó không có nhãn.
+
 ## Layout: không tự viết `display:grid` hay media query
 Bộ layout co giãn theo **bề rộng khung chứa** (không theo màn hình), nên đặt trong Drawer / Modal / cột hẹp vẫn đúng. Mốc khung chứa: `sm` ≥ 512px · `md` ≥ 672px · `lg` ≥ 896px; dưới 512px mọi lưới là 1 cột. Cần CMS ≥ 1.42 (`hasUi("Page")`); CMS cũ tự rơi về flex / lưới tự chia.
 ```tsx
