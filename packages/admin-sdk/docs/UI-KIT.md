@@ -172,6 +172,19 @@ Chọn nhiều (`SelectBase mode="multiple"` ở lõi): `selectAll` thêm dòng 
 - Danh sách ảo hoá vẫn báo đúng cho trình đọc màn hình (`aria-setsize` / `aria-posinset`), phím Home / End / PageUp / PageDown nhảy qua cả những dòng chưa dựng.
 - Chữ "Tạo …", "Chọn tất cả", "đang tải" đổi được bằng `createLabel`, `labels`, `UiLabelsProvider`.
 
+## Ngày giờ nâng cao (CMS ≥ 1.42)
+```tsx
+<DatePicker value={d} onChange={setD} loading={isFetching}                        // spinner, làm mờ lịch và chặn chọn khi đang tải
+  disabledDate={(day) => booked.has(isoDate(day))}                                // khoá ngày kín lịch / ngày nghỉ
+  onMonthChange={(first) => fetchAvailability(first)} />                          // gọi khi mở lịch và mỗi lần đổi tháng
+<TimePicker value={t} onChange={setT} step={15} min="08:00" max="18:00" />        // "HH:mm" 24 giờ; hiển thị theo ngôn ngữ (en 9:30 AM · vi 09:30)
+<DateRangePicker value={range} onChange={setRange} presets min={today} />         // { from, to } "YYYY-MM-DD"; hai tháng, mốc nhanh (hôm nay · 7 / 30 ngày qua · tháng này / trước)
+<DateRangePicker presets={[{ label: "Quý này", range: () => quarter() }]} … />    // tự đưa mốc nhanh
+```
+- `DateRangePicker`: bấm ngày bắt đầu rồi ngày kết thúc (rê chuột xem trước dải; bấm ngược thì tự đổi chỗ); Esc khi mới chọn một đầu thì giữ giá trị cũ. Bàn phím: ← → ↑ ↓ theo ngày / tuần, PageUp / PageDown theo tháng, Enter chọn. Điện thoại chỉ hiện một tháng.
+- `TimePicker`: ↑ ↓ trong cột, ← → sang cột kia, Enter chọn; chọn phút thì đóng.
+- CMS cũ: `TimePicker` là `<input type="time">`, `DateRangePicker` là hai ô `DatePicker`; `loading` / `disabledDate` / `onMonthChange` không có tác dụng.
+
 ## Layout: không tự viết `display:grid` hay media query
 Bộ layout co giãn theo **bề rộng khung chứa** (không theo màn hình), nên đặt trong Drawer / Modal / cột hẹp vẫn đúng. Mốc khung chứa: `sm` ≥ 512px · `md` ≥ 672px · `lg` ≥ 896px; dưới 512px mọi lưới là 1 cột. Cần CMS ≥ 1.42 (`hasUi("Page")`); CMS cũ tự rơi về flex / lưới tự chia.
 ```tsx

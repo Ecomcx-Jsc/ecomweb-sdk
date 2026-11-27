@@ -345,6 +345,12 @@ export const Popconfirm = ui("Popconfirm", (p) => {
     if (ok) await p.onConfirm(); else p.onCancel?.();
   } });
 });
+/** Chọn giờ "HH:mm". CMS cũ: ô `<input type="time">`. */
+export const TimePicker = ui("TimePicker", (p) => h("input", { type: "time", value: p.value ?? "", disabled: p.disabled, "aria-label": p.ariaLabel, min: p.min, max: p.max, step: (p.step ?? 5) * 60, onChange: (e: any) => p.onChange(e.target.value || null) }));
+/** Chọn khoảng ngày. CMS cũ: hai ô `DatePicker` (từ — đến). */
+export const DateRangePicker = ui("DateRangePicker", (p) => h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+  h(host().ui.DatePicker, { value: p.value?.from ?? null, max: p.value?.to ?? p.max, min: p.min, ariaLabel: p.ariaLabel, disabled: p.disabled, onChange: (v: string | null) => p.onChange({ from: v, to: p.value?.to ?? null }) }),
+  h(host().ui.DatePicker, { value: p.value?.to ?? null, min: p.value?.from ?? p.min, max: p.max, disabled: p.disabled, onChange: (v: string | null) => p.onChange({ from: p.value?.from ?? null, to: v }) })));
 export const UiLabelsProvider = ui("UiLabelsProvider", (p) => h(host().React.Fragment, null, p.children));
 // Bộ layout (CMS ≥ 1.42). CMS cũ: bản đơn giản bằng flex / lưới tự chia — vẫn co giãn được, chỉ không theo mốc khung chứa.
 const gapPx = (g: number = 4) => g * 4;
