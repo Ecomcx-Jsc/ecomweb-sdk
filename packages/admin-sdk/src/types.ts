@@ -628,9 +628,9 @@ export interface UiKit {
   /** Chữ sửa tại chỗ: bấm / Enter / F2 để sửa, Enter lưu, Esc huỷ, rời ô cũng lưu; `onCommit` trả Promise thì hiện đang lưu, lỗi thì giữ ô sửa. CMS cũ: ô nhập thường. */
   Editable?: ComponentType<{ value: string; onCommit(next: string): void | Promise<unknown>; placeholder?: string; validate?(v: string): string | undefined; multiline?: boolean; disabled?: boolean; ariaLabel?: string; className?: string; labels?: Partial<UiLabels> }>;
   /** Biểu đồ cột (`stacked` để chồng): màu theo token, tooltip khi rê / ← →, chú giải bấm để ẩn chuỗi, bảng dữ liệu ẩn cho trình đọc màn hình. `labels` là nhãn trục X; chữ nội bộ dùng `uiLabels`. CMS cũ: bảng số liệu. */
-  BarChart?: ComponentType<{ labels: string[]; series: ChartSeries[]; stacked?: boolean; height?: number; format?(n: number): string; ariaLabel: string; loading?: boolean; emptyText?: string; labels_?: Partial<UiLabels> }>;
+  BarChart?: ComponentType<{ labels: string[]; tickLabels?: string[]; series: ChartSeries[]; stacked?: boolean; height?: number; format?(n: number): string; ariaLabel: string; loading?: boolean; emptyText?: string; labels_?: Partial<UiLabels> }>;
   /** Biểu đồ đường (`area` tô vùng dưới đường). CMS cũ: bảng số liệu. */
-  LineChart?: ComponentType<{ labels: string[]; series: ChartSeries[]; area?: boolean; height?: number; format?(n: number): string; ariaLabel: string; loading?: boolean; emptyText?: string; labels_?: Partial<UiLabels> }>;
+  LineChart?: ComponentType<{ labels: string[]; tickLabels?: string[]; series: ChartSeries[]; area?: boolean; height?: number; format?(n: number): string; ariaLabel: string; loading?: boolean; emptyText?: string; labels_?: Partial<UiLabels> }>;
   /** Bánh khuyên: phần trăm từng mảnh, tổng ở giữa (`centerLabel`). CMS cũ: danh sách. */
   DonutChart?: ComponentType<{ data: Array<{ label: string; value: number; color?: ChartColor }>; size?: number; format?(n: number): string; centerLabel?: string; ariaLabel: string; loading?: boolean; emptyText?: string; labels?: Partial<UiLabels> }>;
   /** Đường nhỏ (không trục, không chú giải) đặt cạnh một con số. CMS cũ: dãy số. */
