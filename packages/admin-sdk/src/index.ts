@@ -403,6 +403,18 @@ export const PinInput = ui("PinInput", (p) => h("input", { value: p.value, maxLe
   onChange: (e: any) => { const v = String(e.target.value); p.onChange(v); if (v.length === (p.length ?? 6)) p.onComplete?.(v); } }));
 export const Editable = ui("Editable", (p) => h("input", { defaultValue: p.value, placeholder: p.placeholder, disabled: p.disabled, "aria-label": p.ariaLabel, onBlur: (e: any) => { if (e.target.value !== p.value) void p.onCommit(e.target.value); } }));
 
+// Biểu đồ / bảng lệnh / lịch / vùng cuộn / khung chia: CMS cũ rơi về dạng đơn giản nhưng vẫn dùng được và có nhãn đọc màn hình.
+const tbl = (cap: string, head: string[], rows: Array<Array<string | number>>) => h("table", { "aria-label": cap }, h("thead", null, h("tr", null, ...head.map((x) => h("th", { key: x }, x)))), h("tbody", null, ...rows.map((r, i) => h("tr", { key: i }, ...r.map((c, k) => h("td", { key: k }, c))))));
+const xy = (p: any) => tbl(p.ariaLabel, ["", ...p.series.map((s: any) => s.label)], p.labels.map((lb: string, i: number) => [lb, ...p.series.map((s: any) => s.values[i] ?? 0)]));
+export const BarChart = ui("BarChart", xy);
+export const LineChart = ui("LineChart", xy);
+export const DonutChart = ui("DonutChart", (p) => h("ul", { "aria-label": p.ariaLabel }, ...p.data.map((d: any) => h("li", { key: d.label }, `${d.label}: ${d.value}`))));
+export const Sparkline = ui("Sparkline", (p) => h("span", { role: "img", "aria-label": p.ariaLabel }, p.values.join(" ")));
+export const CommandPalette = ui("CommandPalette", (p) => (p.open ? h("div", { role: "dialog", "aria-modal": true }, h("ul", null, ...p.commands.map((c: any) => h("li", { key: c.id }, h("button", { type: "button", disabled: c.disabled, onClick: () => { c.onSelect(); p.onClose(); } }, c.label)))), h("button", { type: "button", onClick: p.onClose }, "×")) : null));
+export const Calendar = ui("Calendar", (p) => h("ul", { "aria-label": p.ariaLabel }, ...(p.events ?? []).map((e: any) => h("li", { key: e.id }, h("button", { type: "button", onClick: () => p.onEventClick?.(e) }, `${e.date}${e.end ? ` – ${e.end}` : ""} ${e.title}`)))));
+export const ScrollArea = ui("ScrollArea", (p) => h("div", { tabIndex: 0, "aria-label": p.ariaLabel, className: p.className, style: { overflow: "auto", maxHeight: p.maxHeight }, onScroll: (e: any) => { const t = e.currentTarget; if (p.onReachEnd && t.scrollHeight - t.scrollTop - t.clientHeight < 24) p.onReachEnd(); } }, p.children));
+export const ResizablePanels = ui("ResizablePanels", (p) => h("div", { className: p.className, style: { display: "flex", flexDirection: p.direction === "vertical" ? "column" : "row", flexWrap: "wrap" } }, ...([] as any[]).concat(p.children).map((c, i) => h("div", { key: i, style: { flex: "1 1 0", minWidth: 0, overflow: "auto" } }, c))));
+
 // ---- Hook tiện ích (viết trong SDK nên chạy trên mọi CMS) ----
 /** Bật / tắt một trạng thái (hộp thoại, ngăn trượt, menu…): `{ open, onOpen, onClose, toggle, set }`. */
 export function useDisclosure(initial = false) {

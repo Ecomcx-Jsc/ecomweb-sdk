@@ -218,6 +218,23 @@ Hook (viết trong SDK, chạy trên mọi CMS): `useDisclosure()` → `{ open, 
 - CMS cũ: `ColorPicker` là `<input type="color">`, `KeyValueEditor` là ô văn bản nhiều dòng `khoá=giá trị`, `FileUpload` là `<input type="file">`, `PinInput` là một ô nhập, `Editable` là ô nhập thường.
 - `Field` không còn xoá `aria-invalid` / `aria-required` mà ô nhập bên trong tự đặt (lỗi cũ: ô đầu tiên trong `Field` không có `error` bị mất trạng thái lỗi của chính nó).
 
+## Biểu đồ, bảng lệnh, lịch, vùng cuộn, khung chia (CMS ≥ 1.43)
+```tsx
+<BarChart ariaLabel="Đơn theo ngày" labels={days} stacked series={[{ label: "Đơn", values: orders }, { label: "Hoàn", values: returns, color: "danger" }]} />
+<LineChart ariaLabel="Doanh thu" labels={days} area series={[{ label: "Doanh thu", values: revenue }]} format={(n) => money(n)} />
+<DonutChart ariaLabel="Theo kênh" centerLabel="Đơn" data={[{ label: "Website", value: 520 }, { label: "Cửa hàng", value: 310 }]} />
+<Sparkline ariaLabel="Xu hướng" values={revenue} />
+<CommandPalette open={open} onClose={() => setOpen(false)} commands={[{ id: "orders", label: "Đi tới Đơn hàng", group: "Điều hướng", shortcut: "G O", keywords: "sales", onSelect: go }]} />
+<Calendar events={[{ id: "1", date: "2026-11-10", end: "2026-11-12", title: "Khuyến mãi", tone: "warning" }]} onDayClick={(d) => {}} onEventClick={(e) => {}} />
+<ScrollArea maxHeight={240} onReachEnd={loadMore}>{rows}</ScrollArea>
+<ResizablePanels defaultSizes={[30, 70]} storageKey="media-split"><Tree /><Detail /></ResizablePanels>
+```
+- Biểu đồ lấy màu từ token (`accent` `info` `success` `warning` `purple` `danger`) nên tự theo bảng màu và chế độ tối; rê chuột hoặc ← → để xem số, bấm chú giải để ẩn / hiện chuỗi, có bảng dữ liệu ẩn cho trình đọc màn hình. Prop `labels` của biểu đồ cột / đường là **nhãn trục X**; đổi chữ nội bộ qua `labels_` (hoặc `UiLabelsProvider`).
+- `CommandPalette`: gõ không dấu vẫn khớp, ↑ ↓ Enter Esc, nhóm theo `group`; phím mở (Ctrl/⌘+K) trang tự gắn bằng `useHotkeys`. Truyền `onQueryChange` + `loading` để tìm từ máy chủ.
+- `Calendar`: ngày dạng `YYYY-MM-DD`; khung dưới 512px thu sự kiện thành chấm màu; quá `maxPerDay` hiện "+N nữa".
+- `ResizablePanels`: kéo, ← → (Shift ×5), Home / End, bấm đúp đặt lại; dưới 512px xếp chồng.
+- CMS cũ: biểu đồ là bảng số liệu, bảng lệnh là danh sách nút, lịch là danh sách sự kiện, vùng cuộn là `div` cuộn, khung chia là chia đều.
+
 ## Layout: không tự viết `display:grid` hay media query
 Bộ layout co giãn theo **bề rộng khung chứa** (không theo màn hình), nên đặt trong Drawer / Modal / cột hẹp vẫn đúng. Mốc khung chứa: `sm` ≥ 512px · `md` ≥ 672px · `lg` ≥ 896px; dưới 512px mọi lưới là 1 cột. Cần CMS ≥ 1.42 (`hasUi("Page")`); CMS cũ tự rơi về flex / lưới tự chia.
 ```tsx

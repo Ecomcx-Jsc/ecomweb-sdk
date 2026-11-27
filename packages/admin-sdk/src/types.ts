@@ -627,6 +627,22 @@ export interface UiKit {
   PinInput?: ComponentType<{ length?: number; value: string; onChange(v: string): void; onComplete?(v: string): void; type?: "number" | "text"; mask?: boolean; autoFocus?: boolean; disabled?: boolean; ariaLabel?: string; status?: "error" | "warning"; labels?: Partial<UiLabels> }>;
   /** Chữ sửa tại chỗ: bấm / Enter / F2 để sửa, Enter lưu, Esc huỷ, rời ô cũng lưu; `onCommit` trả Promise thì hiện đang lưu, lỗi thì giữ ô sửa. CMS cũ: ô nhập thường. */
   Editable?: ComponentType<{ value: string; onCommit(next: string): void | Promise<unknown>; placeholder?: string; validate?(v: string): string | undefined; multiline?: boolean; disabled?: boolean; ariaLabel?: string; className?: string; labels?: Partial<UiLabels> }>;
+  /** Biểu đồ cột (`stacked` để chồng): màu theo token, tooltip khi rê / ← →, chú giải bấm để ẩn chuỗi, bảng dữ liệu ẩn cho trình đọc màn hình. `labels` là nhãn trục X; chữ nội bộ dùng `uiLabels`. CMS cũ: bảng số liệu. */
+  BarChart?: ComponentType<{ labels: string[]; series: ChartSeries[]; stacked?: boolean; height?: number; format?(n: number): string; ariaLabel: string; loading?: boolean; emptyText?: string; labels_?: Partial<UiLabels> }>;
+  /** Biểu đồ đường (`area` tô vùng dưới đường). CMS cũ: bảng số liệu. */
+  LineChart?: ComponentType<{ labels: string[]; series: ChartSeries[]; area?: boolean; height?: number; format?(n: number): string; ariaLabel: string; loading?: boolean; emptyText?: string; labels_?: Partial<UiLabels> }>;
+  /** Bánh khuyên: phần trăm từng mảnh, tổng ở giữa (`centerLabel`). CMS cũ: danh sách. */
+  DonutChart?: ComponentType<{ data: Array<{ label: string; value: number; color?: ChartColor }>; size?: number; format?(n: number): string; centerLabel?: string; ariaLabel: string; loading?: boolean; emptyText?: string; labels?: Partial<UiLabels> }>;
+  /** Đường nhỏ (không trục, không chú giải) đặt cạnh một con số. CMS cũ: dãy số. */
+  Sparkline?: ComponentType<{ values: number[]; color?: ChartColor; width?: number; height?: number; area?: boolean; ariaLabel: string }>;
+  /** Bảng lệnh (Ctrl/⌘+K do trang tự gắn qua `useHotkeys`): gõ không dấu vẫn khớp, ↑ ↓ Enter Esc, nhóm, phím tắt, lệnh khoá. CMS cũ: danh sách nút. */
+  CommandPalette?: ComponentType<{ open: boolean; onClose(): void; commands: Command[]; placeholder?: string; emptyText?: ReactNode; onQueryChange?(q: string): void; loading?: boolean; labels?: Partial<UiLabels> }>;
+  /** Lịch tháng có sự kiện (nhiều ngày, "+N nữa", bàn phím); khung hẹp thu thành chấm màu. CMS cũ: danh sách sự kiện. */
+  Calendar?: ComponentType<{ events?: CalendarEvent[]; month?: Date; onMonthChange?(first: Date): void; onDayClick?(date: string): void; onEventClick?(e: CalendarEvent): void; weekStart?: 0 | 1; maxPerDay?: number; ariaLabel?: string; labels?: Partial<UiLabels> }>;
+  /** Vùng cuộn có bóng mờ ở mép còn nội dung, `onReachEnd` để tải thêm, cuộn được bằng bàn phím. */
+  ScrollArea?: ComponentType<{ children: ReactNode; maxHeight?: number | string; orientation?: "vertical" | "horizontal" | "both"; shadows?: boolean; onReachEnd?(): void; className?: string; ariaLabel?: string; labels?: Partial<UiLabels> }>;
+  /** Các khung chia được: kéo, phím ← → (Shift ×5), Home/End, bấm đúp đặt lại, nhớ kích thước qua `storageKey`; dưới 512px xếp chồng. CMS cũ: chia đều. */
+  ResizablePanels?: ComponentType<{ children: ReactNode; direction?: "horizontal" | "vertical"; defaultSizes?: number[]; sizes?: number[]; onSizesChange?(s: number[]): void; minSize?: number; storageKey?: string; className?: string; labels?: Partial<UiLabels> }>;
   /** Ảnh đại diện: ảnh `src`, lỗi / không có thì chữ cái đầu của `name` trên nền màu cố định theo tên; `status` thêm chấm trạng thái. CMS mới. */
   Avatar?: ComponentType<{ src?: string | null; name?: string; size?: "xs" | "sm" | "md" | "lg" | "xl"; shape?: "circle" | "square"; status?: "online" | "offline" | "busy" | "away"; icon?: ReactNode; className?: string }>;
   /** Nhiều ảnh đại diện chồng nhau; quá `max` thì gộp "+N". CMS mới. */
@@ -762,10 +778,15 @@ export type RichTextToolbar = "basic" | "standard" | "full" | string[] | { prese
  * Chữ nội bộ của bộ UI (nút xoá, "trang sau", "hôm nay"…). Mặc định theo ngôn ngữ admin (lõi tự dịch); đổi cho một component bằng prop `labels`,
  * cho cả một nhánh bằng `UiLabelsProvider`. Chuỗi có `{tên}` (vd `items: "{total} mục"`) được thay giá trị. CMS mới.
  */
+export type ChartColor = "accent" | "info" | "success" | "warning" | "purple" | "danger";
+export interface ChartSeries { key?: string; label: string; values: number[]; color?: ChartColor }
+export interface Command { id: string; label: string; description?: string; icon?: ReactNode; group?: string; shortcut?: string; keywords?: string; disabled?: boolean; onSelect(): void }
+export interface CalendarEvent { id: string; /** YYYY-MM-DD */ date: string; /** YYYY-MM-DD, kéo dài nhiều ngày */ end?: string; title: string; tone?: "accent" | "info" | "success" | "warning" | "purple" | "danger" }
 export interface UiLabels {
   addTag: string; cancel: string; clear: string; close: string; columns: string; confirm: string; confirmTitle: string; density: string; densityComfortable: string; densityCompact: string;
   pickColor: string; customColor: string; hexColor: string; opacity: string; eyedropper: string; addRow: string; removeRow: string; duplicateKey: string; keyLabel: string; valueLabel: string; dropFiles: string; fileTooLarge: string; fileNotAllowed: string; tooManyFiles: string; uploading: string; uploaded: string; uploadFailed: string; removeFile: string; pinDigit: string; edit: string; saveFailed: string; breadcrumb: string; copied: string; copy: string; moreItems: string; hour: string; minute: string; pickRange: string; pickTime: string; yesterday: string; last7Days: string; last30Days: string; thisMonth: string; lastMonth: string; rangeHint: string; dismiss: string; expandRow: string; collapseRow: string; allMatchingSelected: string; applyFilter: string; clearFilters: string; clearSelection: string; collapseAll: string; expandAll: string; filter: string; filterFrom: string; filterMax: string; filterMin: string; filterTo: string; loadError: string; resetFilter: string; retry: string; selectAllMatching: string; selectedOnPage: string; hidePassword: string; items: string; loading: string; month: string; moreTags: string; next: string; nextMonth: string; noData: string; noMatches: string;
   notifications: string; now: string; ok: string; optional: string; pageN: string; pagination: string; perPage: string; pickDate: string; previous: string; previousMonth: string;
+  commandPlaceholder: string; noCommands: string; chartData: string; noChartData: string; total: string; goToToday: string; moreEvents: string; resizePanel: string; scrollRegion: string;
   remove: string; removeTag: string; search: string; selectAll: string; selectRow: string; showPassword: string; tableSettings: string; time: string; today: string; view: string; year: string;
 }
 

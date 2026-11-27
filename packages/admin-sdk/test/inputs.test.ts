@@ -73,3 +73,8 @@ test("useDebouncedValue: giá trị chỉ đổi sau khoảng chờ, lần đổ
   await new Promise((res) => setTimeout(res, 60));
   assert.equal(r2.current, "abc");
 }));
+
+test("Đợt 3 lô 3: biểu đồ, bảng lệnh, lịch, vùng cuộn, khung chia được xuất ra và có bản dự phòng", async () => {
+  const m = await import("../src/index");
+  for (const n of ["BarChart", "LineChart", "DonutChart", "Sparkline", "CommandPalette", "Calendar", "ScrollArea", "ResizablePanels"]) assert.equal(typeof (m as Record<string, unknown>)[n], "function", n);
+});
