@@ -296,6 +296,25 @@ export const ContentEditor = ui("ContentEditor", () => null);
 export const RichTextEditor = ui("RichTextEditor", (p) => h(host().ui.Textarea, { value: p.value ?? "", rows: 8, onChange: (e: any) => p.onChange(e.target.value), disabled: p.readOnly, "aria-label": p.ariaLabel }));
 /** Host có sẵn thành phần UI này chưa (CMS cũ thì chưa): để plugin chọn ô nhập dự phòng thay vì bản rút gọn của SDK. */
 export const hasUi = (name: keyof import("./types").UiKit) => !!host().ui[name];
+// Bộ layout (CMS ≥ 1.42). CMS cũ: bản đơn giản bằng flex / lưới tự chia — vẫn co giãn được, chỉ không theo mốc khung chứa.
+const gapPx = (g: number = 4) => g * 4;
+export const Stack = ui("Stack", (p) => h("div", { className: p.className, style: { display: "flex", flexDirection: "column", gap: gapPx(p.gap), minWidth: 0 } }, p.children));
+export const Row = ui("Row", (p) => h("div", { className: p.className, style: { display: "flex", flexWrap: p.wrap === false ? "nowrap" : "wrap", gap: gapPx(p.gap ?? 2), alignItems: ({ start: "flex-start", center: "center", end: "flex-end", stretch: "stretch", baseline: "baseline" } as any)[p.align ?? "center"], justifyContent: ({ start: "flex-start", center: "center", end: "flex-end", between: "space-between" } as any)[p.justify ?? "start"], minWidth: 0 } }, p.children));
+export const Grid = ui("Grid", (p) => h("div", { className: p.className, style: { display: "grid", gap: gapPx(p.gap), minWidth: 0, gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${p.min ?? 220}px), 1fr))` } }, p.children));
+export const Col = ui("Col", (p) => h("div", { className: p.className, style: { minWidth: 0 } }, p.children));
+export const SplitView = ui("SplitView", (p) => h("div", { className: p.className, style: { display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" } },
+  h("div", { style: { flex: "1 1 360px", minWidth: 0 } }, p.main), h("div", { style: { flex: `0 1 ${p.asideWidth ?? 340}px`, minWidth: 0 } }, p.aside)));
+export const Page = ui("Page", (p) => h("div", { className: p.className, style: { minWidth: 0, margin: p.width === "full" ? undefined : "0 auto", maxWidth: p.width === "narrow" ? 768 : p.width === "full" ? undefined : 1152 } },
+  p.title ? h(host().ui.PageHeader, { title: p.title, description: p.description, actions: p.actions }) : null,
+  p.aside ? h(SplitView, { main: p.children, aside: p.aside, asideWidth: p.asideWidth }) : p.children));
+export const Toolbar = ui("Toolbar", (p) => h("div", { className: p.className, style: { display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 } },
+  p.start ? h("div", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, flex: "1 1 0", minWidth: 0 } }, p.start) : null,
+  p.end ? h("div", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 } }, p.end) : null));
+export const DefinitionList = ui("DefinitionList", (p) => h("dl", { className: p.className, style: { display: "grid", gap: "12px 24px", margin: 0, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))" } },
+  ...p.items.map((it: any, i: number) => h("div", { key: i, style: { minWidth: 0 } }, h("dt", { style: { fontSize: 12, opacity: 0.7 } }, it.label), h("dd", { style: { margin: "2px 0 0", overflowWrap: "anywhere" } }, it.value)))));
+export const Stat = ui("Stat", (p) => h("div", { style: { minWidth: 0, border: "1px solid var(--app-border, #ddd)", borderRadius: 8, padding: 16 } },
+  h("div", { style: { fontSize: 12, opacity: 0.7 } }, p.label), h("div", { style: { fontSize: 24, fontWeight: 600, marginTop: 4 } }, p.value), p.hint ? h("div", { style: { fontSize: 12, opacity: 0.7, marginTop: 4 } }, p.hint) : null));
+
 /** Thêm nút vào thanh công cụ của RichTextEditor. CMS cũ: không làm gì, trả hàm rỗng. */
 export const registerRichTextButton = (button: import("./types").RichTextButton): (() => void) => host().registerRichTextButton?.(button) ?? (() => {});
 export const TreeSelect = ui("TreeSelect", () => null);

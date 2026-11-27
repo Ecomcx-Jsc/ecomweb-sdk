@@ -567,6 +567,24 @@ export interface UiKit {
    * khi chính trình soạn vừa phát ra. CMS ≥ 1.41. Bản cũ hơn: dùng `hasUi("RichTextEditor")` để chọn ô nhập dự phòng.
    */
   RichTextEditor?: ComponentType<RichTextEditorProps>;
+  /**
+   * Bộ layout co giãn theo BỀ RỘNG KHUNG CHỨA (không theo màn hình) — dùng thay cho tự viết `display:grid` / media query. CMS ≥ 1.42.
+   * Mốc khung chứa: `sm` ≥ 512px · `md` ≥ 672px · `lg` ≥ 896px; dưới 512px mọi lưới là 1 cột. CMS cũ: dùng `hasUi("Page")`; SDK tự rơi về bản đơn giản (flex / lưới tự chia).
+   */
+  Page?: ComponentType<{ width?: "full" | "container" | "narrow"; title?: ReactNode; description?: ReactNode; actions?: ReactNode; aside?: ReactNode; asideWidth?: number; children: ReactNode; className?: string }>;
+  Stack?: ComponentType<{ gap?: LayoutGap; className?: string; children: ReactNode }>;
+  Row?: ComponentType<{ gap?: LayoutGap; align?: "start" | "center" | "end" | "stretch" | "baseline"; justify?: "start" | "center" | "end" | "between"; wrap?: boolean; className?: string; children: ReactNode }>;
+  /** `min={220}`: tự chia cột, mỗi ô tối thiểu 220px. `cols={{ base: 1, md: 2, lg: 3 }}` (hoặc số đơn = từ mốc `sm`): chia theo mốc khung chứa. */
+  Grid?: ComponentType<{ cols?: LayoutCols; min?: number; gap?: LayoutGap; className?: string; children: ReactNode }>;
+  Col?: ComponentType<{ span?: LayoutCols | "full"; className?: string; children: ReactNode }>;
+  /** Nội dung chính + cột phụ dính khi cuộn (đứng yên, chỉ tự cuộn khi cao hơn khung nhìn). Khung chứa < 768px: xếp 1 cột. */
+  SplitView?: ComponentType<{ main: ReactNode; aside: ReactNode; asideWidth?: number; side?: "left" | "right"; sticky?: boolean; stickyTop?: number; asideFirst?: boolean; className?: string }>;
+  /** Thanh công cụ trên danh sách / bảng: `start` (tìm kiếm, lọc) trái, `end` (hành động) phải; xuống dòng khi hẹp. */
+  Toolbar?: ComponentType<{ start?: ReactNode; end?: ReactNode; className?: string }>;
+  /** Danh sách nhãn – giá trị. */
+  DefinitionList?: ComponentType<{ items: Array<{ label: ReactNode; value: ReactNode }>; cols?: LayoutCols; className?: string }>;
+  /** Ô số liệu (nhãn nhỏ, giá trị lớn). Đặt trong `<Grid min={180}>`. */
+  Stat?: ComponentType<{ label: ReactNode; value: ReactNode; hint?: ReactNode; tone?: "default" | "success" | "danger" | "warning" }>;
   /** Hộp xem ảnh / phát video phóng to: ← → chuyển, Esc đóng. CMS ≥ 1.40. */
   Lightbox?: ComponentType<{ items: LightboxItem[]; index: number; onClose(): void; onIndex(i: number): void }>;
   /** Chọn nhiều trong cây (danh mục), có ô tìm. */
@@ -593,6 +611,11 @@ export interface RichTextButton {
 }
 
 export type RichTextToolbar = "basic" | "standard" | "full" | string[] | { preset?: "basic" | "standard" | "full"; add?: string[]; remove?: string[]; more?: string[] };
+
+/** Khoảng cách của bộ layout: 0 · 1 · 2 · 3 · 4 · 6 · 8 (đơn vị 4px). */
+export type LayoutGap = 0 | 1 | 2 | 3 | 4 | 6 | 8;
+/** Số cột 1–6, theo mốc khung chứa. Số đơn = từ mốc `sm` trở lên (dưới đó là 1 cột). */
+export type LayoutCols = 1 | 2 | 3 | 4 | 5 | 6 | { base?: 1 | 2 | 3 | 4 | 5 | 6; sm?: 1 | 2 | 3 | 4 | 5 | 6; md?: 1 | 2 | 3 | 4 | 5 | 6; lg?: 1 | 2 | 3 | 4 | 5 | 6 };
 
 export interface RichTextEditorProps {
   /** HTML. Trống = "". */
