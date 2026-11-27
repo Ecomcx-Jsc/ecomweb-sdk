@@ -50,7 +50,8 @@ import { Alert, Badge, Button, CheckboxGroup, Field, Input, Progress, SearchInpu
 <SearchInput placeholder="Tìm đơn hàng…" onChange={(e) => setQ(e.target.value)} />
 
 <Button variant="primary" onClick={async () => { await save(); }}>Lưu</Button>   {/* tự bận (spinner, khoá bấm) tới khi save() xong */}
-<Button variant="soft" size="lg">…</Button>  <Button variant="link" href="/admin/orders">Xem đơn</Button>  <Button size="icon" aria-label="Cài đặt"><Cog /></Button>
+<Button variant="soft" size="lg">…</Button>  <Button variant="link" href="/admin/orders">Xem đơn</Button>
+<p className="text-xs">Mã giảm giá <Button variant="link" size="inline" onClick={edit}>Sửa</Button></p>   {/* size="inline": liên kết trong dòng chữ, kế thừa cỡ chữ */}  <Button size="icon" aria-label="Cài đặt"><Cog /></Button>
 <Switch checked={on} onChange={toggle} loading={busy}>Cho phép đặt trước</Switch>   {/* có children thì hiện nhãn */}
 <Badge tone="green" variant="solid" size="sm">Đang bán</Badge>  <Badge onRemove={() => remove(tag)}>{tag}</Badge>
 <Tabs variant="pills" value={tab} onChange={setTab} items={[{ value: "all", label: "Tất cả", count: 12 }, { value: "x", label: "Đã huỷ", disabled: true }]} />

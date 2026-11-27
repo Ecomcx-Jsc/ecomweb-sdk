@@ -448,7 +448,7 @@ export interface UiKit {
    * Nút. CMS mới: `variant` thêm `soft` · `link` · `success` · `warning`; `size` thêm `lg` và `icon` (nút vuông chỉ có biểu tượng — cần `aria-label`); `fullWidth`; `href` vẽ thẻ `<a>`.
    * `loading`, hoặc `onClick` trả về Promise (nút tự bận tới khi xong): khoá bấm, `aria-busy`, spinner hiện sau 150ms. CMS cũ chỉ có 4 kiểu đầu và cỡ sm/md.
    */
-  Button: ComponentType<{ variant?: "primary" | "secondary" | "danger" | "ghost" | "soft" | "link" | "success" | "warning"; size?: "sm" | "md" | "lg" | "icon"; loading?: boolean; icon?: ReactNode; fullWidth?: boolean; loadingText?: ReactNode; href?: string; target?: string; rel?: string; download?: string | boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>>;
+  Button: ComponentType<{ variant?: "primary" | "secondary" | "danger" | "ghost" | "soft" | "link" | "success" | "warning"; size?: "sm" | "md" | "lg" | "icon" | "inline"; loading?: boolean; icon?: ReactNode; fullWidth?: boolean; loadingText?: ReactNode; href?: string; target?: string; rel?: string; download?: string | boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>>;
   /** Ô nhập một dòng. CMS mới: `size` sm · md · lg, `status`, `prefix`/`suffix`, `clearable`, `revealable` (mật khẩu), `loading`, `showCount` (cần `maxLength`). */
   Input: ComponentType<Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "prefix"> & { ref?: React.Ref<HTMLInputElement>; size?: "sm" | "md" | "lg"; status?: "error" | "warning"; prefix?: ReactNode; suffix?: ReactNode; clearable?: boolean; onClear?(): void; revealable?: boolean; loading?: boolean; showCount?: boolean; labels?: Partial<UiLabels> }>;
   /** Ô nhiều dòng. CMS mới: `status`, `autosize` (tự giãn, có thể giới hạn số dòng), `showCount`. */
