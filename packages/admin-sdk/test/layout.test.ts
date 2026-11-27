@@ -109,3 +109,16 @@ test("CMS cũ: UiLabelsProvider chỉ hiện nội dung bên trong, không lỗi
     assert.deepEqual(out.props.children, ["nội dung"]);
   });
 });
+
+// ---- useTableState ----
+
+test("useTableState: CMS có hook thì dùng đúng hook của host, truyền nguyên tuỳ chọn", async () => {
+  const { useTableState } = await import("../src/index");
+  const seen: unknown[] = [];
+  const state = { page: 1, query: { page: 1 } };
+  withHost({ useTableState: (o: unknown) => { seen.push(o); return state; } }, () => {
+    assert.equal(hasUi("useTableState"), true);
+    assert.equal(useTableState({ url: "orders", pageSize: 10 }), state as never);
+    assert.deepEqual(seen, [{ url: "orders", pageSize: 10 }]);
+  });
+});

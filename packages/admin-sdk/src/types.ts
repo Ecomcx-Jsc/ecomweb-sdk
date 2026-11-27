@@ -209,6 +209,36 @@ export interface Column<T> {
   pin?: "left" | "right";
   /** Ô tổng ở chân bảng: có ít nhất một cột có `footer` thì bảng hiện hàng chân. CMS mới. */
   footer?: ReactNode;
+  /** Lọc theo cột: bảng vẽ nút phễu ở tiêu đề và gọi `onFilterChange(key, giá trị)`; việc lọc dữ liệu do trang / máy chủ làm. `title` phải là chữ. CMS mới. */
+  filter?: ColumnFilter;
+  /** Cắt chữ dài bằng "…" (`maxWidth` mặc định 240px). CMS mới. */
+  truncate?: boolean; minWidth?: number; maxWidth?: number;
+}
+/** Kiểu lọc của một cột: chữ · chọn trong danh sách · khoảng số · khoảng ngày. */
+export type ColumnFilter =
+  | { type: "text"; placeholder?: string }
+  | { type: "select"; options: SelectOption[]; multiple?: boolean }
+  | { type: "number"; unit?: string }
+  | { type: "date" };
+/** Giá trị bộ lọc cột: chữ · danh sách giá trị · `{ min?, max? }` · `{ from?, to? }` (yyyy-mm-dd). */
+export type FilterValue = string | string[] | { min?: number; max?: number } | { from?: string; to?: string };
+export type FilterMap = Record<string, FilterValue>;
+/** Điều kiện gửi lên máy chủ (gọn, ổn định — dùng thẳng làm khoá `useQuery`). */
+export interface TableQuery { page: number; pageSize: number; sort: SortState; filters: FilterMap; search: string }
+export interface TableStateOptions {
+  pageSize?: number; sort?: SortState; filters?: FilterMap; search?: string;
+  /** Đồng bộ trạng thái lên địa chỉ trang với tiền tố tham số này (`?orders.page=2&orders.sort=total:desc`). CMS cũ: bỏ qua. */
+  url?: string;
+  /** Chờ sau lần gõ cuối thì `query.search` mới đổi (mặc định 300ms). */
+  debounceMs?: number;
+}
+export interface TableState {
+  page: number; pageSize: number; sort: SortState; filters: FilterMap; search: string; query: TableQuery; activeFilterCount: number;
+  setPage(p: number): void; setPageSize(n: number): void; setSort(s: SortState): void; setFilter(key: string, v: FilterValue | undefined): void; clearFilters(): void; setSearch(s: string): void; reset(): void;
+  /** Rải vào `<Table {...t.tableProps} />`. */
+  tableProps: { sort: SortState; onSort(s: SortState): void; filters: FilterMap; onFilterChange(key: string, v: FilterValue | undefined): void; onClearFilters(): void };
+  /** Rải vào `<Pagination {...t.paginationProps(total)} />`. */
+  paginationProps(total: number): { page: number; totalPages: number; onPage(p: number): void; total: number; pageSize: number; onPageSize(n: number): void };
 }
 export type SortState = { key: string; dir: "asc" | "desc" } | null;
 export interface UiOption { value: string; label: string; description?: string; disabled?: boolean }
@@ -487,6 +517,14 @@ export interface UiKit {
     rowProps?: (row: any) => React.HTMLAttributes<HTMLTableRowElement> & Record<`data-${string}`, string | undefined>; rowClassName?: (row: any) => string | undefined;
     /** Khung chứa hẹp hơn 512px: mỗi dòng thành một thẻ (nhãn cột – giá trị) thay vì cuộn ngang. */
     cards?: boolean;
+    /** Dữ liệu từ máy chủ: bộ lọc cột đang áp dụng (hiện thành chip), thay đổi và xoá tất cả. Thường rải `useTableState().tableProps`. CMS mới. */
+    filters?: FilterMap; onFilterChange?(key: string, value: FilterValue | undefined): void; onClearFilters?(): void;
+    /** `loading` khi đã có dòng = đang tải lại (giữ dòng cũ, mờ đi + thanh tiến trình); chưa có dòng = khung xương. `error` + `onRetry`: báo lỗi và thử lại. */
+    error?: ReactNode; onRetry?(): void;
+    /** Chọn dòng nhiều trang: có `total` > số dòng hiện tại và đã chọn hết trang thì hiện "Chọn cả N mục" (`allMatching` / `onAllMatching`). `isRowSelectable` khoá chọn từng dòng. */
+    total?: number; allMatching?: boolean; onAllMatching?(on: boolean): void; isRowSelectable?: (row: any) => boolean;
+    /** Chỉ một số dòng mở rộng được. */
+    rowExpandable?: (row: any) => boolean;
   }>;
   /** CMS mới: `variant` soft · solid · outline, `size` sm · md · lg, `onRemove` (chip có nút gỡ). */
   Badge: ComponentType<{ tone?: "gray" | "green" | "yellow" | "red" | "blue" | "purple"; children: ReactNode; dot?: boolean; variant?: "soft" | "solid" | "outline"; size?: "sm" | "md" | "lg"; onRemove?(): void; labels?: Partial<UiLabels> }>;
@@ -633,6 +671,8 @@ export interface UiKit {
   /** Nhật ký hoạt động của một đối tượng ở cuối trang: loại lõi ("post", "media", "user") hoặc loại plugin đã đăng ký (`objectType` "{slug}/{tên}", cần quyền sửa của loại đó). Plugin ghi dòng bằng IAuditLog (C#). */
   ActivityLog?: ComponentType<{ objectType: string; objectId: string | number; pageSize?: number; title?: ReactNode; onUndo?(row: any): Promise<void> | void; className?: string }>;
   useTableSettings?: (key: string, defaults?: Partial<Pick<TableSettings, "hidden" | "density">>) => TableSettings;
+  /** Trạng thái bảng đọc dữ liệu từ máy chủ (trang, sắp xếp, bộ lọc cột, tìm kiếm; tuỳ chọn đồng bộ URL). CMS mới. */
+  useTableState?: (opts?: TableStateOptions) => TableState;
   isoToLocal?: (iso?: string | null) => string | null;
   localToIso?: (value: string | null) => string | null;
   confirmDialog?: (message: ReactNode, opts?: AskOptions) => Promise<boolean>;
@@ -659,7 +699,7 @@ export type RichTextToolbar = "basic" | "standard" | "full" | string[] | { prese
  */
 export interface UiLabels {
   addTag: string; clear: string; close: string; columns: string; confirm: string; confirmTitle: string; density: string; densityComfortable: string; densityCompact: string;
-  dismiss: string; hidePassword: string; items: string; loading: string; month: string; moreTags: string; next: string; nextMonth: string; noData: string; noMatches: string;
+  dismiss: string; expandRow: string; collapseRow: string; allMatchingSelected: string; applyFilter: string; clearFilters: string; clearSelection: string; collapseAll: string; expandAll: string; filter: string; filterFrom: string; filterMax: string; filterMin: string; filterTo: string; loadError: string; resetFilter: string; retry: string; selectAllMatching: string; selectedOnPage: string; hidePassword: string; items: string; loading: string; month: string; moreTags: string; next: string; nextMonth: string; noData: string; noMatches: string;
   notifications: string; now: string; ok: string; optional: string; pageN: string; pagination: string; perPage: string; pickDate: string; previous: string; previousMonth: string;
   remove: string; removeTag: string; search: string; selectAll: string; selectRow: string; showPassword: string; tableSettings: string; time: string; today: string; view: string; year: string;
 }

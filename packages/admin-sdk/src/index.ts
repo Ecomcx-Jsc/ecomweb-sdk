@@ -350,6 +350,36 @@ export function useTableSettings(key: string, defaults?: { hidden?: string[]; de
   if (fn) return fn(key, defaults);
   return { hidden: defaults?.hidden ?? [], density: defaults?.density ?? "comfortable", toggleColumn: () => {}, setDensity: () => {} };
 }
+/**
+ * Trạng thái của một bảng đọc dữ liệu từ máy chủ: trang, cỡ trang, sắp xếp, bộ lọc cột, tìm kiếm (đổi bất cứ cái nào trừ trang thì về trang 1).
+ * `const t = useTableState({ url: "orders" })` → `useQuery({ queryKey: ["orders", t.query], … })`, `<Table {...t.tableProps} />`, `<Pagination {...t.paginationProps(total)} />`.
+ * CMS cũ: bản đơn giản (không đồng bộ URL, không debounce).
+ */
+export function useTableState(opts?: import("./types").TableStateOptions): import("./types").TableState {
+  const fn = host().ui.useTableState;
+  if (fn) return fn(opts);
+  const R = host().React as typeof import("react");
+  const size = opts?.pageSize ?? 25;
+  const [page, setPageRaw] = R.useState(1);
+  const [pageSize, setPageSizeRaw] = R.useState(size);
+  const [sort, setSortRaw] = R.useState<import("./types").SortState>(opts?.sort ?? null);
+  const [filters, setFilters] = R.useState<import("./types").FilterMap>(opts?.filters ?? {});
+  const [search, setSearchRaw] = R.useState(opts?.search ?? "");
+  const empty = (v: unknown) => v === undefined || v === "" || (Array.isArray(v) && !v.length) || (typeof v === "object" && v !== null && !Array.isArray(v) && Object.values(v).every((x) => x === undefined || x === ""));
+  const clean = R.useMemo(() => Object.fromEntries(Object.entries(filters).filter(([, v]) => !empty(v))) as import("./types").FilterMap, [filters]);
+  const sig = JSON.stringify([page, pageSize, sort, clean, search]);
+  const query = R.useMemo(() => ({ page, pageSize, sort, filters: clean, search }), [sig]); // eslint-disable-line react-hooks/exhaustive-deps
+  const setFilter = (key: string, v: import("./types").FilterValue | undefined) => { setFilters((f) => { const n = { ...f }; if (empty(v)) delete n[key]; else n[key] = v as import("./types").FilterValue; return n; }); setPageRaw(1); };
+  const clearFilters = () => { setFilters({}); setPageRaw(1); };
+  const setSort = (s: import("./types").SortState) => { setSortRaw(s); setPageRaw(1); };
+  return {
+    page, pageSize, sort, filters: clean, search, query, activeFilterCount: Object.keys(clean).length,
+    setPage: (p) => setPageRaw(Math.max(1, p)), setPageSize: (n) => { setPageSizeRaw(n); setPageRaw(1); }, setSort, setFilter, clearFilters, setSearch: (q) => { setSearchRaw(q); setPageRaw(1); },
+    reset: () => { setPageRaw(1); setPageSizeRaw(size); setSortRaw(opts?.sort ?? null); setFilters(opts?.filters ?? {}); setSearchRaw(opts?.search ?? ""); },
+    tableProps: { sort, onSort: setSort, filters: clean, onFilterChange: setFilter, onClearFilters: clearFilters },
+    paginationProps: (total) => ({ page, totalPages: Math.max(1, Math.ceil(total / pageSize)), onPage: (p: number) => setPageRaw(Math.max(1, p)), total, pageSize, onPageSize: (n: number) => { setPageSizeRaw(n); setPageRaw(1); } }),
+  };
+}
 const pad = (n: number) => String(n).padStart(2, "0");
 /** ISO (UTC) → giá trị cho `DatePicker withTime` (giờ địa phương). */
 export const isoToLocal = (iso?: string | null): string | null => {

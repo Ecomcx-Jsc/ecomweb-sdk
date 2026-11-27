@@ -98,6 +98,28 @@ import { Button, Input, Pagination, UiLabelsProvider } from "@ecomcx/ecomweb-adm
 - Tiêu đề dính **cần `maxHeight`** (bảng phải là vùng cuộn thì mới có cái để dính).
 - `cards` dùng tiêu đề cột dạng chuỗi làm nhãn từng dòng; tiêu đề là `ReactNode` thì dòng đó không có nhãn.
 
+### Bảng đọc dữ liệu từ máy chủ: lọc cột, chọn nhiều trang, tải lại, lỗi
+```tsx
+const t = useTableState({ url: "orders", pageSize: 25 });          // trang · sắp xếp · bộ lọc cột · tìm kiếm; url = ghi lên địa chỉ trang (?orders.page=2…)
+const { data, isFetching, error, refetch } = useQuery({ queryKey: ["orders", t.query], queryFn: () => api.list(t.query) });   // t.query ổn định, dùng thẳng làm khoá
+
+<SearchInput value={t.search} onChange={(e) => t.setSearch(e.target.value)} />
+<Table {...t.tableProps} rows={data?.rows ?? []} rowKey={(r) => r.id} loading={isFetching} error={error && String(error)} onRetry={refetch}
+  selectable selected={sel} onSelect={setSel} total={data?.total} allMatching={all} onAllMatching={setAll}     // "Chọn cả 243 mục"
+  columns={[
+    { key: "name", title: "Tên", sortable: true, filter: { type: "text" }, truncate: true },
+    { key: "status", title: "Trạng thái", filter: { type: "select", multiple: true, options } },
+    { key: "total", title: "Tổng", align: "right", sortable: true, filter: { type: "number", unit: "₫" } },
+    { key: "created", title: "Ngày tạo", filter: { type: "date" } },
+  ]} />
+<Pagination {...t.paginationProps(data?.total ?? 0)} />
+```
+- Bảng **không tự lọc dữ liệu**: nó vẽ nút phễu, chip bộ lọc, và trả giá trị về `onFilterChange`; máy chủ (hoặc trang) lọc. Giá trị: chữ · `string[]` · `{ min, max }` · `{ from, to }`.
+- Đổi bộ lọc / sắp xếp / tìm kiếm / cỡ trang thì về trang 1. `loading` khi đã có dòng = đang tải lại (giữ dòng cũ, mờ đi + thanh tiến trình), chưa có dòng = khung xương.
+- Chọn tất cả theo bộ lọc: trang tự giữ `allMatching` và đặt lại khi bộ lọc đổi; bảng chỉ vẽ dòng "Chọn cả N mục". Khi `allMatching`, gửi `t.query` (không có `page`) lên máy chủ để áp dụng thao tác hàng loạt.
+- Ghim X cột trái / Y cột phải: đặt `pin: "left"` cho một dải cột liên tiếp từ cột đầu và `pin: "right"` cho một dải liên tiếp tới cột cuối; bảng tự đo độ rộng nên không bắt buộc `width`.
+- `rowExpandable={(r) => …}` chỉ cho một số dòng mở rộng; nút ở tiêu đề mở / thu gọn tất cả.
+
 ## Layout: không tự viết `display:grid` hay media query
 Bộ layout co giãn theo **bề rộng khung chứa** (không theo màn hình), nên đặt trong Drawer / Modal / cột hẹp vẫn đúng. Mốc khung chứa: `sm` ≥ 512px · `md` ≥ 672px · `lg` ≥ 896px; dưới 512px mọi lưới là 1 cột. Cần CMS ≥ 1.42 (`hasUi("Page")`); CMS cũ tự rơi về flex / lưới tự chia.
 ```tsx
