@@ -634,7 +634,7 @@ export interface UiKit {
   /** Bánh khuyên: phần trăm từng mảnh, tổng ở giữa (`centerLabel`). CMS cũ: danh sách. */
   DonutChart?: ComponentType<{ data: Array<{ label: string; value: number; color?: ChartColor }>; size?: number; format?(n: number): string; centerLabel?: string; ariaLabel: string; loading?: boolean; emptyText?: string; labels?: Partial<UiLabels> }>;
   /** Đường nhỏ (không trục, không chú giải) đặt cạnh một con số. CMS cũ: dãy số. */
-  Sparkline?: ComponentType<{ values: number[]; color?: ChartColor; width?: number; height?: number; area?: boolean; ariaLabel: string }>;
+  Sparkline?: ComponentType<{ values: number[]; color?: ChartColor; width?: number | "fill"; height?: number; area?: boolean; ariaLabel: string }>;
   /** Bảng lệnh (Ctrl/⌘+K do trang tự gắn qua `useHotkeys`): gõ không dấu vẫn khớp, ↑ ↓ Enter Esc, nhóm, phím tắt, lệnh khoá. CMS cũ: danh sách nút. */
   CommandPalette?: ComponentType<{ open: boolean; onClose(): void; commands: Command[]; placeholder?: string; emptyText?: ReactNode; onQueryChange?(q: string): void; loading?: boolean; labels?: Partial<UiLabels> }>;
   /** Lịch tháng có sự kiện (nhiều ngày, "+N nữa", bàn phím); khung hẹp thu thành chấm màu. CMS cũ: danh sách sự kiện. */
