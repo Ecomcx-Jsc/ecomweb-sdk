@@ -204,6 +204,20 @@ Chọn nhiều (`SelectBase mode="multiple"` ở lõi): `selectAll` thêm dòng 
 - Mọi component đọc màu từ token nên tự theo bảng màu và chế độ tối. `CodeBlock` không tô màu cú pháp.
 - CMS cũ: `Avatar` rơi về chữ cái đầu, `Accordion` là `<details>`, `Slider` là `<input type="range">`, `Breadcrumb` / `Steps` là danh sách thường (dùng `hasUi("Avatar")` để biết).
 
+## Ô nhập nâng cao 2 và hook tiện ích (CMS ≥ 1.42)
+```tsx
+<ColorPicker value={color} onChange={setColor} allowAlpha />                       // "#rrggbb" hoặc "#rrggbbaa"; mã sai không được ghi; có ống hút nếu trình duyệt hỗ trợ
+<KeyValueEditor value={headers} onChange={setHeaders} keyPlaceholder="Tên" max={20} />   // khoá trùng báo lỗi; dán nhiều dòng KHOÁ=giá trị vào ô khoá thì tách dòng
+const record = kvToRecord(headers);   const rows = kvFromRecord({ "X-Key": "1" });
+<FileUpload accept="image/*,.pdf" maxSize={5 * 1024 * 1024} maxFiles={3} files={items} onFiles={startUpload} onRemove={drop} onRetry={retry} />
+// files: [{ id, name, size, status: "uploading" | "done" | "error", progress?, error? }] — việc tải thật do trang làm; validateFiles(files, opts) dùng được ngoài component
+<PinInput length={6} value={code} onChange={setCode} onComplete={verify} />       // tự nhảy ô, Backspace lùi, dán cả mã, autocomplete="one-time-code"
+<Editable value={title} onCommit={async (v) => { await api.rename(v); }} validate={(v) => (v ? undefined : "Không được để trống")} />   // Enter lưu, Esc huỷ, rời ô cũng lưu; lỗi thì giữ ô sửa
+```
+Hook (viết trong SDK, chạy trên mọi CMS): `useDisclosure()` → `{ open, onOpen, onClose, toggle }` · `useClipboard()` → `{ copy, copied }` · `useDebouncedValue(value, ms)` · `useMediaQuery(query)` · `useBreakpoint()` (`base` · `sm` · `md` · `lg` · `xl` · `2xl` theo Tailwind) · `useHotkeys({ "mod+k": open, escape: close })` (mod = Ctrl / ⌘; mặc định bỏ qua khi đang gõ trong ô nhập trừ tổ hợp có mod / alt / Esc).
+- CMS cũ: `ColorPicker` là `<input type="color">`, `KeyValueEditor` là ô văn bản nhiều dòng `khoá=giá trị`, `FileUpload` là `<input type="file">`, `PinInput` là một ô nhập, `Editable` là ô nhập thường.
+- `Field` không còn xoá `aria-invalid` / `aria-required` mà ô nhập bên trong tự đặt (lỗi cũ: ô đầu tiên trong `Field` không có `error` bị mất trạng thái lỗi của chính nó).
+
 ## Layout: không tự viết `display:grid` hay media query
 Bộ layout co giãn theo **bề rộng khung chứa** (không theo màn hình), nên đặt trong Drawer / Modal / cột hẹp vẫn đúng. Mốc khung chứa: `sm` ≥ 512px · `md` ≥ 672px · `lg` ≥ 896px; dưới 512px mọi lưới là 1 cột. Cần CMS ≥ 1.42 (`hasUi("Page")`); CMS cũ tự rơi về flex / lưới tự chia.
 ```tsx

@@ -369,6 +369,122 @@ export const Slider = ui("Slider", (p) => h("input", { type: "range", value: p.v
 export const RangeSlider = ui("RangeSlider", (p) => h("div", { style: { display: "flex", gap: 8 } },
   h("input", { type: "range", value: p.value[0], min: p.min ?? 0, max: p.value[1], step: p.step ?? 1, "aria-label": p.ariaLabel, onChange: (e: any) => p.onChange([Number(e.target.value), p.value[1]]) }),
   h("input", { type: "range", value: p.value[1], min: p.value[0], max: p.max ?? 100, step: p.step ?? 1, "aria-label": p.ariaLabel, onChange: (e: any) => p.onChange([p.value[0], Number(e.target.value)]) })));
+// ---- Ô nhập nâng cao (CMS mới). CMS cũ: bản gần đúng bằng thẻ gốc. Các hàm thuần dưới đây chạy trên mọi CMS. ----
+/** Chuẩn hoá mã màu về "#rrggbb" / "#rrggbbaa" (chữ thường); không hợp lệ thì null. */
+export function normalizeColor(v: string | null | undefined): string | null {
+  const m = (v ?? "").trim().replace(/^#/, "").toLowerCase();
+  if (/^[0-9a-f]{3}$/.test(m)) return "#" + [...m].map((c) => c + c).join("");
+  return /^([0-9a-f]{6}|[0-9a-f]{8})$/.test(m) ? "#" + m : null;
+}
+/** Danh sách khoá – giá trị → object (bỏ dòng khoá trống). */
+export const kvToRecord = (list: import("./types").KV[]): Record<string, string> => Object.fromEntries(list.filter((r) => r.key.trim()).map((r) => [r.key.trim(), r.value]));
+export const kvFromRecord = (rec: Record<string, string> | null | undefined): import("./types").KV[] => Object.entries(rec ?? {}).map(([key, value]) => ({ key, value }));
+/** Lọc tệp theo loại (`accept` như thuộc tính HTML) / dung lượng / số lượng: trả về tệp hợp lệ và tệp bị loại kèm lý do. */
+export function validateFiles(files: File[], o: { accept?: string; maxSize?: number; maxFiles?: number; current?: number }): { accepted: File[]; rejected: import("./types").RejectedFile[] } {
+  const typeOk = (f: File) => !o.accept || o.accept.split(",").some((a) => { a = a.trim().toLowerCase(); return a.endsWith("/*") ? f.type.startsWith(a.slice(0, -1)) : a.startsWith(".") ? f.name.toLowerCase().endsWith(a) : f.type === a; });
+  const accepted: File[] = [], rejected: import("./types").RejectedFile[] = [];
+  for (const f of files) {
+    if (!typeOk(f)) rejected.push({ file: f, reason: "type" });
+    else if (o.maxSize !== undefined && f.size > o.maxSize) rejected.push({ file: f, reason: "size" });
+    else if (o.maxFiles !== undefined && (o.current ?? 0) + accepted.length >= o.maxFiles) rejected.push({ file: f, reason: "count" });
+    else accepted.push(f);
+  }
+  return { accepted, rejected };
+}
+/** 1536 → "1.5 KB" (theo ngôn ngữ trình duyệt). */
+export const formatBytes = (n: number) => { const u = ["B", "KB", "MB", "GB"]; let i = 0, v = n; while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; } return `${v.toLocaleString(undefined, { maximumFractionDigits: i ? 1 : 0 })} ${u[i]}`; };
+
+export const ColorPicker = ui("ColorPicker", (p) => h("input", { type: "color", value: normalizeColor(p.value)?.slice(0, 7) ?? "#000000", disabled: p.disabled, "aria-label": p.ariaLabel, onChange: (e: any) => p.onChange(e.target.value) }));
+export const KeyValueEditor = ui("KeyValueEditor", (p) => h("textarea", { rows: 4, disabled: p.disabled, "aria-label": p.ariaLabel, value: p.value.map((r: any) => `${r.key}=${r.value}`).join("\n"),
+  onChange: (e: any) => p.onChange(String(e.target.value).split(/\r?\n/).filter(Boolean).map((l: string) => { const m = l.match(/^([^=]*)=(.*)$/); return m ? { key: m[1], value: m[2] } : { key: l, value: "" }; })) }));
+export const FileUpload = ui("FileUpload", (p) => h("input", { type: "file", accept: p.accept, multiple: p.multiple ?? true, disabled: p.disabled, "aria-label": p.ariaLabel,
+  onChange: (e: any) => { const { accepted, rejected } = validateFiles([...e.target.files], p); if (rejected.length) p.onReject?.(rejected); if (accepted.length) p.onFiles(accepted); e.target.value = ""; } }));
+export const PinInput = ui("PinInput", (p) => h("input", { value: p.value, maxLength: p.length ?? 6, inputMode: p.type === "text" ? "text" : "numeric", autoComplete: "one-time-code", disabled: p.disabled, "aria-label": p.ariaLabel,
+  onChange: (e: any) => { const v = String(e.target.value); p.onChange(v); if (v.length === (p.length ?? 6)) p.onComplete?.(v); } }));
+export const Editable = ui("Editable", (p) => h("input", { defaultValue: p.value, placeholder: p.placeholder, disabled: p.disabled, "aria-label": p.ariaLabel, onBlur: (e: any) => { if (e.target.value !== p.value) void p.onCommit(e.target.value); } }));
+
+// ---- Hook tiện ích (viết trong SDK nên chạy trên mọi CMS) ----
+/** Bật / tắt một trạng thái (hộp thoại, ngăn trượt, menu…): `{ open, onOpen, onClose, toggle, set }`. */
+export function useDisclosure(initial = false) {
+  const R = host().React as typeof import("react");
+  const [open, set] = R.useState(initial);
+  return { open, set, onOpen: R.useCallback(() => set(true), []), onClose: R.useCallback(() => set(false), []), toggle: R.useCallback(() => set((v) => !v), []) };
+}
+/** Sao chép chữ vào clipboard: `copy(text)` trả true / false; `copied` bật ~`timeout` ms rồi tự tắt. */
+export function useClipboard({ timeout = 1500 }: { timeout?: number } = {}) {
+  const R = host().React as typeof import("react");
+  const [copied, setCopied] = R.useState(false);
+  const timer = R.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  R.useEffect(() => () => clearTimeout(timer.current), []);
+  const copy = R.useCallback(async (text: string) => {
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; } catch {
+      const ta = document.createElement("textarea"); ta.value = text; ta.style.cssText = "position:fixed;opacity:0"; document.body.append(ta); ta.select();
+      try { ok = document.execCommand("copy"); } finally { ta.remove(); }
+    }
+    if (ok) { setCopied(true); clearTimeout(timer.current); timer.current = setTimeout(() => setCopied(false), timeout); }
+    return ok;
+  }, [timeout]);
+  return { copy, copied };
+}
+/** Giá trị trễ `ms` mili giây sau lần đổi cuối (ô tìm kiếm gọi máy chủ). */
+export function useDebouncedValue<T>(value: T, ms = 300): T {
+  const R = host().React as typeof import("react");
+  const [v, setV] = R.useState(value);
+  R.useEffect(() => { const id = setTimeout(() => setV(value), ms); return () => clearTimeout(id); }, [value, ms]);
+  return v;
+}
+/** Trạng thái của một media query (`"(min-width: 768px)"`). Máy chủ / không có `matchMedia` thì false. */
+export function useMediaQuery(query: string): boolean {
+  const R = host().React as typeof import("react");
+  const get = () => (typeof window !== "undefined" && window.matchMedia ? window.matchMedia(query).matches : false);
+  const [m, setM] = R.useState(get);
+  R.useEffect(() => { if (typeof window === "undefined" || !window.matchMedia) return; const mq = window.matchMedia(query); const on = () => setM(mq.matches); on(); mq.addEventListener("change", on); return () => mq.removeEventListener("change", on); }, [query]);
+  return m;
+}
+export type Breakpoint = "base" | "sm" | "md" | "lg" | "xl" | "2xl";
+/** Mốc màn hình hiện tại theo Tailwind: base < 640 ≤ sm < 768 ≤ md < 1024 ≤ lg < 1280 ≤ xl < 1536 ≤ 2xl. */
+export function useBreakpoint(): Breakpoint {
+  const [sm, md, lg, xl, x2] = [useMediaQuery("(min-width: 640px)"), useMediaQuery("(min-width: 768px)"), useMediaQuery("(min-width: 1024px)"), useMediaQuery("(min-width: 1280px)"), useMediaQuery("(min-width: 1536px)")];
+  return x2 ? "2xl" : xl ? "xl" : lg ? "lg" : md ? "md" : sm ? "sm" : "base";
+}
+/** Chuỗi phím tắt → có khớp sự kiện không. `mod` = Ctrl (Windows / Linux) hoặc ⌘ (macOS). Vd "mod+k", "shift+/", "escape", "alt+s". */
+export function matchHotkey(combo: string, e: Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey">): boolean {
+  const parts = combo.toLowerCase().split("+").map((x) => x.trim()), key = parts.pop() ?? "";
+  const want = { mod: parts.includes("mod"), ctrl: parts.includes("ctrl"), meta: parts.includes("meta"), alt: parts.includes("alt"), shift: parts.includes("shift") };
+  const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+  const modOk = want.mod ? (isMac ? e.metaKey : e.ctrlKey) : true;
+  const ctrlOk = want.ctrl ? e.ctrlKey : want.mod ? true : !e.ctrlKey;
+  const metaOk = want.meta ? e.metaKey : want.mod ? true : !e.metaKey;
+  const k = e.key.toLowerCase(), kk = key === "esc" ? "escape" : key;
+  // Không đòi Shift thì chỉ chấp nhận Shift khi phím là ký hiệu cần Shift để gõ ("?" "/"…): chữ và số mà có Shift là tổ hợp khác
+  const shiftOk = want.shift ? e.shiftKey : e.shiftKey ? !/^[a-z0-9]$/.test(k) : true;
+  return modOk && ctrlOk && metaOk && e.altKey === want.alt && shiftOk && k === kk;
+}
+/**
+ * Đăng ký phím tắt: `useHotkeys({ "mod+k": openPalette, "escape": close })`. Mặc định bỏ qua khi đang gõ trong ô nhập (trừ tổ hợp có mod / alt).
+ * `enabled: false` tạm tắt; `target` mặc định là `document`.
+ */
+export function useHotkeys(map: Record<string, (e: KeyboardEvent) => void>, o: { enabled?: boolean; allowInInputs?: boolean; target?: EventTarget | null } = {}) {
+  const R = host().React as typeof import("react");
+  const ref = R.useRef(map); ref.current = map;
+  const { enabled = true, allowInInputs = false } = o;
+  R.useEffect(() => {
+    if (!enabled || typeof document === "undefined") return;
+    const t = o.target ?? document;
+    const on = (ev: Event) => {
+      const e = ev as KeyboardEvent, el = e.target as HTMLElement | null;
+      const typing = !!el?.closest?.('input,textarea,select,[contenteditable="true"]');
+      for (const [combo, fn] of Object.entries(ref.current)) {
+        if (!matchHotkey(combo, e)) continue;
+        if (typing && !allowInInputs && !/(mod|alt|ctrl|meta)\+/i.test(combo) && !/^(escape|esc)$/i.test(combo)) continue;
+        e.preventDefault(); fn(e); return;
+      }
+    };
+    t.addEventListener("keydown", on);
+    return () => t.removeEventListener("keydown", on);
+  }, [enabled, allowInInputs, o.target]);
+}
 export const UiLabelsProvider = ui("UiLabelsProvider", (p) => h(host().React.Fragment, null, p.children));
 // Bộ layout (CMS ≥ 1.42). CMS cũ: bản đơn giản bằng flex / lưới tự chia — vẫn co giãn được, chỉ không theo mốc khung chứa.
 const gapPx = (g: number = 4) => g * 4;

@@ -617,6 +617,16 @@ export interface UiKit {
    * Thứ tự ưu tiên: prop `labels` của component → provider gần nhất → file ngôn ngữ của lõi. CMS cũ: chỉ hiện nội dung bên trong, không đổi chữ.
    */
   UiLabelsProvider?: ComponentType<{ labels: Partial<UiLabels>; children: ReactNode }>;
+  /** Chọn màu: màu gợi ý, bộ chọn hệ điều hành, ô nhập mã #rgb / #rrggbb, `allowAlpha` thêm độ trong suốt ("#rrggbbaa"), ống hút. Giá trị luôn được chuẩn hoá. CMS cũ: `<input type="color">`. */
+  ColorPicker?: ComponentType<{ value: string | null; onChange(v: string | null): void; presets?: string[]; allowAlpha?: boolean; clearable?: boolean; ariaLabel?: string; disabled?: boolean; status?: "error" | "warning"; labels?: Partial<UiLabels> }>;
+  /** Sửa danh sách khoá – giá trị: khoá trùng báo lỗi, Enter ở ô giá trị cuối thêm dòng, dán nhiều dòng `KHOÁ=giá trị` thì tách dòng. `kvToRecord` / `kvFromRecord` đổi qua lại với object. CMS cũ: ô văn bản nhiều dòng. */
+  KeyValueEditor?: ComponentType<{ value: KV[]; onChange(v: KV[]): void; keyPlaceholder?: string; valuePlaceholder?: string; max?: number; disabled?: boolean; ariaLabel?: string; validateKey?(key: string): string | undefined; labels?: Partial<UiLabels> }>;
+  /** Tải tệp: vùng thả (hoặc bấm / Enter), kiểm tra loại – dung lượng – số lượng ở máy, danh sách tệp kèm tiến trình / lỗi / thử lại. Việc tải thật do trang làm. CMS cũ: `<input type="file">`. */
+  FileUpload?: ComponentType<{ accept?: string; multiple?: boolean; maxSize?: number; maxFiles?: number; onFiles(files: File[]): void; onReject?(rejected: RejectedFile[]): void; files?: UploadItem[]; onRemove?(id: string): void; onRetry?(id: string): void; hint?: ReactNode; disabled?: boolean; ariaLabel?: string; labels?: Partial<UiLabels> }>;
+  /** Nhập mã ngắn (OTP): mỗi ký tự một ô, tự nhảy ô, Backspace lùi, dán cả mã, `onComplete` khi đủ. CMS cũ: một ô nhập. */
+  PinInput?: ComponentType<{ length?: number; value: string; onChange(v: string): void; onComplete?(v: string): void; type?: "number" | "text"; mask?: boolean; autoFocus?: boolean; disabled?: boolean; ariaLabel?: string; status?: "error" | "warning"; labels?: Partial<UiLabels> }>;
+  /** Chữ sửa tại chỗ: bấm / Enter / F2 để sửa, Enter lưu, Esc huỷ, rời ô cũng lưu; `onCommit` trả Promise thì hiện đang lưu, lỗi thì giữ ô sửa. CMS cũ: ô nhập thường. */
+  Editable?: ComponentType<{ value: string; onCommit(next: string): void | Promise<unknown>; placeholder?: string; validate?(v: string): string | undefined; multiline?: boolean; disabled?: boolean; ariaLabel?: string; className?: string; labels?: Partial<UiLabels> }>;
   /** Ảnh đại diện: ảnh `src`, lỗi / không có thì chữ cái đầu của `name` trên nền màu cố định theo tên; `status` thêm chấm trạng thái. CMS mới. */
   Avatar?: ComponentType<{ src?: string | null; name?: string; size?: "xs" | "sm" | "md" | "lg" | "xl"; shape?: "circle" | "square"; status?: "online" | "offline" | "busy" | "away"; icon?: ReactNode; className?: string }>;
   /** Nhiều ảnh đại diện chồng nhau; quá `max` thì gộp "+N". CMS mới. */
@@ -754,11 +764,14 @@ export type RichTextToolbar = "basic" | "standard" | "full" | string[] | { prese
  */
 export interface UiLabels {
   addTag: string; cancel: string; clear: string; close: string; columns: string; confirm: string; confirmTitle: string; density: string; densityComfortable: string; densityCompact: string;
-  breadcrumb: string; copied: string; copy: string; moreItems: string; hour: string; minute: string; pickRange: string; pickTime: string; yesterday: string; last7Days: string; last30Days: string; thisMonth: string; lastMonth: string; rangeHint: string; dismiss: string; expandRow: string; collapseRow: string; allMatchingSelected: string; applyFilter: string; clearFilters: string; clearSelection: string; collapseAll: string; expandAll: string; filter: string; filterFrom: string; filterMax: string; filterMin: string; filterTo: string; loadError: string; resetFilter: string; retry: string; selectAllMatching: string; selectedOnPage: string; hidePassword: string; items: string; loading: string; month: string; moreTags: string; next: string; nextMonth: string; noData: string; noMatches: string;
+  pickColor: string; customColor: string; hexColor: string; opacity: string; eyedropper: string; addRow: string; removeRow: string; duplicateKey: string; keyLabel: string; valueLabel: string; dropFiles: string; fileTooLarge: string; fileNotAllowed: string; tooManyFiles: string; uploading: string; uploaded: string; uploadFailed: string; removeFile: string; pinDigit: string; edit: string; saveFailed: string; breadcrumb: string; copied: string; copy: string; moreItems: string; hour: string; minute: string; pickRange: string; pickTime: string; yesterday: string; last7Days: string; last30Days: string; thisMonth: string; lastMonth: string; rangeHint: string; dismiss: string; expandRow: string; collapseRow: string; allMatchingSelected: string; applyFilter: string; clearFilters: string; clearSelection: string; collapseAll: string; expandAll: string; filter: string; filterFrom: string; filterMax: string; filterMin: string; filterTo: string; loadError: string; resetFilter: string; retry: string; selectAllMatching: string; selectedOnPage: string; hidePassword: string; items: string; loading: string; month: string; moreTags: string; next: string; nextMonth: string; noData: string; noMatches: string;
   notifications: string; now: string; ok: string; optional: string; pageN: string; pagination: string; perPage: string; pickDate: string; previous: string; previousMonth: string;
   remove: string; removeTag: string; search: string; selectAll: string; selectRow: string; showPassword: string; tableSettings: string; time: string; today: string; view: string; year: string;
 }
 
+export interface KV { key: string; value: string }
+export interface UploadItem { id: string; name: string; size: number; status: "uploading" | "done" | "error"; progress?: number; error?: string }
+export interface RejectedFile { file: File; reason: "size" | "type" | "count" }
 export interface BreadcrumbItem { label: ReactNode; href?: string; onClick?(): void }
 export interface AccordionItem { value: string; title: ReactNode; content: ReactNode; disabled?: boolean; icon?: ReactNode }
 export interface StepItem { title: ReactNode; description?: ReactNode; status?: "done" | "current" | "upcoming" | "error"; icon?: ReactNode }
