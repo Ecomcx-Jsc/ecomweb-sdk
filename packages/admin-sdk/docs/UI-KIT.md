@@ -218,7 +218,7 @@ Hook (viết trong SDK, chạy trên mọi CMS): `useDisclosure()` → `{ open, 
 - CMS cũ: `ColorPicker` là `<input type="color">`, `KeyValueEditor` là ô văn bản nhiều dòng `khoá=giá trị`, `FileUpload` là `<input type="file">`, `PinInput` là một ô nhập, `Editable` là ô nhập thường.
 - `Field` không còn xoá `aria-invalid` / `aria-required` mà ô nhập bên trong tự đặt (lỗi cũ: ô đầu tiên trong `Field` không có `error` bị mất trạng thái lỗi của chính nó).
 
-## Biểu đồ, bảng lệnh, lịch, vùng cuộn, khung chia (CMS ≥ 1.43)
+## Biểu đồ, bảng lệnh, lịch, vùng cuộn, khung chia (CMS ≥ 1.42)
 ```tsx
 <BarChart ariaLabel="Đơn theo ngày" labels={days} stacked series={[{ label: "Đơn", values: orders }, { label: "Hoàn", values: returns, color: "danger" }]} />
 <LineChart ariaLabel="Doanh thu" labels={days} area series={[{ label: "Doanh thu", values: revenue }]} format={(n) => money(n)} />
