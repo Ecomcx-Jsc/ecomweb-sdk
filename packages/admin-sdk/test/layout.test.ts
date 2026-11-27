@@ -88,3 +88,24 @@ test("CMS cũ: Alert báo đúng role, Progress là <progress>, CheckboxGroup t�
     assert.equal((render((SkeletonText as any)({ lines: 4 })).props.children as any[]).length, 4);
   });
 });
+
+// ---- UiLabelsProvider và prop `labels` ----
+
+test("CMS có UiLabelsProvider: dùng đúng component của host, giữ nguyên labels", async () => {
+  const { UiLabelsProvider } = await import("../src/index");
+  const P = () => null;
+  withHost({ UiLabelsProvider: P }, () => {
+    assert.equal(hasUi("UiLabelsProvider"), true);
+    const el = (UiLabelsProvider as any)({ labels: { clear: "Gỡ" }, children: "x" }) as { type: unknown; props: { labels: { clear: string } } };
+    assert.equal(el.type, P); assert.equal(el.props.labels.clear, "Gỡ");
+  });
+});
+
+test("CMS cũ: UiLabelsProvider chỉ hiện nội dung bên trong, không lỗi", async () => {
+  const { UiLabelsProvider } = await import("../src/index");
+  withHost({}, () => {
+    assert.equal(hasUi("UiLabelsProvider"), false);
+    const out = render((UiLabelsProvider as any)({ labels: { clear: "Gỡ" }, children: "nội dung" }));
+    assert.deepEqual(out.props.children, ["nội dung"]);
+  });
+});

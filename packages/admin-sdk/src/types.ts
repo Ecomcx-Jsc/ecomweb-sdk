@@ -448,9 +448,9 @@ export interface UiKit {
    * Nút. CMS mới: `variant` thêm `soft` · `link` · `success` · `warning`; `size` thêm `lg` và `icon` (nút vuông chỉ có biểu tượng — cần `aria-label`); `fullWidth`; `href` vẽ thẻ `<a>`.
    * `loading`, hoặc `onClick` trả về Promise (nút tự bận tới khi xong): khoá bấm, `aria-busy`, spinner hiện sau 150ms. CMS cũ chỉ có 4 kiểu đầu và cỡ sm/md.
    */
-  Button: ComponentType<{ variant?: "primary" | "secondary" | "danger" | "ghost" | "soft" | "link" | "success" | "warning"; size?: "sm" | "md" | "lg" | "icon"; loading?: boolean; icon?: ReactNode; fullWidth?: boolean; href?: string; target?: string; rel?: string; download?: string | boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>>;
+  Button: ComponentType<{ variant?: "primary" | "secondary" | "danger" | "ghost" | "soft" | "link" | "success" | "warning"; size?: "sm" | "md" | "lg" | "icon"; loading?: boolean; icon?: ReactNode; fullWidth?: boolean; loadingText?: ReactNode; href?: string; target?: string; rel?: string; download?: string | boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>>;
   /** Ô nhập một dòng. CMS mới: `size` sm · md · lg, `status`, `prefix`/`suffix`, `clearable`, `revealable` (mật khẩu), `loading`, `showCount` (cần `maxLength`). */
-  Input: ComponentType<Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "prefix"> & { ref?: React.Ref<HTMLInputElement>; size?: "sm" | "md" | "lg"; status?: "error" | "warning"; prefix?: ReactNode; suffix?: ReactNode; clearable?: boolean; onClear?(): void; revealable?: boolean; loading?: boolean; showCount?: boolean }>;
+  Input: ComponentType<Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "prefix"> & { ref?: React.Ref<HTMLInputElement>; size?: "sm" | "md" | "lg"; status?: "error" | "warning"; prefix?: ReactNode; suffix?: ReactNode; clearable?: boolean; onClear?(): void; revealable?: boolean; loading?: boolean; showCount?: boolean; labels?: Partial<UiLabels> }>;
   /** Ô nhiều dòng. CMS mới: `status`, `autosize` (tự giãn, có thể giới hạn số dòng), `showCount`. */
   Textarea: ComponentType<React.TextareaHTMLAttributes<HTMLTextAreaElement> & { ref?: React.Ref<HTMLTextAreaElement>; status?: "error" | "warning"; autosize?: boolean | { minRows?: number; maxRows?: number }; showCount?: boolean }>;
   /**
@@ -459,23 +459,23 @@ export interface UiKit {
    */
   Select: ComponentType<Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "size"> & {
     options: SelectOption[]; onValueChange?(v: string): void; size?: "sm" | "md" | "lg"; status?: "error" | "warning"; loading?: boolean; allowClear?: boolean;
-    showSearch?: boolean | "auto"; onSearch?(q: string): void; notFound?: ReactNode; footer?: ReactNode; filterOption?(q: string, o: SelectOption): boolean;
+    showSearch?: boolean | "auto"; onSearch?(q: string): void; notFound?: ReactNode; footer?: ReactNode; filterOption?(q: string, o: SelectOption): boolean; labels?: Partial<UiLabels>;
   }>;
   /** `ariaLabel` khi không có nhãn hiện; `indeterminate` = chọn một phần. */
   Checkbox: ComponentType<{ checked: boolean; onChange(checked: boolean): void; label?: ReactNode; disabled?: boolean; description?: ReactNode; ariaLabel?: string; indeterminate?: boolean }>;
   /** Nhãn + chú thích/lỗi tự gắn vào ô nhập đầu tiên bên trong (trình đọc màn hình). */
   /** CMS mới: `required` (dấu * + aria-required), `optional` ("tuỳ chọn"), `layout="horizontal"` (nhãn bên trái khi khung ≥ 512px). */
-  Field: ComponentType<{ label: ReactNode; help?: ReactNode; error?: ReactNode; children: ReactNode; className?: string; required?: boolean; optional?: boolean; layout?: "vertical" | "horizontal" }>;
+  Field: ComponentType<{ label: ReactNode; help?: ReactNode; error?: ReactNode; children: ReactNode; className?: string; required?: boolean; optional?: boolean; layout?: "vertical" | "horizontal"; labels?: Partial<UiLabels> }>;
   Card: ComponentType<{ title?: ReactNode; description?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; padded?: boolean }>;
   PageHeader: ComponentType<{ title: ReactNode; description?: ReactNode; actions?: ReactNode }>;
   /** Bảng. Sắp xếp: cột `sortable` + `sort`/`onSort`; ẩn cột + mật độ: lấy từ `useTableSettings`. */
   Table: ComponentType<{
     columns: Column<any>[]; rows: any[]; rowKey?: (row: any) => string | number; empty?: ReactNode; loading?: boolean;
     selectable?: boolean; selected?: Set<string | number>; onSelect?(s: Set<string | number>): void; onRowClick?(row: any): void;
-    sort?: SortState; onSort?(s: SortState): void; hiddenColumns?: string[]; density?: Density; ariaLabel?: string;
+    sort?: SortState; onSort?(s: SortState): void; hiddenColumns?: string[]; density?: Density; ariaLabel?: string; labels?: Partial<UiLabels>;
   }>;
   /** CMS mới: `variant` soft · solid · outline, `size` sm · md · lg, `onRemove` (chip có nút gỡ). */
-  Badge: ComponentType<{ tone?: "gray" | "green" | "yellow" | "red" | "blue" | "purple"; children: ReactNode; dot?: boolean; variant?: "soft" | "solid" | "outline"; size?: "sm" | "md" | "lg"; onRemove?(): void }>;
+  Badge: ComponentType<{ tone?: "gray" | "green" | "yellow" | "red" | "blue" | "purple"; children: ReactNode; dot?: boolean; variant?: "soft" | "solid" | "outline"; size?: "sm" | "md" | "lg"; onRemove?(): void; labels?: Partial<UiLabels> }>;
   /** Hộp thoại (= Dialog): giữ focus bên trong, Esc / bấm ra ngoài để đóng, trả focus khi đóng. */
   Modal: ComponentType<{ open: boolean; title: ReactNode; onClose(): void; children: ReactNode; footer?: ReactNode; width?: number; description?: ReactNode; dismissOnBackdrop?: boolean }>;
   Spinner: ComponentType<{ className?: string }>;
@@ -525,22 +525,27 @@ export interface UiKit {
   /**
    * Thông báo nằm trong trang (khác `notify` là thông báo nổi). `warning` / `danger` đọc ngay (role="alert"). CMS mới: dùng `hasUi("Alert")`; SDK tự dựng bản đơn giản cho CMS cũ.
    */
-  Alert?: ComponentType<{ tone?: "info" | "success" | "warning" | "danger"; title?: ReactNode; children?: ReactNode; icon?: ReactNode | false; action?: ReactNode; onClose?(): void; className?: string }>;
+  Alert?: ComponentType<{ tone?: "info" | "success" | "warning" | "danger"; title?: ReactNode; children?: ReactNode; icon?: ReactNode | false; action?: ReactNode; onClose?(): void; className?: string; labels?: Partial<UiLabels> }>;
   /** Thanh tiến trình. Bỏ `value` (hoặc `indeterminate`) = chưa biết bao lâu. CMS mới; CMS cũ: `<progress>` gốc. */
   Progress?: ComponentType<{ value?: number; max?: number; tone?: "accent" | "success" | "warning" | "danger"; size?: "sm" | "md" | "lg"; label?: ReactNode; showValue?: boolean; indeterminate?: boolean; ariaLabel?: string }>;
   /** Ô tìm kiếm: `Input` có kính lúp và nút xoá. */
-  SearchInput?: ComponentType<Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "prefix" | "type"> & { size?: "sm" | "md" | "lg"; status?: "error" | "warning"; loading?: boolean; onClear?(): void }>;
+  SearchInput?: ComponentType<Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "prefix" | "type"> & { size?: "sm" | "md" | "lg"; status?: "error" | "warning"; loading?: boolean; onClear?(): void; labels?: Partial<UiLabels> }>;
+  /**
+   * Đổi chữ nội bộ của bộ UI trong một nhánh giao diện (như `ConfigProvider` của Ant Design). Lồng nhau thì nhánh trong đè nhánh ngoài từng khoá.
+   * Thứ tự ưu tiên: prop `labels` của component → provider gần nhất → file ngôn ngữ của lõi. CMS cũ: chỉ hiện nội dung bên trong, không đổi chữ.
+   */
+  UiLabelsProvider?: ComponentType<{ labels: Partial<UiLabels>; children: ReactNode }>;
   /** Nhóm ô tích: `value` là danh sách giá trị đang chọn. */
   CheckboxGroup?: ComponentType<{ value: string[]; onChange(v: string[]): void; options: Array<{ value: string; label: ReactNode; description?: ReactNode; disabled?: boolean }>; direction?: "vertical" | "horizontal"; ariaLabel?: string; disabled?: boolean }>;
   /** Chọn một trong danh sách dài, gõ để lọc (không dấu). `onSearch` để tải gợi ý từ máy chủ. */
-  Combobox?: ComponentType<{ value: string | null; onChange(v: string | null): void; options: UiOption[]; placeholder?: string; disabled?: boolean; ariaLabel?: string; onSearch?(q: string): void; clearable?: boolean; className?: string; emptyText?: ReactNode }>;
+  Combobox?: ComponentType<{ value: string | null; onChange(v: string | null): void; options: UiOption[]; placeholder?: string; disabled?: boolean; ariaLabel?: string; onSearch?(q: string): void; clearable?: boolean; className?: string; emptyText?: ReactNode; labels?: Partial<UiLabels> }>;
   /** Chọn nhiều / nhập thẻ: có `options` là MultiSelect, `creatable` cho gõ giá trị mới (Enter hoặc dấu phẩy). */
-  TagInput?: ComponentType<{ value: string[]; onChange(v: string[]): void; options?: UiOption[]; creatable?: boolean; placeholder?: string; ariaLabel?: string; disabled?: boolean; max?: number; onSearch?(q: string): void }>;
+  TagInput?: ComponentType<{ value: string[]; onChange(v: string[]): void; options?: UiOption[]; creatable?: boolean; placeholder?: string; ariaLabel?: string; disabled?: boolean; max?: number; onSearch?(q: string): void; labels?: Partial<UiLabels> }>;
   /** Ngày "YYYY-MM-DD"; `withTime`: "YYYY-MM-DDTHH:mm" giờ địa phương (đổi với ISO bằng `isoToLocal` / `localToIso`). */
-  DatePicker?: ComponentType<{ value: string | null; onChange(v: string | null): void; withTime?: boolean; placeholder?: string; ariaLabel?: string; disabled?: boolean; min?: string; max?: string; clearable?: boolean; weekStart?: 0 | 1 | 2 | 3 | 4 | 5 | 6 }>;
+  DatePicker?: ComponentType<{ value: string | null; onChange(v: string | null): void; withTime?: boolean; placeholder?: string; ariaLabel?: string; disabled?: boolean; min?: string; max?: string; clearable?: boolean; weekStart?: 0 | 1 | 2 | 3 | 4 | 5 | 6; labels?: Partial<UiLabels> }>;
   RadioGroup?: ComponentType<{ value: string; onChange(v: string): void; options: Array<{ value: string; label: ReactNode; description?: ReactNode; disabled?: boolean }>; ariaLabel?: string; variant?: "list" | "cards" | "segmented"; disabled?: boolean }>;
   TreeView?: ComponentType<{ nodes: TreeNode[]; ariaLabel: string; checkable?: boolean; checked?: Array<string | number>; onCheck?(id: string | number, value: boolean): void; selected?: string | number | null; onSelect?(id: string | number): void; defaultExpanded?: "all" | "none" | Array<string | number>; className?: string }>;
-  Pagination?: ComponentType<{ page: number; totalPages: number; onPage(p: number): void; total?: number; pageSize?: number; onPageSize?(n: number): void; pageSizes?: number[] }>;
+  Pagination?: ComponentType<{ page: number; totalPages: number; onPage(p: number): void; total?: number; pageSize?: number; onPageSize?(n: number): void; pageSizes?: number[]; labels?: Partial<UiLabels> }>;
   TableSettingsMenu?: ComponentType<{ columns: Array<{ key: string; title: ReactNode }>; settings: TableSettings }>;
   // ----- Bộ component bán hàng / quản trị (CMS ≥ 1.39) -----
   /** Ô nhập tiền: `value` là số nguyên theo đơn vị nhỏ nhất của `currency` (null = trống). Phân cách hàng nghìn, không dạng mũ, báo lỗi tại ô (số quá lớn, âm, chữ lạ) và không gọi `onChange` khi sai. */
@@ -633,6 +638,17 @@ export interface RichTextButton {
 }
 
 export type RichTextToolbar = "basic" | "standard" | "full" | string[] | { preset?: "basic" | "standard" | "full"; add?: string[]; remove?: string[]; more?: string[] };
+
+/**
+ * Chữ nội bộ của bộ UI (nút xoá, "trang sau", "hôm nay"…). Mặc định theo ngôn ngữ admin (lõi tự dịch); đổi cho một component bằng prop `labels`,
+ * cho cả một nhánh bằng `UiLabelsProvider`. Chuỗi có `{tên}` (vd `items: "{total} mục"`) được thay giá trị. CMS mới.
+ */
+export interface UiLabels {
+  addTag: string; clear: string; close: string; columns: string; confirm: string; confirmTitle: string; density: string; densityComfortable: string; densityCompact: string;
+  dismiss: string; hidePassword: string; items: string; loading: string; month: string; moreTags: string; next: string; nextMonth: string; noData: string; noMatches: string;
+  notifications: string; now: string; ok: string; optional: string; pageN: string; pagination: string; perPage: string; pickDate: string; previous: string; previousMonth: string;
+  remove: string; removeTag: string; search: string; selectAll: string; selectRow: string; showPassword: string; tableSettings: string; time: string; today: string; view: string; year: string;
+}
 
 /** Khoảng cách của bộ layout: 0 · 1 · 2 · 3 · 4 · 6 · 8 (đơn vị 4px). */
 export type LayoutGap = 0 | 1 | 2 | 3 | 4 | 6 | 8;

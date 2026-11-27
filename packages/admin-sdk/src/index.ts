@@ -307,6 +307,7 @@ export const CheckboxGroup = ui("CheckboxGroup", (p) => h("div", { role: "group"
   ...p.options.map((o: any) => h(host().ui.Checkbox, { key: o.value, checked: p.value.includes(o.value), label: o.label, description: o.description, disabled: p.disabled || o.disabled,
     onChange: (on: boolean) => p.onChange(on ? [...p.value, o.value] : p.value.filter((v: string) => v !== o.value)) }))));
 
+export const UiLabelsProvider = ui("UiLabelsProvider", (p) => h(host().React.Fragment, null, p.children));
 // Bộ layout (CMS ≥ 1.42). CMS cũ: bản đơn giản bằng flex / lưới tự chia — vẫn co giãn được, chỉ không theo mốc khung chứa.
 const gapPx = (g: number = 4) => g * 4;
 export const Stack = ui("Stack", (p) => h("div", { className: p.className, style: { display: "flex", flexDirection: "column", gap: gapPx(p.gap), minWidth: 0 } }, p.children));

@@ -61,6 +61,29 @@ import { Alert, Badge, Button, CheckboxGroup, Field, Input, Progress, SearchInpu
 - `status="error"` hoặc `<Field error>` đều đặt `aria-invalid`; `status="warning"` chỉ đổi viền (không chặn gửi).
 - CMS cũ chưa có: `hasUi("Alert")`; SDK tự dựng bản đơn giản cho `Alert`, `Progress`, `SearchInput`, `CheckboxGroup`, `SkeletonText`. Biến thể và cỡ mới của `Button`, `Badge`, `Tabs`… sẽ không có tác dụng.
 
+## Chữ nội bộ của bộ UI và cách đổi (CMS ≥ 1.42)
+Có hai loại chữ, và chỉ một loại là việc của bạn:
+- **Chữ của bạn** (nhãn, `children`, `placeholder`, `emptyText`, `loadingText`…): bạn tự dịch bằng i18n của plugin (`createT` + `locales/*.json`).
+- **Chữ do bộ UI tự thêm** (nút xoá, "trang sau", "hôm nay", "chọn tất cả", "đang tải"…): lõi tự dịch theo ngôn ngữ admin, bạn không phải làm gì.
+
+Muốn đổi chữ của bộ UI, ba tầng, ưu tiên từ trên xuống:
+```tsx
+import { Button, Input, Pagination, UiLabelsProvider } from "@ecomcx/ecomweb-admin-sdk";
+
+<Input clearable labels={{ clear: "Gỡ giá trị" }} />                       {/* 1. prop `labels` — chỉ component này */}
+
+<UiLabelsProvider labels={{ previous: "Quay lại", next: "Tiếp tục", items: "{total} đơn hàng" }}>
+  <Pagination page={p} totalPages={9} total={87} onPage={setP} />           {/* 2. cả nhánh bên trong; lồng nhau thì nhánh trong thắng theo từng khoá */}
+</UiLabelsProvider>
+
+<Button loading={busy} loadingText={t("saving")}>{t("save")}</Button>      {/* chữ hiện lúc đang bận do bạn tự dịch */}
+```
+- Tầng 3 (mặc định) là khoá `ui.*` trong `locales/core/*.json` của lõi. Thêm ngôn ngữ cho lõi chỉ cần thả một file JSON.
+- Khoá đổi được: `addTag` `clear` `close` `columns` `confirm` `confirmTitle` `density` `densityComfortable` `densityCompact` `dismiss` `hidePassword` `items` `loading` `month` `moreTags` `next` `nextMonth` `noData` `noMatches` `notifications` `now` `ok` `optional` `pageN` `pagination` `perPage` `pickDate` `previous` `previousMonth` `remove` `removeTag` `search` `selectAll` `selectRow` `showPassword` `tableSettings` `time` `today` `view` `year`. Chuỗi có `{tên}` được thay giá trị.
+- `labels` có trên `Input`, `SearchInput`, `Field`, `Badge`, `Alert`, `Table`, `Pagination`, `DatePicker`, `Select`, `Combobox`, `TagInput`.
+- **Không** dùng `registerMessages("core", …)` để đổi chữ: lõi bỏ qua (kèm cảnh báo) vì nó đổi chữ của cả admin. Dùng `labels` / `UiLabelsProvider`.
+- CMS cũ: `UiLabelsProvider` chỉ hiện nội dung bên trong, `labels` không có tác dụng (dùng `hasUi("UiLabelsProvider")` để biết).
+
 ## Layout: không tự viết `display:grid` hay media query
 Bộ layout co giãn theo **bề rộng khung chứa** (không theo màn hình), nên đặt trong Drawer / Modal / cột hẹp vẫn đúng. Mốc khung chứa: `sm` ≥ 512px · `md` ≥ 672px · `lg` ≥ 896px; dưới 512px mọi lưới là 1 cột. Cần CMS ≥ 1.42 (`hasUi("Page")`); CMS cũ tự rơi về flex / lưới tự chia.
 ```tsx
