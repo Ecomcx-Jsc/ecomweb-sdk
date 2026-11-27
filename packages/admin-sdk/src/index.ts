@@ -163,10 +163,30 @@ export const useAi = () => {
   return { enabled, reason: d ? (enabled ? null : d.reason ?? "site") : null, run: ai.run, ask: ai.ask };
 };
 
+type NotifyArg = import("./types").NotifyOptions | { label: string; onClick(): void };
 export const notify = {
-  success: (m: string) => host().notify.success(m),
-  error: (m: string) => host().notify.error(m),
-  info: (m: string) => host().notify.info(m),
+  success: (m: string, o?: NotifyArg) => host().notify.success(m, o),
+  error: (m: string, o?: NotifyArg) => host().notify.error(m, o),
+  info: (m: string, o?: NotifyArg) => host().notify.info(m, o),
+  /** Cảnh báo. CMS cũ: hiện như thông báo thường. */
+  warning: (m: string, o?: NotifyArg) => (host().notify.warning ?? host().notify.info)(m, o),
+  /** Thông báo "đang chạy"; gọi `.success()` / `.error()` trên kết quả khi xong. CMS cũ: hiện một thông báo, rồi thông báo kết quả riêng. */
+  loading: (m: string, o?: import("./types").NotifyOptions): import("./types").LoadingToast => {
+    const n = host().notify;
+    if (n.loading) return n.loading(m, o);
+    n.info(m);
+    return { id: 0, update: () => {}, dismiss: () => {}, success: (m2) => n.success(m2), error: (m2) => n.error(m2) };
+  },
+  /** Theo dõi một Promise: "đang chạy" → thành công / lỗi. Trả lại chính Promise đó. */
+  promise: <T,>(p: Promise<T>, msgs: { loading: string; success: string | ((v: T) => string); error: string | ((e: unknown) => string) }, o?: import("./types").NotifyOptions): Promise<T> => {
+    const n = host().notify;
+    if (n.promise) return n.promise(p, msgs, o);
+    n.info(msgs.loading);
+    p.then((v) => n.success(typeof msgs.success === "function" ? msgs.success(v) : msgs.success), (e) => n.error(typeof msgs.error === "function" ? msgs.error(e) : msgs.error));
+    return p;
+  },
+  /** Đóng một thông báo (theo id) hoặc tất cả. CMS cũ: không làm gì. */
+  dismiss: (id?: number | string) => host().notify.dismiss?.(id),
 };
 
 // Component UI: lấy lười từ host để module plugin có thể được import trước khi render.
@@ -307,6 +327,17 @@ export const CheckboxGroup = ui("CheckboxGroup", (p) => h("div", { role: "group"
   ...p.options.map((o: any) => h(host().ui.Checkbox, { key: o.value, checked: p.value.includes(o.value), label: o.label, description: o.description, disabled: p.disabled || o.disabled,
     onChange: (on: boolean) => p.onChange(on ? [...p.value, o.value] : p.value.filter((v: string) => v !== o.value)) }))));
 
+/** Xác nhận ngay cạnh nút. CMS cũ: bấm nút thì hiện hộp thoại xác nhận (`confirm`) rồi gọi `onConfirm`. */
+export const Popconfirm = ui("Popconfirm", (p) => {
+  const child = p.children;
+  return host().React.cloneElement(child, { onClick: async (e: unknown) => {
+    child.props.onClick?.(e);
+    const msg = typeof p.title === "string" ? p.title : String(p.description ?? "");
+    const ask = host().ui.confirmDialog;
+    const ok = await (ask ? ask(msg, { danger: p.danger, confirmLabel: p.confirmLabel, cancelLabel: p.cancelLabel }) : Promise.resolve(window.confirm(msg)));
+    if (ok) await p.onConfirm(); else p.onCancel?.();
+  } });
+});
 export const UiLabelsProvider = ui("UiLabelsProvider", (p) => h(host().React.Fragment, null, p.children));
 // Bộ layout (CMS ≥ 1.42). CMS cũ: bản đơn giản bằng flex / lưới tự chia — vẫn co giãn được, chỉ không theo mốc khung chứa.
 const gapPx = (g: number = 4) => g * 4;

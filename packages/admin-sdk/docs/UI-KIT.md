@@ -120,6 +120,25 @@ const { data, isFetching, error, refetch } = useQuery({ queryKey: ["orders", t.q
 - Ghim X cột trái / Y cột phải: đặt `pin: "left"` cho một dải cột liên tiếp từ cột đầu và `pin: "right"` cho một dải liên tiếp tới cột cuối; bảng tự đo độ rộng nên không bắt buộc `width`.
 - `rowExpandable={(r) => …}` chỉ cho một số dòng mở rộng; nút ở tiêu đề mở / thu gọn tất cả.
 
+## Thông báo nổi, ngăn trượt, hộp thoại, xác nhận tại chỗ (CMS ≥ 1.42)
+```tsx
+notify.success("Đã lưu", { title: "Đơn #1024", description: "Email xác nhận đã gửi." });
+notify.warning("Tồn kho thấp");                                        // CMS cũ: hiện như thông báo thường
+notify.success("Đã xoá", { action: { label: "Hoàn tác", onClick: undo } });   // chữ ký cũ notify.success(msg, { label, onClick }) vẫn chạy
+notify.info("Ở lại tới khi đóng", { duration: 0 });                    // duration = mili giây, 0 = không tự tắt
+await notify.promise(importProducts(), { loading: "Đang nhập…", success: "Đã nhập xong", error: "Nhập thất bại" });   // một thông báo chuyển từ đang chạy → kết quả
+const t = notify.loading("Đang tải lên…"); … t.success("Xong"); // hoặc t.error(…), t.update(…), t.dismiss(); notify.dismiss() đóng tất cả
+
+<Drawer open={o} onClose={close} title="Chi tiết" size="lg" side="right" mobileSheet>…</Drawer>   // side: right · left · top · bottom; size: sm · md · lg · xl · full
+<Dialog open={o} onClose={close} title="Sửa đơn" size="lg" fullscreenOnMobile>…</Dialog>         // size: sm 400 · md 520 · lg 720 · xl 960 · full
+
+<Popconfirm title="Xoá sản phẩm này?" description="Không thể hoàn tác." danger confirmLabel="Xoá" onConfirm={async () => { await api.remove(id); }}>
+  <Button variant="danger">Xoá</Button>
+</Popconfirm>        // Xác nhận bận tới khi `onConfirm` xong rồi mới đóng; lỗi thì giữ mở. CMS cũ: dùng hộp thoại xác nhận.
+```
+- Thông báo rê chuột vào thì tạm dừng đếm giờ; lỗi đọc ngay (`role="alert"`), còn lại đọc khi rảnh. Trên điện thoại thông báo nằm ở **đầu** màn hình để không che tấm trượt phía dưới.
+- Dùng `Popconfirm` cho xác nhận nhẹ (xoá một dòng); hộp thoại `confirmDialog` cho việc nặng hoặc cần câu giải thích dài.
+
 ## Layout: không tự viết `display:grid` hay media query
 Bộ layout co giãn theo **bề rộng khung chứa** (không theo màn hình), nên đặt trong Drawer / Modal / cột hẹp vẫn đúng. Mốc khung chứa: `sm` ≥ 512px · `md` ≥ 672px · `lg` ≥ 896px; dưới 512px mọi lưới là 1 cột. Cần CMS ≥ 1.42 (`hasUi("Page")`); CMS cũ tự rơi về flex / lưới tự chia.
 ```tsx

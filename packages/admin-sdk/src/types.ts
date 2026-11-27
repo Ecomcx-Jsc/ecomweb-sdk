@@ -195,10 +195,19 @@ export interface FieldTypeDefinition {
 
 export interface DashboardWidget { id: string; title: string; component: ComponentType }
 
+/** Tuỳ chọn của thông báo nổi. `duration` mili giây (`0` = không tự tắt); `id` trùng thì cập nhật thông báo đang có. CMS mới (CMS cũ bỏ qua). */
+export interface NotifyOptions { title?: string; description?: string; action?: { label: string; onClick(): void }; duration?: number; id?: string | number }
+/** Bộ điều khiển của thông báo "đang chạy": chuyển cùng một thông báo sang thành công / lỗi khi xong. */
+export interface LoadingToast { id: number | string; success(message: string, o?: NotifyOptions): void; error(message: string, o?: NotifyOptions): void; update(message: string, o?: NotifyOptions): void; dismiss(): void }
 export interface Notify {
-  success(message: string): void;
-  error(message: string): void;
-  info(message: string): void;
+  success(message: string, o?: NotifyOptions | { label: string; onClick(): void }): void;
+  error(message: string, o?: NotifyOptions | { label: string; onClick(): void }): void;
+  info(message: string, o?: NotifyOptions | { label: string; onClick(): void }): void;
+  /** CMS mới: cảnh báo, đang chạy (`loading`), theo dõi Promise (`promise`), đóng (`dismiss`). */
+  warning?(message: string, o?: NotifyOptions | { label: string; onClick(): void }): void;
+  loading?(message: string, o?: NotifyOptions): LoadingToast;
+  promise?<T>(p: Promise<T>, msgs: { loading: string; success: string | ((v: T) => string); error: string | ((e: unknown) => string) }, o?: NotifyOptions): Promise<T>;
+  dismiss?(id?: number | string): void;
 }
 
 export interface Column<T> {
@@ -529,7 +538,8 @@ export interface UiKit {
   /** CMS mới: `variant` soft · solid · outline, `size` sm · md · lg, `onRemove` (chip có nút gỡ). */
   Badge: ComponentType<{ tone?: "gray" | "green" | "yellow" | "red" | "blue" | "purple"; children: ReactNode; dot?: boolean; variant?: "soft" | "solid" | "outline"; size?: "sm" | "md" | "lg"; onRemove?(): void; labels?: Partial<UiLabels> }>;
   /** Hộp thoại (= Dialog): giữ focus bên trong, Esc / bấm ra ngoài để đóng, trả focus khi đóng. */
-  Modal: ComponentType<{ open: boolean; title: ReactNode; onClose(): void; children: ReactNode; footer?: ReactNode; width?: number; description?: ReactNode; dismissOnBackdrop?: boolean }>;
+  /** Cỡ: `size` sm 400 · md 520 · lg 720 · xl 960 · full (kín màn hình) hoặc `width`; `fullscreenOnMobile` kín màn hình trên điện thoại. CMS mới. */
+  Modal: ComponentType<{ open: boolean; title: ReactNode; onClose(): void; children: ReactNode; footer?: ReactNode; width?: number; size?: "sm" | "md" | "lg" | "xl" | "full"; fullscreenOnMobile?: boolean; description?: ReactNode; dismissOnBackdrop?: boolean }>;
   Spinner: ComponentType<{ className?: string }>;
   EmptyState: ComponentType<{ title: ReactNode; description?: ReactNode; action?: ReactNode; icon?: ReactNode }>;
   MediaPicker: ComponentType<{ value?: { id: number; url: string } | null; onChange(value: { id: number; url: string } | null): void; accept?: string }>;
@@ -562,7 +572,10 @@ export interface UiKit {
 
   // ----- UI kit v2 -----
   Dialog?: UiKit["Modal"];
-  Drawer?: ComponentType<{ open: boolean; title: ReactNode; onClose(): void; children: ReactNode; footer?: ReactNode; width?: number; side?: "left" | "right"; description?: ReactNode }>;
+  /** Ngăn trượt từ `side` (right · left · top · bottom); cỡ `size` sm · md · lg · xl · full hoặc `width`; `mobileSheet`: dưới 640px thành tấm trượt từ dưới lên. CMS mới (CMS cũ chỉ left / right + `width`). */
+  Drawer?: ComponentType<{ open: boolean; title: ReactNode; onClose(): void; children: ReactNode; footer?: ReactNode; width?: number; size?: "sm" | "md" | "lg" | "xl" | "full"; side?: "left" | "right" | "top" | "bottom"; mobileSheet?: boolean; description?: ReactNode }>;
+  /** Bọc một nút: bấm thì hiện hộp nhỏ xác nhận ngay cạnh nút. `onConfirm` trả Promise thì nút Xác nhận bận tới khi xong rồi mới đóng. CMS cũ: dùng hộp thoại `confirm` thay thế. */
+  Popconfirm?: ComponentType<{ title: ReactNode; description?: ReactNode; confirmLabel?: string; cancelLabel?: string; danger?: boolean; onConfirm(): void | Promise<unknown>; onCancel?(): void; children: React.ReactElement; placement?: "top" | "bottom" | "left" | "right"; labels?: Partial<UiLabels> }>;
   Popover?: ComponentType<{ trigger: (p: { open: boolean; toggle(): void }) => ReactNode; children: (close: () => void) => ReactNode; align?: "start" | "end"; className?: string; placement?: Placement }>;
   /** Menu thả xuống chuẩn bàn phím: `trigger` là một phần tử (Button/IconButton). */
   DropdownMenu?: ComponentType<{ trigger: React.ReactElement; children: ReactNode; align?: "start" | "end"; className?: string; placement?: Placement }>;
@@ -698,7 +711,7 @@ export type RichTextToolbar = "basic" | "standard" | "full" | string[] | { prese
  * cho cả một nhánh bằng `UiLabelsProvider`. Chuỗi có `{tên}` (vd `items: "{total} mục"`) được thay giá trị. CMS mới.
  */
 export interface UiLabels {
-  addTag: string; clear: string; close: string; columns: string; confirm: string; confirmTitle: string; density: string; densityComfortable: string; densityCompact: string;
+  addTag: string; cancel: string; clear: string; close: string; columns: string; confirm: string; confirmTitle: string; density: string; densityComfortable: string; densityCompact: string;
   dismiss: string; expandRow: string; collapseRow: string; allMatchingSelected: string; applyFilter: string; clearFilters: string; clearSelection: string; collapseAll: string; expandAll: string; filter: string; filterFrom: string; filterMax: string; filterMin: string; filterTo: string; loadError: string; resetFilter: string; retry: string; selectAllMatching: string; selectedOnPage: string; hidePassword: string; items: string; loading: string; month: string; moreTags: string; next: string; nextMonth: string; noData: string; noMatches: string;
   notifications: string; now: string; ok: string; optional: string; pageN: string; pagination: string; perPage: string; pickDate: string; previous: string; previousMonth: string;
   remove: string; removeTag: string; search: string; selectAll: string; selectRow: string; showPassword: string; tableSettings: string; time: string; today: string; view: string; year: string;
