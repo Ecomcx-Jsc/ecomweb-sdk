@@ -19,7 +19,7 @@ Màu: dùng biến CSS của admin (`var(--app-fg)`, `--app-muted`, `--app-faint
 - **Giá trị:** điều khiển bằng `value` + `onChange(value)` (nhận thẳng giá trị, không nhận sự kiện DOM). Riêng thành phần bọc thẻ gốc (`Input`, `Textarea`) giữ `onChange(event)` như React. `Select` còn `onChange` giả `<select>` chỉ để tương thích code cũ; viết mới dùng `onValueChange`.
 - **Nhãn:** thành phần có chữ (nút, công tắc, ô chọn) nhận chữ qua `children`; `label` / `ariaLabel` chỉ là tên cho trình đọc màn hình khi không có chữ hiện ra.
 - **Bàn phím và đọc màn hình là bắt buộc:** mọi thành phần tương tác có tên, thứ tự Tab hợp lý, phím mũi tên cho danh sách, Escape đóng lớp phủ, focus nhìn thấy được.
-- **Chữ giao diện qua `t()`** (đa ngôn ngữ), không viết cứng.
+- **Chữ giao diện qua `t()`** (đa ngôn ngữ), không viết cứng — kể cả nhãn, tên màu, chữ mẫu của trang danh mục. Lõi có `node scripts/i18n-check.mjs` chặn chữ cứng trong `src/ui/` và `pages/UiKit*`. Nhãn của trình soạn văn bản nằm ở `rich.*` trong `locales/core/*.json` (thêm ngôn ngữ chỉ cần thả một file JSON).
 - **Màu chỉ lấy từ token** (bảng dưới), kích thước theo thang 4px; không hardcode màu hay pixel lạ.
 - **Mỗi component có mặt trong trang danh mục `/admin/ui-kit`** với đủ trạng thái, và có test (`e2e/ui-kit.spec.ts`).
 
