@@ -158,6 +158,20 @@ const t = notify.loading("Đang tải lên…"); … t.success("Xong"); // hoặ
 - Menu chuột phải mở bằng bấm phải, giữ ~0,5 giây trên cảm ứng, hoặc phím Menu / Shift+F10 khi vùng đang có focus.
 - CMS cũ: `MenuSub` / `MenuGroup` hiện các mục liền trong menu cha, `ContextMenu` chỉ hiện nội dung bên trong (dùng `hasUi("MenuSub")` để biết).
 
+## Ô chọn nâng cao (CMS ≥ 1.42)
+```tsx
+<Select value={v} onValueChange={setV} options={fiveThousandOptions} showSearch />           // từ 200 dòng chỉ dựng phần đang nhìn thấy (virtualizeAfter đổi ngưỡng)
+<Select options={colors} value={c} onValueChange={setC}
+  renderOption={(o) => <><Dot color={o.hex} /> {o.label}</>} renderValue={(o) => <><Dot color={o.hex} /> {o.label}</>} />   // vẽ riêng mục và giá trị đang chọn
+<Select options={cats} value={cat} onValueChange={setCat} showSearch
+  onCreate={async (text) => (await api.createCategory(text)).id} />                         // dòng "Tạo 'chữ vừa gõ'" ở cả chọn một lẫn chọn nhiều; trả id mới để tự chọn
+<Select options={page.items} value={v} onValueChange={setV} loading={isFetching} hasMore={hasNext} onLoadMore={fetchNext} />   // tải thêm khi cuộn gần cuối
+<Select variant="borderless" prefix={<Mail />} … />    // borderless (nhúng vào ô bảng) · filled (nền xám)
+```
+Chọn nhiều (`SelectBase mode="multiple"` ở lõi): `selectAll` thêm dòng "Chọn tất cả" (theo chữ đang lọc, tôn trọng `max`); `tagRender={(o, remove) => …}` vẽ riêng thẻ.
+- Danh sách ảo hoá vẫn báo đúng cho trình đọc màn hình (`aria-setsize` / `aria-posinset`), phím Home / End / PageUp / PageDown nhảy qua cả những dòng chưa dựng.
+- Chữ "Tạo …", "Chọn tất cả", "đang tải" đổi được bằng `createLabel`, `labels`, `UiLabelsProvider`.
+
 ## Layout: không tự viết `display:grid` hay media query
 Bộ layout co giãn theo **bề rộng khung chứa** (không theo màn hình), nên đặt trong Drawer / Modal / cột hẹp vẫn đúng. Mốc khung chứa: `sm` ≥ 512px · `md` ≥ 672px · `lg` ≥ 896px; dưới 512px mọi lưới là 1 cột. Cần CMS ≥ 1.42 (`hasUi("Page")`); CMS cũ tự rơi về flex / lưới tự chia.
 ```tsx

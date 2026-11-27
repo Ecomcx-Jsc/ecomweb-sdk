@@ -503,6 +503,12 @@ export interface UiKit {
   Select: ComponentType<Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "size"> & {
     options: SelectOption[]; onValueChange?(v: string): void; size?: "sm" | "md" | "lg"; status?: "error" | "warning"; loading?: boolean; allowClear?: boolean;
     showSearch?: boolean | "auto"; onSearch?(q: string): void; notFound?: ReactNode; footer?: ReactNode; filterOption?(q: string, o: SelectOption): boolean; labels?: Partial<UiLabels>;
+    /** CMS mới: kiểu khung `outlined` · `borderless` · `filled`; `prefix` biểu tượng bên trái; `renderOption` / `renderValue` vẽ riêng mục và giá trị đang chọn. */
+    variant?: "outlined" | "borderless" | "filled"; prefix?: ReactNode; renderOption?(o: SelectOption, state: { selected: boolean; active: boolean }): ReactNode; renderValue?(o: SelectOption): ReactNode;
+    /** Dòng "Tạo 'chữ vừa gõ'": gọi khi chọn tạo mới, trả về giá trị của mục mới (có thể là Promise — tạo ở máy chủ rồi trả `id`). */
+    onCreate?(text: string): string | void | Promise<string | void>; createLabel?(text: string): ReactNode;
+    /** Danh sách rất dài: chỉ dựng phần đang nhìn thấy từ số dòng này (mặc định 200). `onLoadMore` + `hasMore`: tải thêm khi cuộn gần cuối. */
+    virtualizeAfter?: number; onLoadMore?(): void; hasMore?: boolean;
   }>;
   /** `ariaLabel` khi không có nhãn hiện; `indeterminate` = chọn một phần. */
   Checkbox: ComponentType<{ checked: boolean; onChange(checked: boolean): void; label?: ReactNode; disabled?: boolean; description?: ReactNode; ariaLabel?: string; indeterminate?: boolean }>;
