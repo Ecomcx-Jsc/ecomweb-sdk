@@ -617,6 +617,26 @@ export interface UiKit {
    * Thứ tự ưu tiên: prop `labels` của component → provider gần nhất → file ngôn ngữ của lõi. CMS cũ: chỉ hiện nội dung bên trong, không đổi chữ.
    */
   UiLabelsProvider?: ComponentType<{ labels: Partial<UiLabels>; children: ReactNode }>;
+  /** Ảnh đại diện: ảnh `src`, lỗi / không có thì chữ cái đầu của `name` trên nền màu cố định theo tên; `status` thêm chấm trạng thái. CMS mới. */
+  Avatar?: ComponentType<{ src?: string | null; name?: string; size?: "xs" | "sm" | "md" | "lg" | "xl"; shape?: "circle" | "square"; status?: "online" | "offline" | "busy" | "away"; icon?: ReactNode; className?: string }>;
+  /** Nhiều ảnh đại diện chồng nhau; quá `max` thì gộp "+N". CMS mới. */
+  AvatarGroup?: ComponentType<{ items: Array<{ src?: string | null; name?: string }>; max?: number; size?: "xs" | "sm" | "md" | "lg" | "xl" }>;
+  /** Đường dẫn trang; mục cuối là trang hiện tại; quá `maxItems` (mặc định 5) thì mục giữa gộp vào nút "…". CMS mới. */
+  Breadcrumb?: ComponentType<{ items: BreadcrumbItem[]; maxItems?: number; labels?: Partial<UiLabels> }>;
+  /** Các mục gập / mở: `type` single (mặc định) · multiple; `value` / `defaultValue` luôn là mảng; ↑ ↓ Home End giữa các tiêu đề. CMS cũ: `<details>`. */
+  Accordion?: ComponentType<{ items: AccordionItem[]; type?: "single" | "multiple"; value?: string[]; defaultValue?: string[]; onValueChange?(v: string[]): void; collapsible?: boolean; className?: string }>;
+  /** Các bước của quy trình; `current` (từ 0); `onChange` biến bước đã qua thành nút quay lại; khung < 512px tự xếp dọc. CMS mới. */
+  Steps?: ComponentType<{ items: StepItem[]; current: number; onChange?(i: number): void; orientation?: "horizontal" | "vertical" }>;
+  /** Đường kẻ phân cách, có thể kèm chữ ở giữa; `orientation="vertical"` cho thanh công cụ. */
+  Divider?: ComponentType<{ label?: ReactNode; orientation?: "horizontal" | "vertical"; className?: string }>;
+  /** Nút sao chép `value` vào clipboard (tick ~1,5 giây, báo cho trình đọc màn hình). CMS mới. */
+  CopyButton?: ComponentType<{ value: string; size?: "icon" | "sm" | "md"; variant?: "ghost" | "secondary"; label?: ReactNode; labels?: Partial<UiLabels>; className?: string }>;
+  /** Khối mã (không tô màu cú pháp): nút sao chép, số dòng, `maxHeight`. CMS mới. */
+  CodeBlock?: ComponentType<{ code: string; language?: string; copyable?: boolean; wrap?: boolean; lineNumbers?: boolean; maxHeight?: number; className?: string }>;
+  /** Thanh trượt chọn một số: phím mũi tên theo `step`, PageUp / PageDown 10%, Home / End; bấm hoặc kéo. CMS mới; CMS cũ: `<input type="range">`. */
+  Slider?: ComponentType<{ value: number; onChange(v: number): void; min?: number; max?: number; step?: number; disabled?: boolean; ariaLabel?: string; showValue?: boolean; format?(v: number): string; marks?: Array<{ value: number; label?: ReactNode }>; className?: string }>;
+  /** Thanh trượt chọn khoảng `[từ, đến]` (hai núm không vượt qua nhau). CMS mới. */
+  RangeSlider?: ComponentType<{ value: [number, number]; onChange(v: [number, number]): void; min?: number; max?: number; step?: number; disabled?: boolean; ariaLabel?: string; showValue?: boolean; format?(v: number): string; marks?: Array<{ value: number; label?: ReactNode }>; className?: string }>;
   /** Nhóm ô tích: `value` là danh sách giá trị đang chọn. */
   CheckboxGroup?: ComponentType<{ value: string[]; onChange(v: string[]): void; options: Array<{ value: string; label: ReactNode; description?: ReactNode; disabled?: boolean }>; direction?: "vertical" | "horizontal"; ariaLabel?: string; disabled?: boolean }>;
   /** Chọn một trong danh sách dài, gõ để lọc (không dấu). `onSearch` để tải gợi ý từ máy chủ. */
@@ -734,10 +754,14 @@ export type RichTextToolbar = "basic" | "standard" | "full" | string[] | { prese
  */
 export interface UiLabels {
   addTag: string; cancel: string; clear: string; close: string; columns: string; confirm: string; confirmTitle: string; density: string; densityComfortable: string; densityCompact: string;
-  hour: string; minute: string; pickRange: string; pickTime: string; yesterday: string; last7Days: string; last30Days: string; thisMonth: string; lastMonth: string; rangeHint: string; dismiss: string; expandRow: string; collapseRow: string; allMatchingSelected: string; applyFilter: string; clearFilters: string; clearSelection: string; collapseAll: string; expandAll: string; filter: string; filterFrom: string; filterMax: string; filterMin: string; filterTo: string; loadError: string; resetFilter: string; retry: string; selectAllMatching: string; selectedOnPage: string; hidePassword: string; items: string; loading: string; month: string; moreTags: string; next: string; nextMonth: string; noData: string; noMatches: string;
+  breadcrumb: string; copied: string; copy: string; moreItems: string; hour: string; minute: string; pickRange: string; pickTime: string; yesterday: string; last7Days: string; last30Days: string; thisMonth: string; lastMonth: string; rangeHint: string; dismiss: string; expandRow: string; collapseRow: string; allMatchingSelected: string; applyFilter: string; clearFilters: string; clearSelection: string; collapseAll: string; expandAll: string; filter: string; filterFrom: string; filterMax: string; filterMin: string; filterTo: string; loadError: string; resetFilter: string; retry: string; selectAllMatching: string; selectedOnPage: string; hidePassword: string; items: string; loading: string; month: string; moreTags: string; next: string; nextMonth: string; noData: string; noMatches: string;
   notifications: string; now: string; ok: string; optional: string; pageN: string; pagination: string; perPage: string; pickDate: string; previous: string; previousMonth: string;
   remove: string; removeTag: string; search: string; selectAll: string; selectRow: string; showPassword: string; tableSettings: string; time: string; today: string; view: string; year: string;
 }
+
+export interface BreadcrumbItem { label: ReactNode; href?: string; onClick?(): void }
+export interface AccordionItem { value: string; title: ReactNode; content: ReactNode; disabled?: boolean; icon?: ReactNode }
+export interface StepItem { title: ReactNode; description?: ReactNode; status?: "done" | "current" | "upcoming" | "error"; icon?: ReactNode }
 
 /** Khoảng cách của bộ layout: 0 · 1 · 2 · 3 · 4 · 6 · 8 (đơn vị 4px). */
 export type LayoutGap = 0 | 1 | 2 | 3 | 4 | 6 | 8;

@@ -351,6 +351,24 @@ export const TimePicker = ui("TimePicker", (p) => h("input", { type: "time", val
 export const DateRangePicker = ui("DateRangePicker", (p) => h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
   h(host().ui.DatePicker, { value: p.value?.from ?? null, max: p.value?.to ?? p.max, min: p.min, ariaLabel: p.ariaLabel, disabled: p.disabled, onChange: (v: string | null) => p.onChange({ from: v, to: p.value?.to ?? null }) }),
   h(host().ui.DatePicker, { value: p.value?.to ?? null, min: p.value?.from ?? p.min, max: p.max, disabled: p.disabled, onChange: (v: string | null) => p.onChange({ from: p.value?.from ?? null, to: v }) })));
+// Thành phần hiển thị / tiện ích (CMS mới). CMS cũ: bản gần đúng bằng thẻ gốc của trình duyệt, không mất nội dung.
+const ini = (n?: string) => { const w = (n ?? "").trim().split(/\s+/).filter(Boolean); return w.length === 0 ? "" : (w.length === 1 ? w[0].slice(0, 2) : w[0][0] + w[w.length - 1][0]).toUpperCase(); };
+const dim = { xs: 20, sm: 24, md: 32, lg: 40, xl: 56 } as const;
+const fbAvatar = (p: any) => p.src ? h("img", { src: p.src, alt: p.name ?? "", style: { width: dim[p.size as keyof typeof dim] ?? 32, height: dim[p.size as keyof typeof dim] ?? 32, borderRadius: p.shape === "square" ? 6 : "50%", objectFit: "cover" } })
+  : h("span", { role: "img", "aria-label": p.name, style: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: dim[p.size as keyof typeof dim] ?? 32, height: dim[p.size as keyof typeof dim] ?? 32, borderRadius: p.shape === "square" ? 6 : "50%", background: "var(--app-accent-soft, #eee)", fontSize: 12 } }, ini(p.name));
+export const Avatar = ui("Avatar", fbAvatar);
+export const AvatarGroup = ui("AvatarGroup", (p) => h("div", { role: "group", style: { display: "flex", gap: 4 } }, ...p.items.slice(0, p.max ?? 4).map((a: any, i: number) => h(Avatar as any, { key: i, ...a, size: p.size })), p.items.length > (p.max ?? 4) ? h("span", null, `+${p.items.length - (p.max ?? 4)}`) : null));
+export const Breadcrumb = ui("Breadcrumb", (p) => h("nav", { "aria-label": "Breadcrumb" }, h("ol", { style: { display: "flex", gap: 6, listStyle: "none", padding: 0, margin: 0, flexWrap: "wrap" } },
+  ...p.items.map((it: any, i: number) => h("li", { key: i }, i === p.items.length - 1 ? h("span", { "aria-current": "page" }, it.label) : it.href ? h("a", { href: it.href, onClick: it.onClick ? (e: any) => { e.preventDefault(); it.onClick(); } : undefined }, it.label) : h("span", null, it.label), i < p.items.length - 1 ? " / " : null)))));
+export const Accordion = ui("Accordion", (p) => h("div", { className: p.className }, ...p.items.map((it: any) => h("details", { key: it.value, open: (p.value ?? p.defaultValue ?? []).includes(it.value) }, h("summary", null, it.title), h("div", null, it.content)))));
+export const Steps = ui("Steps", (p) => h("ol", { style: { display: "flex", gap: 12, listStyle: "none", padding: 0, flexWrap: "wrap" } }, ...p.items.map((it: any, i: number) => h("li", { key: i, "aria-current": i === p.current ? "step" : undefined, style: { fontWeight: i === p.current ? 600 : 400 } }, `${i + 1}. `, it.title))));
+export const Divider = ui("Divider", (p) => (p.orientation === "vertical" ? h("span", { role: "separator", "aria-orientation": "vertical", style: { display: "inline-block", width: 1, height: 16, background: "var(--app-border, #ddd)", margin: "0 4px" } }) : h("hr", { className: p.className })));
+export const CopyButton = ui("CopyButton", (p) => h(host().ui.Button, { onClick: () => navigator.clipboard?.writeText(p.value), "aria-label": "Copy" }, p.label ?? "Copy"));
+export const CodeBlock = ui("CodeBlock", (p) => h("pre", { className: p.className, style: { overflow: "auto", maxHeight: p.maxHeight, whiteSpace: p.wrap ? "pre-wrap" : "pre" } }, h("code", null, p.code)));
+export const Slider = ui("Slider", (p) => h("input", { type: "range", value: p.value, min: p.min ?? 0, max: p.max ?? 100, step: p.step ?? 1, disabled: p.disabled, "aria-label": p.ariaLabel, onChange: (e: any) => p.onChange(Number(e.target.value)) }));
+export const RangeSlider = ui("RangeSlider", (p) => h("div", { style: { display: "flex", gap: 8 } },
+  h("input", { type: "range", value: p.value[0], min: p.min ?? 0, max: p.value[1], step: p.step ?? 1, "aria-label": p.ariaLabel, onChange: (e: any) => p.onChange([Number(e.target.value), p.value[1]]) }),
+  h("input", { type: "range", value: p.value[1], min: p.value[0], max: p.max ?? 100, step: p.step ?? 1, "aria-label": p.ariaLabel, onChange: (e: any) => p.onChange([p.value[0], Number(e.target.value)]) })));
 export const UiLabelsProvider = ui("UiLabelsProvider", (p) => h(host().React.Fragment, null, p.children));
 // Bộ layout (CMS ≥ 1.42). CMS cũ: bản đơn giản bằng flex / lưới tự chia — vẫn co giãn được, chỉ không theo mốc khung chứa.
 const gapPx = (g: number = 4) => g * 4;

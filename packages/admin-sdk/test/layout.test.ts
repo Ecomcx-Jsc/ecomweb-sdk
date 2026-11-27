@@ -122,3 +122,31 @@ test("useTableState: CMS có hook thì dùng đúng hook của host, truyền ng
     assert.deepEqual(seen, [{ url: "orders", pageSize: 10 }]);
   });
 });
+
+// ---- Hiển thị / tiện ích: Avatar, Breadcrumb, Accordion, Slider… ----
+
+test("CMS có Avatar / Slider: dùng đúng component của host", async () => {
+  const { Avatar, Slider } = await import("../src/index");
+  const A = () => null, S = () => null;
+  withHost({ Avatar: A, Slider: S }, () => {
+    assert.equal(hasUi("Avatar"), true);
+    assert.equal(((Avatar as any)({ name: "An" }) as { type: unknown }).type, A);
+    assert.equal(((Slider as any)({ value: 3, onChange() {} }) as { type: unknown }).type, S);
+  });
+});
+
+test("CMS cũ: Avatar rơi về chữ cái đầu, Slider là <input type=range>, Breadcrumb đánh dấu trang hiện tại, Accordion là <details>", async () => {
+  const { Avatar, Slider, Breadcrumb, Accordion } = await import("../src/index");
+  withHost({}, () => {
+    assert.equal(hasUi("Avatar"), false);
+    const av = render((Avatar as any)({ name: "Nguyễn Văn An" })) as { props: { children: unknown[] } };
+    assert.deepEqual(av.props.children, ["NA"]);
+    let got = -1;
+    const sl = render((Slider as any)({ value: 5, min: 0, max: 10, onChange: (v: number) => { got = v; } })) as { type: string; props: { type: string; onChange(e: unknown): void } };
+    assert.equal(sl.type, "input"); assert.equal(sl.props.type, "range"); sl.props.onChange({ target: { value: "7" } }); assert.equal(got, 7);
+    const bc = render((Breadcrumb as any)({ items: [{ label: "A", href: "#" }, { label: "B" }] })) as { type: string };
+    assert.equal(bc.type, "nav");
+    const ac = render((Accordion as any)({ items: [{ value: "a", title: "T", content: "C" }], defaultValue: ["a"] })) as { props: { children: Array<{ type: string; props: { open: boolean } }> } };
+    assert.equal(ac.props.children[0].type, "details"); assert.equal(ac.props.children[0].props.open, true);
+  });
+});

@@ -189,6 +189,21 @@ Chọn nhiều (`SelectBase mode="multiple"` ở lõi): `selectAll` thêm dòng 
 - `TimePicker`: ↑ ↓ trong cột, ← → sang cột kia, Enter chọn; chọn phút thì đóng.
 - CMS cũ: `TimePicker` là `<input type="time">`, `DateRangePicker` là hai ô `DatePicker`; `loading` / `disabledDate` / `onMonthChange` không có tác dụng.
 
+## Hiển thị và tiện ích (CMS ≥ 1.42)
+```tsx
+<Avatar name="Nguyễn Văn An" src={user.avatar} size="lg" status="online" />   // ảnh lỗi / không có → chữ cái đầu "NA" trên nền màu cố định theo tên
+<AvatarGroup items={members} max={4} />                                        // "+2" khi quá max
+<Breadcrumb items={[{ label: "Sản phẩm", href: "/admin/products" }, { label: "Giày", onClick: goShoes }, { label: "Chi tiết" }]} />   // mục cuối = trang hiện tại; quá 5 mục thì gộp vào "…"
+<Accordion items={[{ value: "ship", title: "Vận chuyển", content: "…" }]} type="multiple" defaultValue={["ship"]} />   // ↑ ↓ Home End giữa các tiêu đề; mục đóng không nhận focus
+<Steps current={1} onChange={goto} items={[{ title: "Giỏ hàng" }, { title: "Giao hàng", description: "Chọn cách giao" }, { title: "Xem lại", status: "error" }]} />
+<Divider label="hoặc" />   <Divider orientation="vertical" />
+<CopyButton value={apiKey} size="sm" />   <CodeBlock code={curl} language="bash" lineNumbers maxHeight={240} />
+<Slider ariaLabel="Âm lượng" value={v} onChange={setV} step={5} showValue marks={[{ value: 0, label: "0" }, { value: 100, label: "100" }]} />
+<RangeSlider ariaLabel="Giá" value={[200, 800]} onChange={setRange} min={0} max={1000} step={50} format={(n) => `${n}k`} />
+```
+- Mọi component đọc màu từ token nên tự theo bảng màu và chế độ tối. `CodeBlock` không tô màu cú pháp.
+- CMS cũ: `Avatar` rơi về chữ cái đầu, `Accordion` là `<details>`, `Slider` là `<input type="range">`, `Breadcrumb` / `Steps` là danh sách thường (dùng `hasUi("Avatar")` để biết).
+
 ## Layout: không tự viết `display:grid` hay media query
 Bộ layout co giãn theo **bề rộng khung chứa** (không theo màn hình), nên đặt trong Drawer / Modal / cột hẹp vẫn đúng. Mốc khung chứa: `sm` ≥ 512px · `md` ≥ 672px · `lg` ≥ 896px; dưới 512px mọi lưới là 1 cột. Cần CMS ≥ 1.42 (`hasUi("Page")`); CMS cũ tự rơi về flex / lưới tự chia.
 ```tsx
