@@ -38,6 +38,29 @@ Quy ước chung cho thành phần có trạng thái bận:
 ## Token (hợp đồng công khai)
 Biến CSS `--app-*` đổi theo chế độ sáng/tối; lớp Tailwind tương ứng: `bg-bg` `bg-panel` `bg-subtle` `bg-hover` `border-line` (`--app-border`) `border-line-strong` `text-fg` `text-muted` `text-faint` `bg-accent` `bg-accent-soft` `text-accent` `text-brand` `bg-danger` `text-success` `text-warning`. Chuyển động: `--ease-out`, `--dur-1/2/3`, tự tắt khi người dùng chọn giảm chuyển động. Xem toàn bộ, kèm chế độ tối, ở `/admin/ui-kit`.
 
+## Form và phản hồi (CMS ≥ 1.42)
+```tsx
+import { Alert, Badge, Button, CheckboxGroup, Field, Input, Progress, SearchInput, Switch, Tabs, Textarea } from "@ecomcx/ecomweb-admin-sdk";
+
+<Field label="Tên" required error={errors.name}><Input status={errors.name ? "error" : undefined} showCount maxLength={80} clearable /></Field>
+<Field label="Giá"><Input suffix="₫" inputMode="numeric" /></Field>
+<Field label="Mật khẩu"><Input type="password" revealable /></Field>
+<Field label="Mô tả" optional><Textarea autosize={{ minRows: 3, maxRows: 8 }} showCount maxLength={500} /></Field>
+<Field label="Kênh bán" layout="horizontal"><CheckboxGroup value={ch} onChange={setCh} options={[{ value: "web", label: "Website" }]} /></Field>
+<SearchInput placeholder="Tìm đơn hàng…" onChange={(e) => setQ(e.target.value)} />
+
+<Button variant="primary" onClick={async () => { await save(); }}>Lưu</Button>   {/* tự bận (spinner, khoá bấm) tới khi save() xong */}
+<Button variant="soft" size="lg">…</Button>  <Button variant="link" href="/admin/orders">Xem đơn</Button>  <Button size="icon" aria-label="Cài đặt"><Cog /></Button>
+<Switch checked={on} onChange={toggle} loading={busy}>Cho phép đặt trước</Switch>   {/* có children thì hiện nhãn */}
+<Badge tone="green" variant="solid" size="sm">Đang bán</Badge>  <Badge onRemove={() => remove(tag)}>{tag}</Badge>
+<Tabs variant="pills" value={tab} onChange={setTab} items={[{ value: "all", label: "Tất cả", count: 12 }, { value: "x", label: "Đã huỷ", disabled: true }]} />
+<Alert tone="warning" title="Sắp hết hàng" action={<Button size="sm">Nhập thêm</Button>}>3 sản phẩm dưới ngưỡng.</Alert>
+<Progress value={64} label="Nhập dữ liệu" showValue />   <Progress indeterminate label="Đang chuẩn bị…" />
+```
+- Không dùng tính năng thêm thì `Input` / `Textarea` vẫn chỉ là một thẻ gốc (mọi thuộc tính HTML chạy tiếp).
+- `status="error"` hoặc `<Field error>` đều đặt `aria-invalid`; `status="warning"` chỉ đổi viền (không chặn gửi).
+- CMS cũ chưa có: `hasUi("Alert")`; SDK tự dựng bản đơn giản cho `Alert`, `Progress`, `SearchInput`, `CheckboxGroup`, `SkeletonText`. Biến thể và cỡ mới của `Button`, `Badge`, `Tabs`… sẽ không có tác dụng.
+
 ## Layout: không tự viết `display:grid` hay media query
 Bộ layout co giãn theo **bề rộng khung chứa** (không theo màn hình), nên đặt trong Drawer / Modal / cột hẹp vẫn đúng. Mốc khung chứa: `sm` ≥ 512px · `md` ≥ 672px · `lg` ≥ 896px; dưới 512px mọi lưới là 1 cột. Cần CMS ≥ 1.42 (`hasUi("Page")`); CMS cũ tự rơi về flex / lưới tự chia.
 ```tsx

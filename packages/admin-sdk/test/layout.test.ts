@@ -51,3 +51,40 @@ test("CMS cũ: Page theo width, SplitView và Toolbar vẫn dựng đủ nội d
     assert.equal(st.type, "div");
   });
 });
+
+// ---- Nền tảng form + phản hồi (Alert, Progress, SearchInput, CheckboxGroup, SkeletonText) ----
+
+test("CMS có Alert / Progress: dùng đúng component của host, giữ nguyên props", async () => {
+  const { Alert, Progress, CheckboxGroup } = await import("../src/index");
+  const A = () => null, P = () => null;
+  withHost({ Alert: A, Progress: P }, () => {
+    assert.equal(hasUi("Alert"), true);
+    const a = (Alert as any)({ tone: "danger", title: "Lỗi" }) as { type: unknown; props: { tone: string } };
+    assert.equal(a.type, A); assert.equal(a.props.tone, "danger");
+    const p = (Progress as any)({ value: 40 }) as { type: unknown; props: { value: number } };
+    assert.equal(p.type, P); assert.equal(p.props.value, 40);
+    assert.equal(typeof CheckboxGroup, "function");
+  });
+});
+
+test("CMS cũ: Alert báo đúng role, Progress là <progress>, CheckboxGroup tự thêm / bớt giá trị", async () => {
+  const { Alert, Progress, CheckboxGroup, SkeletonText } = await import("../src/index");
+  const Checkbox = () => null;
+  withHost({ Checkbox, Input: () => null }, () => {
+    assert.equal(hasUi("Alert"), false);
+    assert.equal(render((Alert as any)({ tone: "danger", children: "x" })).props.role, "alert");
+    assert.equal(render((Alert as any)({ tone: "info", children: "x" })).props.role, "status");
+    const bar = render((Progress as any)({ value: 30, label: "Tải lên" }));
+    const progress = (bar.props.children as any[]).find((c) => c?.type === "progress");
+    assert.equal(progress.props.value, 30); assert.equal(progress.props["aria-label"], "Tải lên");
+    const indet = render((Progress as any)({ indeterminate: true, value: 30 }));
+    assert.equal((indet.props.children as any[]).find((c) => c?.type === "progress").props.value, undefined);
+    let got: string[] = [];
+    const g = render((CheckboxGroup as any)({ value: ["a"], onChange: (v: string[]) => { got = v; }, options: [{ value: "a", label: "A" }, { value: "b", label: "B" }] }));
+    const boxes = g.props.children as any[];
+    assert.equal(boxes.length, 2); assert.equal(boxes[0].props.checked, true); assert.equal(boxes[1].props.checked, false);
+    boxes[1].props.onChange(true); assert.deepEqual(got, ["a", "b"]);
+    boxes[0].props.onChange(false); assert.deepEqual(got, []);
+    assert.equal((render((SkeletonText as any)({ lines: 4 })).props.children as any[]).length, 4);
+  });
+});

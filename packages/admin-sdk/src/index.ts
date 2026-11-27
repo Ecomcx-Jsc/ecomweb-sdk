@@ -296,6 +296,17 @@ export const ContentEditor = ui("ContentEditor", () => null);
 export const RichTextEditor = ui("RichTextEditor", (p) => h(host().ui.Textarea, { value: p.value ?? "", rows: 8, onChange: (e: any) => p.onChange(e.target.value), disabled: p.readOnly, "aria-label": p.ariaLabel }));
 /** Host có sẵn thành phần UI này chưa (CMS cũ thì chưa): để plugin chọn ô nhập dự phòng thay vì bản rút gọn của SDK. */
 export const hasUi = (name: keyof import("./types").UiKit) => !!host().ui[name];
+// Nền tảng form + phản hồi. CMS cũ: bản đơn giản bằng thẻ gốc, không mất nội dung.
+export const Alert = ui("Alert", (p) => h("div", { role: p.tone === "danger" || p.tone === "warning" ? "alert" : "status", className: p.className, style: { padding: 12, borderRadius: 8, border: "1px solid var(--app-border, #ddd)", background: "var(--app-subtle, #f5f5f5)", fontSize: 13 } },
+  p.title ? h("div", { style: { fontWeight: 600 } }, p.title) : null, p.children, p.action ? h("div", { style: { marginTop: 8 } }, p.action) : null));
+export const Progress = ui("Progress", (p) => h("div", null, p.label ? h("div", { style: { fontSize: 12 } }, p.label) : null,
+  h("progress", { max: p.max ?? 100, value: p.indeterminate ? undefined : p.value, "aria-label": p.ariaLabel ?? (typeof p.label === "string" ? p.label : undefined), style: { width: "100%" } })));
+export const SearchInput = ui("SearchInput", (p) => h(host().ui.Input, { type: "search", ...p }));
+export const SkeletonText = ui("SkeletonText", (p) => h("div", { "aria-hidden": true }, ...Array.from({ length: p.lines ?? 3 }, (_: unknown, i: number) => h("div", { key: i, style: { height: 12, margin: "6px 0", width: i === (p.lines ?? 3) - 1 ? "60%" : "100%", background: "var(--app-hover, #eee)", borderRadius: 4 } }))));
+export const CheckboxGroup = ui("CheckboxGroup", (p) => h("div", { role: "group", "aria-label": p.ariaLabel, style: { display: "flex", flexDirection: p.direction === "horizontal" ? "row" : "column", flexWrap: "wrap", gap: 8 } },
+  ...p.options.map((o: any) => h(host().ui.Checkbox, { key: o.value, checked: p.value.includes(o.value), label: o.label, description: o.description, disabled: p.disabled || o.disabled,
+    onChange: (on: boolean) => p.onChange(on ? [...p.value, o.value] : p.value.filter((v: string) => v !== o.value)) }))));
+
 // Bộ layout (CMS ≥ 1.42). CMS cũ: bản đơn giản bằng flex / lưới tự chia — vẫn co giãn được, chỉ không theo mốc khung chứa.
 const gapPx = (g: number = 4) => g * 4;
 export const Stack = ui("Stack", (p) => h("div", { className: p.className, style: { display: "flex", flexDirection: "column", gap: gapPx(p.gap), minWidth: 0 } }, p.children));
