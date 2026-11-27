@@ -582,6 +582,17 @@ export interface UiKit {
   MenuItem?: ComponentType<{ icon?: ReactNode; children: ReactNode; onClick?(): void; danger?: boolean; shortcut?: ReactNode; disabled?: boolean; keepOpen?: boolean }>;
   MenuSeparator?: ComponentType<{}>;
   MenuLabel?: ComponentType<{ children: ReactNode }>;
+  /** Mục bật / tắt trong menu (dấu tick). Mặc định đóng menu sau khi chọn; `keepOpen` để chọn nhiều mục liền nhau. CMS mới. */
+  MenuCheckboxItem?: ComponentType<{ checked: boolean; onCheckedChange(v: boolean): void; children: ReactNode; icon?: ReactNode; disabled?: boolean; keepOpen?: boolean }>;
+  /** Nhóm chọn một trong menu: các `MenuRadioItem` bên trong; `label` là tiêu đề nhóm. CMS mới. */
+  MenuRadioGroup?: ComponentType<{ value: string; onValueChange(v: string): void; label?: ReactNode; children: ReactNode }>;
+  MenuRadioItem?: ComponentType<{ value: string; children: ReactNode; icon?: ReactNode; disabled?: boolean; keepOpen?: boolean }>;
+  /** Gom các mục dưới một tiêu đề (đọc là nhóm). CMS mới. */
+  MenuGroup?: ComponentType<{ label: ReactNode; children: ReactNode }>;
+  /** Menu con: mục có mũi tên mở menu thứ hai bên cạnh (→ / Enter mở, ← / Esc đóng, rê chuột cũng mở); lồng được nhiều cấp. CMS cũ: các mục con hiện liền ngay trong menu cha. */
+  MenuSub?: ComponentType<{ label: ReactNode; icon?: ReactNode; children: ReactNode; disabled?: boolean }>;
+  /** Menu chuột phải: bọc vùng cần menu; bấm phải, giữ ~0,5 giây trên cảm ứng, hoặc phím Menu / Shift+F10. CMS cũ: chỉ hiện nội dung bên trong, không có menu. */
+  ContextMenu?: ComponentType<{ menu: ReactNode; children: ReactNode; disabled?: boolean; className?: string }>;
   /** Chú thích khi rê chuột / focus bàn phím; con phải nhận focus được. */
   Tooltip?: ComponentType<{ content: ReactNode; children: React.ReactElement; placement?: Placement; delay?: number }>;
   Skeleton?: ComponentType<{ className?: string; circle?: boolean }>;

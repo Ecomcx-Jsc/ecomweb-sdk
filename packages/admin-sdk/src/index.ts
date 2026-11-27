@@ -269,6 +269,13 @@ export const DropdownMenu = ui("DropdownMenu");
 export const MenuItem = ui("MenuItem");
 export const MenuSeparator = ui("MenuSeparator", () => null);
 export const MenuLabel = ui("MenuLabel");
+// Menu nâng cao (CMS mới). CMS cũ: bản gần đúng dựng từ MenuItem / MenuLabel, không mất chức năng chọn.
+export const MenuCheckboxItem = ui("MenuCheckboxItem", (p) => h(host().ui.MenuItem, { onClick: () => p.onCheckedChange(!p.checked), icon: p.icon, disabled: p.disabled, keepOpen: p.keepOpen }, `${p.checked ? "✓ " : ""}`, p.children));
+export const MenuRadioGroup = ui("MenuRadioGroup", (p) => h(host().React.Fragment, null, p.label ? h(host().ui.MenuLabel, null, p.label) : null, p.children));
+export const MenuRadioItem = ui("MenuRadioItem", (p) => h(host().ui.MenuItem, { icon: p.icon, disabled: p.disabled, keepOpen: p.keepOpen }, p.children));
+export const MenuGroup = ui("MenuGroup", (p) => h(host().React.Fragment, null, h(host().ui.MenuLabel, null, p.label), p.children));
+export const MenuSub = ui("MenuSub", (p) => h(host().React.Fragment, null, h(host().ui.MenuLabel, null, p.label), p.children));
+export const ContextMenu = ui("ContextMenu", (p) => h(host().React.Fragment, null, p.children));
 export const Tooltip = ui("Tooltip", (p) => p.children);
 export const Skeleton = ui("Skeleton", (p) => h("div", { className: p.className }));
 export const Combobox = ui("Combobox", (p) => h(host().ui.Select, {

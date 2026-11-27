@@ -139,6 +139,25 @@ const t = notify.loading("Đang tải lên…"); … t.success("Xong"); // hoặ
 - Thông báo rê chuột vào thì tạm dừng đếm giờ; lỗi đọc ngay (`role="alert"`), còn lại đọc khi rảnh. Trên điện thoại thông báo nằm ở **đầu** màn hình để không che tấm trượt phía dưới.
 - Dùng `Popconfirm` cho xác nhận nhẹ (xoá một dòng); hộp thoại `confirmDialog` cho việc nặng hoặc cần câu giải thích dài.
 
+## Menu nâng cao (CMS ≥ 1.42)
+```tsx
+<DropdownMenu trigger={<Button>Hành động</Button>}>
+  <MenuGroup label="Đơn hàng"><MenuItem onClick={edit}>Sửa</MenuItem><MenuItem onClick={dup}>Nhân bản</MenuItem></MenuGroup>
+  <MenuSeparator />
+  <MenuCheckboxItem checked={showImages} onCheckedChange={setShowImages}>Hiện ảnh</MenuCheckboxItem>   {/* keepOpen: giữ menu mở để chọn tiếp */}
+  <MenuRadioGroup label="Sắp xếp theo" value={sort} onValueChange={setSort}>
+    <MenuRadioItem value="newest">Mới nhất</MenuRadioItem><MenuRadioItem value="oldest">Cũ nhất</MenuRadioItem>
+  </MenuRadioGroup>
+  <MenuSub label="Chia sẻ"><MenuItem onClick={copy}>Sao chép liên kết</MenuItem><MenuSub label="Thêm"><MenuItem>Xuất CSV</MenuItem></MenuSub></MenuSub>
+  <MenuItem danger onClick={remove}>Xoá</MenuItem>
+</DropdownMenu>
+
+<ContextMenu menu={<><MenuItem onClick={edit}>Sửa</MenuItem><MenuItem danger onClick={remove}>Xoá</MenuItem></>}><Card>Bấm chuột phải vào đây</Card></ContextMenu>
+```
+- Phím: ↑ ↓ Home End di chuyển, gõ chữ đầu để nhảy; **→** hoặc Enter mở menu con và focus mục đầu, **←** đóng menu con và trả focus về mục, **Esc** chỉ đóng cấp trên cùng. Bấm ra ngoài đóng tất cả các cấp. Chọn một mục (kể cả mục ở menu con) đóng cả menu.
+- Menu chuột phải mở bằng bấm phải, giữ ~0,5 giây trên cảm ứng, hoặc phím Menu / Shift+F10 khi vùng đang có focus.
+- CMS cũ: `MenuSub` / `MenuGroup` hiện các mục liền trong menu cha, `ContextMenu` chỉ hiện nội dung bên trong (dùng `hasUi("MenuSub")` để biết).
+
 ## Layout: không tự viết `display:grid` hay media query
 Bộ layout co giãn theo **bề rộng khung chứa** (không theo màn hình), nên đặt trong Drawer / Modal / cột hẹp vẫn đúng. Mốc khung chứa: `sm` ≥ 512px · `md` ≥ 672px · `lg` ≥ 896px; dưới 512px mọi lưới là 1 cột. Cần CMS ≥ 1.42 (`hasUi("Page")`); CMS cũ tự rơi về flex / lưới tự chia.
 ```tsx
