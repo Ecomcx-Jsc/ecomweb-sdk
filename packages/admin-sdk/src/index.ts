@@ -292,6 +292,12 @@ export const SortableHandle = ui("SortableHandle", () => null);
 export const DropZone = ui("DropZone", () => null);
 export const Lightbox = ui("Lightbox", () => null);
 export const ContentEditor = ui("ContentEditor", () => null);
+/** Ô nhập HTML dùng chung. CMS cũ chưa có thì hiện ô văn bản thô (sửa thẳng HTML) để không mất dữ liệu. */
+export const RichTextEditor = ui("RichTextEditor", (p) => h(host().ui.Textarea, { value: p.value ?? "", rows: 8, onChange: (e: any) => p.onChange(e.target.value), disabled: p.readOnly, "aria-label": p.ariaLabel }));
+/** Host có sẵn thành phần UI này chưa (CMS cũ thì chưa): để plugin chọn ô nhập dự phòng thay vì bản rút gọn của SDK. */
+export const hasUi = (name: keyof import("./types").UiKit) => !!host().ui[name];
+/** Thêm nút vào thanh công cụ của RichTextEditor. CMS cũ: không làm gì, trả hàm rỗng. */
+export const registerRichTextButton = (button: import("./types").RichTextButton): (() => void) => host().registerRichTextButton?.(button) ?? (() => {});
 export const TreeSelect = ui("TreeSelect", () => null);
 export const ActivityLog = ui("ActivityLog", () => null);
 /** Cảnh báo khi đóng tab / bấm link nội bộ lúc `dirty`. CMS cũ: chỉ cảnh báo khi đóng tab. */

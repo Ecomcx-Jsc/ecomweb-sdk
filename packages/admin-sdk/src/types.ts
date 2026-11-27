@@ -560,6 +560,13 @@ export interface UiKit {
    * CMS ≥ 1.40.
    */
   ContentEditor?: ComponentType<{ id: string | number; value: unknown; onChange(content: unknown): void; height?: number; kind?: string; className?: string }>;
+  /**
+   * Trình soạn văn bản HTML dùng chung (ProseMirror): vào / ra là chuỗi HTML đã lọc. `toolbar` chọn nút: mức dựng sẵn
+   * `"basic"` | `"standard"` | `"full"`, danh sách id nút (`"|"` ngăn nhóm), hoặc `{ preset, add, remove, more }`. Plugin thêm nút
+   * bằng `registerRichTextButton` rồi đưa id vào `toolbar`. Giá trị đổi từ ngoài (đổi ngôn ngữ, nạp lại) được nạp vào mà không mất con trỏ
+   * khi chính trình soạn vừa phát ra. CMS ≥ 1.41. Bản cũ hơn: dùng `hasUi("RichTextEditor")` để chọn ô nhập dự phòng.
+   */
+  RichTextEditor?: ComponentType<RichTextEditorProps>;
   /** Hộp xem ảnh / phát video phóng to: ← → chuyển, Esc đóng. CMS ≥ 1.40. */
   Lightbox?: ComponentType<{ items: LightboxItem[]; index: number; onClose(): void; onIndex(i: number): void }>;
   /** Chọn nhiều trong cây (danh mục), có ô tìm. */
@@ -574,6 +581,34 @@ export interface UiKit {
   alertDialog?: (message: ReactNode, opts?: AskOptions) => Promise<void>;
 }
 
+/** Nút thanh công cụ của `RichTextEditor` do plugin thêm (`registerRichTextButton`). `view` / `state` là EditorView / EditorState của ProseMirror. */
+export interface RichTextButton {
+  id: string;
+  title: string;
+  /** Biểu tượng React, hoặc một ký tự / chữ ngắn. */
+  icon: ReactNode;
+  run(ctx: { view: any; state: any }): void;
+  isActive?(ctx: { view: any; state: any }): boolean;
+  isEnabled?(ctx: { view: any; state: any }): boolean;
+}
+
+export type RichTextToolbar = "basic" | "standard" | "full" | string[] | { preset?: "basic" | "standard" | "full"; add?: string[]; remove?: string[]; more?: string[] };
+
+export interface RichTextEditorProps {
+  /** HTML. Trống = "". */
+  value: string;
+  onChange(html: string): void;
+  toolbar?: RichTextToolbar;
+  placeholder?: string;
+  minHeight?: number;
+  maxHeight?: number;
+  readOnly?: boolean;
+  ariaLabel?: string;
+  className?: string;
+  /** Hiện số từ / ký tự dưới vùng soạn (mặc định có). */
+  showCount?: boolean;
+}
+
 export interface CmsAdmin {
   version: string;
   React: typeof import("react");
@@ -583,6 +618,8 @@ export interface CmsAdmin {
   ui: UiKit;
   hooks: AdminHookRegistry;
   registerPage(page: AdminPage): void;
+  /** Thêm nút vào thanh công cụ của `RichTextEditor` (CMS ≥ 1.41). Trả hàm gỡ. */
+  registerRichTextButton?(button: RichTextButton): () => void;
   registerMetaBox(box: MetaBox): void;
   /** Sidebar riêng trong trình soạn bài. */
   registerEditorSidebar?(sidebar: EditorSidebar): void;
